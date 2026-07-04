@@ -1,0 +1,611 @@
+export type Signal = "positive" | "negative" | "neutral";
+export type RiskLevel = "Low" | "Moderate" | "High";
+
+export type Company = {
+  symbol: string;
+  exchange: string;
+  name: string;
+  sector: string;
+  marketCap: string; // "₹1.84L Cr" — display string
+  marketCapCr: number; // numeric, for slider filtering
+  price: number;
+  changePct: number;
+
+  // Fundamentals
+  pe: number;
+  pb: number;
+  peg: number;
+  roe: number;
+  roce: number;
+  epsGrowthPct: number;
+  salesGrowthPct: number;
+  profitGrowthPct: number;
+  debtToEquity: number;
+  currentRatio: number;
+  divYield: number;
+  promoterHoldingPct: number;
+  fiiHoldingPct: number;
+  diiHoldingPct: number;
+
+  // Technicals
+  rsi: number;
+  aboveEma200: boolean;
+  aboveEma50: boolean;
+  volumeBreakout: boolean;
+
+  // Scores (0-100), computed — see data-layer/ingest/compute_scores.py
+  fundamentalScore: number;
+  technicalScore: number;
+  overallScore: number;
+
+  // Discovery metadata
+  riskLevel: RiskLevel;
+  expectedReturnPct: number;
+  investmentHorizonMonths: number;
+
+  verdict: "Strong Conviction" | "Watch" | "Under Review" | "Pass";
+  rationale: string;
+  spark: number[];
+
+  // Deep research extras
+  pros: string[];
+  cons: string[];
+  shareholdingTrend: { quarter: string; promoter: number; fii: number; dii: number; public: number }[];
+  quarterlyFinancials: { quarter: string; revenueCr: number; netProfitCr: number; ebitdaMarginPct: number }[];
+};
+
+export const companies: Record<string, Company> = {
+  POLYCAB: {
+    symbol: "POLYCAB",
+    exchange: "NSE",
+    name: "Polycab India",
+    sector: "Cables & FMEG",
+    marketCap: "₹98,420 Cr",
+    marketCapCr: 98420,
+    price: 6540.2,
+    changePct: 1.42,
+    pe: 48.1,
+    pb: 9.8,
+    peg: 1.6,
+    roe: 22.4,
+    roce: 27.8,
+    epsGrowthPct: 24.1,
+    salesGrowthPct: 18.4,
+    profitGrowthPct: 26.2,
+    debtToEquity: 0.12,
+    currentRatio: 1.9,
+    divYield: 0.4,
+    promoterHoldingPct: 63.2,
+    fiiHoldingPct: 18.6,
+    diiHoldingPct: 9.4,
+    rsi: 64,
+    aboveEma200: true,
+    aboveEma50: true,
+    volumeBreakout: true,
+    fundamentalScore: 84,
+    technicalScore: 78,
+    overallScore: 81,
+    riskLevel: "Moderate",
+    expectedReturnPct: 22,
+    investmentHorizonMonths: 9,
+    verdict: "Strong Conviction",
+    rationale:
+      "Q2 EBITDA margin expanded 240bps YoY to 14.8% driven by softening commodity prices and better product mix in the wires segment.",
+    spark: [40, 42, 41, 45, 48, 47, 52, 56, 58, 61, 64, 68, 72, 74, 78],
+    pros: [
+      "EBITDA margin expanding for three consecutive quarters",
+      "FMEG segment scaling faster than the core wires business",
+      "Promoter holding stable above 63% with no pledge",
+    ],
+    cons: [
+      "Valuation at 48x trailing earnings leaves little room for a miss",
+      "Copper and aluminium price volatility remains a margin swing factor",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 63.2, fii: 18.6, dii: 9.4, public: 8.8 },
+      { quarter: "Q2FY25", promoter: 63.2, fii: 17.9, dii: 9.1, public: 9.8 },
+      { quarter: "Q1FY25", promoter: 63.4, fii: 17.2, dii: 8.6, public: 10.8 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 4120, netProfitCr: 312, ebitdaMarginPct: 12.1 },
+      { quarter: "Q2FY25", revenueCr: 4480, netProfitCr: 356, ebitdaMarginPct: 13.4 },
+      { quarter: "Q3FY25", revenueCr: 4890, netProfitCr: 398, ebitdaMarginPct: 14.8 },
+    ],
+  },
+  TATAMOTORS: {
+    symbol: "TATAMOTORS",
+    exchange: "NSE",
+    name: "Tata Motors",
+    sector: "Automobiles",
+    marketCap: "₹2,84,120 Cr",
+    marketCapCr: 284120,
+    price: 782.55,
+    changePct: -0.62,
+    pe: 12.3,
+    pb: 3.4,
+    peg: 0.7,
+    roe: 18.9,
+    roce: 21.4,
+    epsGrowthPct: 16.8,
+    salesGrowthPct: 9.2,
+    profitGrowthPct: 19.6,
+    debtToEquity: 0.42,
+    currentRatio: 1.1,
+    divYield: 0.3,
+    promoterHoldingPct: 42.6,
+    fiiHoldingPct: 16.8,
+    diiHoldingPct: 19.2,
+    rsi: 52,
+    aboveEma200: true,
+    aboveEma50: false,
+    volumeBreakout: false,
+    fundamentalScore: 76,
+    technicalScore: 58,
+    overallScore: 68,
+    riskLevel: "Moderate",
+    expectedReturnPct: 16,
+    investmentHorizonMonths: 12,
+    verdict: "Watch",
+    rationale:
+      "JLR order book remains robust at 168k units; deleveraging ahead of schedule with net debt reduction of ₹2,400cr this quarter.",
+    spark: [60, 62, 61, 58, 60, 63, 66, 65, 68, 70, 69, 72, 74, 73, 76],
+    pros: [
+      "Net auto debt reduction ahead of management's own schedule",
+      "JLR order book provides revenue visibility into next year",
+      "PEG under 1 despite double-digit profit growth",
+    ],
+    cons: [
+      "Still consolidating below the 50-day average",
+      "China EV demand softness is a swing factor for JLR volumes",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 42.6, fii: 16.8, dii: 19.2, public: 21.4 },
+      { quarter: "Q2FY25", promoter: 42.6, fii: 16.1, dii: 18.4, public: 22.9 },
+      { quarter: "Q1FY25", promoter: 42.6, fii: 15.4, dii: 17.8, public: 24.2 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 105200, netProfitCr: 3420, ebitdaMarginPct: 11.8 },
+      { quarter: "Q2FY25", revenueCr: 108900, netProfitCr: 3810, ebitdaMarginPct: 12.4 },
+      { quarter: "Q3FY25", revenueCr: 112400, netProfitCr: 4090, ebitdaMarginPct: 12.9 },
+    ],
+  },
+  HAL: {
+    symbol: "HAL",
+    exchange: "NSE",
+    name: "Hindustan Aeronautics",
+    sector: "Defence",
+    marketCap: "₹3,12,400 Cr",
+    marketCapCr: 312400,
+    price: 4670.1,
+    changePct: 2.14,
+    pe: 34.7,
+    pb: 7.9,
+    peg: 1.1,
+    roe: 27.1,
+    roce: 32.6,
+    epsGrowthPct: 29.4,
+    salesGrowthPct: 21.8,
+    profitGrowthPct: 31.2,
+    debtToEquity: 0.02,
+    currentRatio: 2.4,
+    divYield: 0.7,
+    promoterHoldingPct: 71.6,
+    fiiHoldingPct: 9.8,
+    diiHoldingPct: 12.4,
+    rsi: 71,
+    aboveEma200: true,
+    aboveEma50: true,
+    volumeBreakout: true,
+    fundamentalScore: 90,
+    technicalScore: 85,
+    overallScore: 88,
+    riskLevel: "Moderate",
+    expectedReturnPct: 28,
+    investmentHorizonMonths: 12,
+    verdict: "Strong Conviction",
+    rationale:
+      "Stock clearing a 14-month base on 2.5x average weekly volume. Sector tailwinds in defence manufacturing providing structural support.",
+    spark: [30, 32, 35, 34, 38, 42, 45, 48, 52, 55, 60, 66, 72, 78, 84],
+    pros: [
+      "Order backlog provides revenue visibility to FY30",
+      "Zero-debt balance sheet with ROCE above 32%",
+      "Clearing a 14-month base on 2.5x average volume",
+    ],
+    cons: [
+      "RSI at 71 signals near-term overbought conditions",
+      "Execution risk on Tejas Mk1A delivery timelines",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 71.6, fii: 9.8, dii: 12.4, public: 6.2 },
+      { quarter: "Q2FY25", promoter: 71.6, fii: 9.1, dii: 11.8, public: 7.5 },
+      { quarter: "Q1FY25", promoter: 71.6, fii: 8.4, dii: 11.2, public: 8.8 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 6200, netProfitCr: 1480, ebitdaMarginPct: 28.4 },
+      { quarter: "Q2FY25", revenueCr: 6840, netProfitCr: 1690, ebitdaMarginPct: 29.6 },
+      { quarter: "Q3FY25", revenueCr: 7420, netProfitCr: 1920, ebitdaMarginPct: 31.1 },
+    ],
+  },
+  ZOMATO: {
+    symbol: "ZOMATO",
+    exchange: "NSE",
+    name: "Zomato",
+    sector: "Consumer Internet",
+    marketCap: "₹1,64,800 Cr",
+    marketCapCr: 164800,
+    price: 187.4,
+    changePct: 0.34,
+    pe: 62.5,
+    pb: 6.2,
+    peg: 1.8,
+    roe: 8.4,
+    roce: 9.6,
+    epsGrowthPct: 38.2,
+    salesGrowthPct: 42.6,
+    profitGrowthPct: 51.4,
+    debtToEquity: 0.02,
+    currentRatio: 3.1,
+    divYield: 0,
+    promoterHoldingPct: 0,
+    fiiHoldingPct: 45.8,
+    diiHoldingPct: 22.4,
+    rsi: 48,
+    aboveEma200: true,
+    aboveEma50: false,
+    volumeBreakout: false,
+    fundamentalScore: 62,
+    technicalScore: 54,
+    overallScore: 58,
+    riskLevel: "High",
+    expectedReturnPct: 24,
+    investmentHorizonMonths: 12,
+    verdict: "Under Review",
+    rationale:
+      "Blinkit contribution margin turning positive. Technical consolidation near 50DMA suggests a low-risk entry point for long-term holders.",
+    spark: [50, 55, 58, 60, 62, 60, 58, 62, 64, 62, 60, 63, 65, 64, 66],
+    pros: [
+      "Blinkit contribution margin turned positive this quarter",
+      "Revenue growth accelerating above 40% YoY",
+      "No promoter overhang or pledge — professionally run",
+    ],
+    cons: [
+      "ROE still under 10%, well below profitable-scale peers",
+      "Quick-commerce competitive intensity remains high",
+      "No dividend — pure growth bet, higher risk profile",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 0, fii: 45.8, dii: 22.4, public: 31.8 },
+      { quarter: "Q2FY25", promoter: 0, fii: 44.2, dii: 21.6, public: 34.2 },
+      { quarter: "Q1FY25", promoter: 0, fii: 42.9, dii: 20.8, public: 36.3 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 4850, netProfitCr: 98, ebitdaMarginPct: 2.4 },
+      { quarter: "Q2FY25", revenueCr: 5320, netProfitCr: 142, ebitdaMarginPct: 3.6 },
+      { quarter: "Q3FY25", revenueCr: 5940, netProfitCr: 186, ebitdaMarginPct: 4.8 },
+    ],
+  },
+  TATAELXSI: {
+    symbol: "TATAELXSI",
+    exchange: "NSE",
+    name: "Tata Elxsi",
+    sector: "IT Services",
+    marketCap: "₹48,900 Cr",
+    marketCapCr: 48900,
+    price: 7845.0,
+    changePct: 3.42,
+    pe: 58.2,
+    pb: 14.6,
+    peg: 1.4,
+    roe: 34.5,
+    roce: 41.2,
+    epsGrowthPct: 32.6,
+    salesGrowthPct: 24.8,
+    profitGrowthPct: 34.1,
+    debtToEquity: 0,
+    currentRatio: 2.8,
+    divYield: 1.1,
+    promoterHoldingPct: 43.9,
+    fiiHoldingPct: 21.6,
+    diiHoldingPct: 14.2,
+    rsi: 68,
+    aboveEma200: true,
+    aboveEma50: true,
+    volumeBreakout: true,
+    fundamentalScore: 88,
+    technicalScore: 82,
+    overallScore: 85,
+    riskLevel: "Moderate",
+    expectedReturnPct: 26,
+    investmentHorizonMonths: 9,
+    verdict: "Strong Conviction",
+    rationale:
+      "EV software design wins accelerating; order book at record ₹8,400cr with margin resilience despite wage hikes.",
+    spark: [42, 44, 46, 48, 47, 50, 54, 58, 62, 66, 70, 74, 78, 82, 86],
+    pros: [
+      "Record order book of ₹8,400cr in EV and medical software design",
+      "ROCE above 40% with zero debt",
+      "Margins holding despite sector-wide wage inflation",
+    ],
+    cons: [
+      "Valuation at 58x prices in continued execution",
+      "Client concentration in auto/medical verticals",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 43.9, fii: 21.6, dii: 14.2, public: 20.3 },
+      { quarter: "Q2FY25", promoter: 43.9, fii: 20.8, dii: 13.6, public: 21.7 },
+      { quarter: "Q1FY25", promoter: 43.9, fii: 19.9, dii: 12.8, public: 23.4 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 890, netProfitCr: 178, ebitdaMarginPct: 26.4 },
+      { quarter: "Q2FY25", revenueCr: 942, netProfitCr: 196, ebitdaMarginPct: 27.8 },
+      { quarter: "Q3FY25", revenueCr: 1012, netProfitCr: 218, ebitdaMarginPct: 28.9 },
+    ],
+  },
+  PIIND: {
+    symbol: "PIIND",
+    exchange: "NSE",
+    name: "PI Industries",
+    sector: "Specialty Chemicals",
+    marketCap: "₹58,200 Cr",
+    marketCapCr: 58200,
+    price: 3840.0,
+    changePct: -1.12,
+    pe: 36.8,
+    pb: 6.4,
+    peg: 1.9,
+    roe: 19.2,
+    roce: 22.8,
+    epsGrowthPct: 14.2,
+    salesGrowthPct: 12.6,
+    profitGrowthPct: 15.8,
+    debtToEquity: 0.04,
+    currentRatio: 3.4,
+    divYield: 0.3,
+    promoterHoldingPct: 46.2,
+    fiiHoldingPct: 19.4,
+    diiHoldingPct: 11.8,
+    rsi: 41,
+    aboveEma200: false,
+    aboveEma50: false,
+    volumeBreakout: false,
+    fundamentalScore: 71,
+    technicalScore: 44,
+    overallScore: 58,
+    riskLevel: "Moderate",
+    expectedReturnPct: 15,
+    investmentHorizonMonths: 12,
+    verdict: "Watch",
+    rationale:
+      "CSM order book at 18-month high with new pharma vertical taking off. Near-term margins under pressure from raw material costs.",
+    spark: [70, 68, 65, 66, 64, 62, 60, 62, 63, 60, 58, 60, 62, 61, 63],
+    pros: [
+      "CSM order book at an 18-month high",
+      "New pharma CDMO vertical scaling from a low base",
+      "Balance sheet carries almost no debt",
+    ],
+    cons: [
+      "Trading below both the 50 and 200-day averages",
+      "Raw material cost pressure compressing near-term margins",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 46.2, fii: 19.4, dii: 11.8, public: 22.6 },
+      { quarter: "Q2FY25", promoter: 46.2, fii: 20.1, dii: 11.2, public: 22.5 },
+      { quarter: "Q1FY25", promoter: 46.2, fii: 20.8, dii: 10.6, public: 22.4 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 1980, netProfitCr: 312, ebitdaMarginPct: 21.2 },
+      { quarter: "Q2FY25", revenueCr: 2040, netProfitCr: 318, ebitdaMarginPct: 20.6 },
+      { quarter: "Q3FY25", revenueCr: 2110, netProfitCr: 322, ebitdaMarginPct: 19.8 },
+    ],
+  },
+  TRENT: {
+    symbol: "TRENT",
+    exchange: "NSE",
+    name: "Trent Ltd",
+    sector: "Retail",
+    marketCap: "₹1,42,100 Cr",
+    marketCapCr: 142100,
+    price: 3995.0,
+    changePct: 1.85,
+    pe: 152.3,
+    pb: 28.4,
+    peg: 2.1,
+    roe: 18.7,
+    roce: 23.4,
+    epsGrowthPct: 44.2,
+    salesGrowthPct: 38.6,
+    profitGrowthPct: 46.8,
+    debtToEquity: 0.08,
+    currentRatio: 1.6,
+    divYield: 0.1,
+    promoterHoldingPct: 36.4,
+    fiiHoldingPct: 24.8,
+    diiHoldingPct: 13.6,
+    rsi: 74,
+    aboveEma200: true,
+    aboveEma50: true,
+    volumeBreakout: true,
+    fundamentalScore: 79,
+    technicalScore: 88,
+    overallScore: 83,
+    riskLevel: "High",
+    expectedReturnPct: 30,
+    investmentHorizonMonths: 12,
+    verdict: "Strong Conviction",
+    rationale:
+      "Westside SSSG at 20%+ for third straight quarter. Zudio scaling faster than management guidance with best-in-class inventory turns.",
+    spark: [45, 48, 52, 55, 58, 62, 65, 68, 72, 75, 78, 82, 85, 88, 92],
+    pros: [
+      "Westside same-store sales growth above 20% for three straight quarters",
+      "Zudio store additions ahead of management's own guidance",
+      "Best-in-class inventory turns versus retail peers",
+    ],
+    cons: [
+      "PE of 152x prices in years of flawless execution",
+      "RSI at 74 — extended, limited near-term margin of safety",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 36.4, fii: 24.8, dii: 13.6, public: 25.2 },
+      { quarter: "Q2FY25", promoter: 36.4, fii: 23.6, dii: 12.9, public: 27.1 },
+      { quarter: "Q1FY25", promoter: 36.4, fii: 22.4, dii: 12.1, public: 29.1 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 3420, netProfitCr: 268, ebitdaMarginPct: 15.8 },
+      { quarter: "Q2FY25", revenueCr: 3780, netProfitCr: 312, ebitdaMarginPct: 16.9 },
+      { quarter: "Q3FY25", revenueCr: 4210, netProfitCr: 368, ebitdaMarginPct: 18.1 },
+    ],
+  },
+  HDFCBANK: {
+    symbol: "HDFCBANK",
+    exchange: "NSE",
+    name: "HDFC Bank",
+    sector: "Private Banks",
+    marketCap: "₹12,84,000 Cr",
+    marketCapCr: 1284000,
+    price: 1685.3,
+    changePct: 0.28,
+    pe: 18.4,
+    pb: 2.8,
+    peg: 1.3,
+    roe: 16.8,
+    roce: 14.2,
+    epsGrowthPct: 11.4,
+    salesGrowthPct: 13.6,
+    profitGrowthPct: 12.8,
+    debtToEquity: 0.68,
+    currentRatio: 1.05,
+    divYield: 1.2,
+    promoterHoldingPct: 0,
+    fiiHoldingPct: 47.6,
+    diiHoldingPct: 32.8,
+    rsi: 55,
+    aboveEma200: true,
+    aboveEma50: false,
+    volumeBreakout: false,
+    fundamentalScore: 68,
+    technicalScore: 52,
+    overallScore: 60,
+    riskLevel: "Low",
+    expectedReturnPct: 13,
+    investmentHorizonMonths: 12,
+    verdict: "Under Review",
+    rationale:
+      "Merger integration progressing but LDR remains elevated. Waiting for Q3 update on deposit mobilisation before conviction call.",
+    spark: [60, 62, 61, 60, 62, 61, 63, 62, 61, 60, 62, 61, 63, 62, 64],
+    pros: [
+      "Largest private bank by balance sheet with stable asset quality",
+      "Merger cost synergies still to play out fully",
+      "Consistent dividend payer with low earnings volatility",
+    ],
+    cons: [
+      "LDR remains elevated post-merger, capping near-term margin expansion",
+      "Deposit mobilisation pace hasn't matched loan book growth",
+    ],
+    shareholdingTrend: [
+      { quarter: "Q3FY25", promoter: 0, fii: 47.6, dii: 32.8, public: 19.6 },
+      { quarter: "Q2FY25", promoter: 0, fii: 48.1, dii: 32.1, public: 19.8 },
+      { quarter: "Q1FY25", promoter: 0, fii: 48.6, dii: 31.4, public: 20.0 },
+    ],
+    quarterlyFinancials: [
+      { quarter: "Q1FY25", revenueCr: 71200, netProfitCr: 16200, ebitdaMarginPct: 0 },
+      { quarter: "Q2FY25", revenueCr: 73800, netProfitCr: 16800, ebitdaMarginPct: 0 },
+      { quarter: "Q3FY25", revenueCr: 76400, netProfitCr: 17400, ebitdaMarginPct: 0 },
+    ],
+  },
+};
+
+export const discoverGroups = [
+  {
+    id: "fundamentals",
+    label: "Improving Fundamentals",
+    tagline: "Companies where the numbers turned a corner this quarter.",
+    symbols: ["POLYCAB", "TATAMOTORS", "TRENT"],
+  },
+  {
+    id: "technicals",
+    label: "Technical Momentum",
+    tagline: "Clean breakouts and healthy accumulation zones.",
+    symbols: ["HAL", "ZOMATO"],
+  },
+  {
+    id: "smallcap",
+    label: "Small & Mid Cap Watch",
+    tagline: "Under-covered names with institutional footprints forming.",
+    symbols: ["TATAELXSI", "PIIND"],
+  },
+  {
+    id: "news",
+    label: "In the News",
+    tagline: "Companies moving on real narrative, not noise.",
+    symbols: ["HDFCBANK", "TATAMOTORS"],
+  },
+] as const;
+
+export const pipeline = [
+  {
+    stage: "Watching",
+    color: "neutral" as const,
+    items: [
+      { symbol: "HDFCBANK", note: "Waiting for Q3 update", ago: "4h ago" },
+      { symbol: "PIIND", note: "Neutral technicals", ago: "1d ago" },
+    ],
+  },
+  {
+    stage: "Researching",
+    color: "amber" as const,
+    items: [
+      { symbol: "POLYCAB", note: "Building thesis on FMEG scale", ago: "2h ago" },
+    ],
+  },
+  {
+    stage: "Conviction",
+    color: "positive" as const,
+    items: [
+      { symbol: "TRENT", note: "Thesis: Westside scalability", ago: "5d ago" },
+      { symbol: "HAL", note: "Thesis: Defence CAPEX cycle", ago: "1w ago" },
+    ],
+  },
+];
+
+export const sectorPulse = [
+  {
+    sector: "Defence",
+    sentiment: "Bullish" as const,
+    reason: "Order backlogs extending to FY30 across majors, budget allocation up YoY",
+    topSymbols: ["HAL"],
+  },
+  {
+    sector: "IT Services",
+    sentiment: "Positive" as const,
+    reason: "EV and product-engineering design wins offsetting slower core IT spend",
+    topSymbols: ["TATAELXSI"],
+  },
+  {
+    sector: "Private Banks",
+    sentiment: "Neutral" as const,
+    reason: "Merger integration and deposit mobilisation still working through",
+    topSymbols: ["HDFCBANK"],
+  },
+  {
+    sector: "Retail",
+    sentiment: "Bullish" as const,
+    reason: "Premiumisation and value-fashion formats both scaling ahead of guidance",
+    topSymbols: ["TRENT"],
+  },
+] as const;
+
+export const marketContext = [
+  { label: "NIFTY 50", value: "22,842", change: "+0.41%", tone: "positive" as const },
+  { label: "NIFTY MIDCAP 100", value: "50,124", change: "+0.86%", tone: "positive" as const },
+  { label: "USD / INR", value: "83.24", change: "−0.08%", tone: "neutral" as const },
+  { label: "India VIX", value: "11.24", change: "−2.10%", tone: "positive" as const },
+  { label: "10Y G-Sec", value: "7.08%", change: "+2bps", tone: "neutral" as const },
+];
+
+export function getCompany(symbol: string): Company | undefined {
+  return companies[symbol.toUpperCase()];
+}
+
+export function listCompanies(): Company[] {
+  return Object.values(companies);
+}
