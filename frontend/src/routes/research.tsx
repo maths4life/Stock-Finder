@@ -1,12 +1,33 @@
-import { createFileRoute, Link, Outlet, useRouterState } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
-import { listCompanies } from "@/lib/mock-data";
-import { Sparkline } from "@/components/Sparkline";
+import { createFileRoute, Outlet, useRouterState } from "@tanstack/react-router";
+import { useState } from "react";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
+import { SearchInput } from "@/components/common/SearchInput";
+import { CompanyRow } from "@/components/company/CompanyRow";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { CompanyRowListSkeleton } from "@/components/common/Skeletons";
+import { Pagination } from "@/components/common/Pagination";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useCompanies } from "@/hooks/useCompanies";
+import { useDebouncedValue } from "@/hooks/useDebouncedValue";
+import { fetchCompanies } from "@/lib/api/companies";
+import { queryKeys } from "@/hooks/queryKeys";
+import { SearchX } from "lucide-react";
+import type { CompanySort } from "@/lib/api/types";
+
+const PAGE_SIZE = 8;
+const DEFAULT_PARAMS = { sort: "overallScore" as CompanySort, sortDirection: "desc" as const, page: 1, pageSize: PAGE_SIZE };
 
 export const Route = createFileRoute("/research")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: queryKeys.companies.list(DEFAULT_PARAMS),
+      queryFn: () => fetchCompanies(DEFAULT_PARAMS),
+    }),
   head: () => ({
     meta: [
-      { title: "Research — Quant Terminal" },
+      { title: "Research — Quant" },
       { name: "description", content: "Deep, calm research briefings on Indian companies." },
     ],
   }),
@@ -20,36 +41,80 @@ function ResearchLayout() {
 }
 
 function ResearchIndex() {
-  const companies = listCompanies();
+  const [search, setSearch] = useState("");
+  const [sort, setSort] = useState<CompanySort>("overallScore");
+  const [page, setPage] = useState(1);
+  const debouncedSearch = useDebouncedValue(search, 250);
+
+  const query = useCompanies({
+    search: debouncedSearch,
+    sort,
+    sortDirection: "desc",
+    page,
+    pageSize: PAGE_SIZE,
+  });
+  const results = query.data?.items ?? [];
+
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto px-6 py-12 pb-32">
-        <header className="mb-12 animate-fade-up">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-subtle mb-3">Research library</p>
-          <h1 className="font-serif text-5xl leading-none text-balance max-w-[24ch]">
-            Every company, understood in a minute.
-          </h1>
-        </header>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
-          {companies.map((c) => (
-            <Link
-              key={c.symbol}
-              to="/research/$symbol"
-              params={{ symbol: c.symbol }}
-              className="group grid grid-cols-[1fr_auto] gap-6 py-5 hairline-b hover:bg-secondary/40 -mx-3 px-3 rounded-md transition-colors"
-            >
-              <div>
-                <div className="flex items-baseline gap-3">
-                  <span className="font-serif text-2xl text-ink group-hover:text-accent transition-colors">{c.name}</span>
-                  <span className="font-mono text-[11px] text-ink-subtle">{c.symbol}</span>
-                </div>
-                <p className="text-sm text-ink-muted mt-1 line-clamp-2 leading-snug">{c.rationale}</p>
-                <p className="text-[11px] text-ink-subtle mt-2 uppercase tracking-widest">{c.sector}</p>
-              </div>
-              <Sparkline data={c.spark} tone={c.changePct >= 0 ? "positive" : "negative"} width={80} height={40} />
-            </Link>
-          ))}
+      <div className="max-w-7xl mx-auto px-6 py-12 pb-24">
+        <PageHeader
+          eyebrow="Research library"
+          title="Every company, understood in a minute."
+          className="mb-10"
+        />
+
+        <div className="flex flex-col sm:flex-row gap-3 mb-8">
+          <SearchInput
+            value={search}
+            onChange={(v) => {
+              setSearch(v);
+              setPage(1);
+            }}
+            placeholder="Search by name or ticker…"
+            className="flex-1"
+          />
+          <Select value={sort} onValueChange={(v) => setSort(v as CompanySort)}>
+            <SelectTrigger className="w-full sm:w-56">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="overallScore">Sort: Overall score</SelectItem>
+              <SelectItem value="name">Sort: Name (A–Z)</SelectItem>
+              <SelectItem value="changePct">Sort: Day change</SelectItem>
+              <SelectItem value="marketCapCr">Sort: Market cap</SelectItem>
+              <SelectItem value="pe">Sort: P/E</SelectItem>
+            </SelectContent>
+          </Select>
         </div>
+
+        {query.isPending && <CompanyRowListSkeleton count={PAGE_SIZE} />}
+
+        {query.isError && <ErrorState description="Couldn't load the research library." onRetry={() => query.refetch()} />}
+
+        {query.isSuccess && results.length === 0 && (
+          <EmptyState icon={SearchX} title="No companies match" description="Try a different name or ticker." />
+        )}
+
+        {query.isSuccess && results.length > 0 && (
+          <>
+            <div>
+              {results.map((c) => (
+                <CompanyRow key={c.symbol} company={c} />
+              ))}
+            </div>
+            {query.data && query.data.totalPages > 1 && (
+              <Pagination
+                className="mt-6"
+                page={query.data.page}
+                totalPages={query.data.totalPages}
+                total={query.data.total}
+                pageSize={query.data.pageSize}
+                onPageChange={setPage}
+              />
+            )}
+          </>
+        )}
       </div>
     </AppShell>
   );

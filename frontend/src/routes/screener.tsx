@@ -1,22 +1,26 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/AppShell";
-import { Sparkline } from "@/components/Sparkline";
-import { listCompanies, type Company, type RiskLevel } from "@/lib/mock-data";
+import { createFileRoute } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
 import { Sparkles, SlidersHorizontal, RotateCcw } from "lucide-react";
+import { AppShell } from "@/components/layout/AppShell";
+import { PageHeader } from "@/components/common/PageHeader";
+import { StatMetric } from "@/components/common/StatMetric";
+import { Sparkline } from "@/components/common/Sparkline";
+import { VerdictBadge } from "@/components/common/Badge";
+import { EmptyState } from "@/components/common/EmptyState";
+import { ErrorState } from "@/components/common/ErrorState";
+import { CompanyRowListSkeleton } from "@/components/common/Skeletons";
+import { Pagination } from "@/components/common/Pagination";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useAllCompanies, useCompanies } from "@/hooks/useCompanies";
+import { fetchCompanies } from "@/lib/api/companies";
+import { queryKeys } from "@/hooks/queryKeys";
+import type { Company, CompanyQueryParams, RiskLevel } from "@/lib/api/types";
+import { Link } from "@tanstack/react-router";
+import { SearchX } from "lucide-react";
 
-export const Route = createFileRoute("/screener")({
-  head: () => ({
-    meta: [
-      { title: "Screener — Quant Terminal" },
-      { name: "description", content: "Filter on fundamentals and technicals. See only what qualifies." },
-    ],
-  }),
-  component: Screener,
-});
+const PAGE_SIZE = 6;
 
 type FilterState = {
   sector: string;
@@ -31,7 +35,7 @@ type FilterState = {
   aboveEma50: boolean;
   volumeBreakout: boolean;
   riskLevel: RiskLevel | "Any";
-  horizon: "Any" | "≤ 6 months" | "6–12 months" | "12+ months";
+  horizon: CompanyQueryParams["horizon"];
 };
 
 const DEFAULT_FILTERS: FilterState = {
@@ -50,30 +54,42 @@ const DEFAULT_FILTERS: FilterState = {
   horizon: "Any",
 };
 
-function horizonMatches(months: number, horizon: FilterState["horizon"]) {
-  if (horizon === "Any") return true;
-  if (horizon === "≤ 6 months") return months <= 6;
-  if (horizon === "6–12 months") return months > 6 && months <= 12;
-  return months > 12;
+function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
+  return {
+    sector: filters.sector,
+    riskLevel: filters.riskLevel,
+    horizon: filters.horizon,
+    minRoe: filters.minRoe,
+    minRoce: filters.minRoce,
+    minEpsGrowth: filters.minEpsGrowth,
+    minSalesGrowth: filters.minSalesGrowth,
+    maxPe: filters.maxPe,
+    maxDebtToEquity: filters.maxDebtToEquity,
+    minPromoterHolding: filters.minPromoterHolding,
+    aboveEma200: filters.aboveEma200,
+    aboveEma50: filters.aboveEma50,
+    volumeBreakout: filters.volumeBreakout,
+    sort: "overallScore",
+    sortDirection: "desc",
+    page,
+    pageSize: PAGE_SIZE,
+  };
 }
 
-function matchesFilters(c: Company, f: FilterState) {
-  return (
-    (f.sector === "All" || c.sector === f.sector) &&
-    c.roe >= f.minRoe &&
-    c.roce >= f.minRoce &&
-    c.epsGrowthPct >= f.minEpsGrowth &&
-    c.salesGrowthPct >= f.minSalesGrowth &&
-    c.pe <= f.maxPe &&
-    c.debtToEquity <= f.maxDebtToEquity &&
-    c.promoterHoldingPct >= f.minPromoterHolding &&
-    (!f.aboveEma200 || c.aboveEma200) &&
-    (!f.aboveEma50 || c.aboveEma50) &&
-    (!f.volumeBreakout || c.volumeBreakout) &&
-    (f.riskLevel === "Any" || c.riskLevel === f.riskLevel) &&
-    horizonMatches(c.investmentHorizonMonths, f.horizon)
-  );
-}
+export const Route = createFileRoute("/screener")({
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({
+      queryKey: queryKeys.companies.list(toQueryParams(DEFAULT_FILTERS, 1)),
+      queryFn: () => fetchCompanies(toQueryParams(DEFAULT_FILTERS, 1)),
+    }),
+  head: () => ({
+    meta: [
+      { title: "Screener — Quant" },
+      { name: "description", content: "Filter on fundamentals and technicals. See only what qualifies." },
+    ],
+  }),
+  component: Screener,
+});
 
 function whySelected(c: Company): string {
   const reasons: string[] = [];
@@ -88,39 +104,37 @@ function whySelected(c: Company): string {
 function Screener() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [applied, setApplied] = useState<FilterState>(DEFAULT_FILTERS);
-  const allCompanies = useMemo(() => listCompanies(), []);
+  const [page, setPage] = useState(1);
+
+  const { data: allCompanies = [] } = useAllCompanies();
   const sectors = useMemo(() => ["All", ...new Set(allCompanies.map((c) => c.sector))], [allCompanies]);
 
-  const results = useMemo(() => {
-    return allCompanies
-      .filter((c) => matchesFilters(c, applied))
-      .sort((a, b) => b.overallScore - a.overallScore)
-      .slice(0, 20);
-  }, [allCompanies, applied]);
+  const query = useCompanies(toQueryParams(applied, page));
+  const results = query.data?.items ?? [];
 
   const update = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
     setFilters((prev) => ({ ...prev, [key]: value }));
 
+  const applyFilters = () => {
+    setApplied(filters);
+    setPage(1);
+  };
+
   const reset = () => {
     setFilters(DEFAULT_FILTERS);
     setApplied(DEFAULT_FILTERS);
+    setPage(1);
   };
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto px-6 py-12 pb-32">
-        <header className="mb-10 animate-fade-up">
-          <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-subtle mb-3">
-            AI Stock Discovery
-          </p>
-          <h1 className="font-serif text-5xl md:text-6xl leading-[0.98] text-balance max-w-[24ch]">
-            Set your criteria. See only what qualifies.
-          </h1>
-          <p className="mt-5 text-base text-ink-muted max-w-xl leading-relaxed">
-            No lists of hundreds. Twenty highest-conviction names, ranked by a transparent score —
-            not a black box.
-          </p>
-        </header>
+      <div className="max-w-7xl mx-auto px-6 py-12 pb-24">
+        <PageHeader
+          eyebrow="AI Stock Discovery"
+          title="Set your criteria. See only what qualifies."
+          description="No lists of hundreds. High-conviction names, ranked by a transparent score — not a black box."
+          className="mb-10"
+        />
 
         <div className="grid grid-cols-12 gap-10">
           {/* Filter panel */}
@@ -129,20 +143,14 @@ function Screener() {
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-2">
                   <SlidersHorizontal className="size-3.5 text-ink-subtle" />
-                  <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-ink-subtle">
-                    Filters
-                  </p>
+                  <p className="text-eyebrow text-ink-subtle">Filters</p>
                 </div>
-                <button
-                  onClick={reset}
-                  className="flex items-center gap-1 text-[11px] text-ink-subtle hover:text-ink transition-colors"
-                >
+                <button onClick={reset} className="flex items-center gap-1 text-[11px] text-ink-subtle hover:text-ink transition-colors">
                   <RotateCcw className="size-3" /> Reset
                 </button>
               </div>
 
               <div className="space-y-7">
-                {/* Sector */}
                 <div>
                   <FieldLabel>Sector</FieldLabel>
                   <Select value={filters.sector} onValueChange={(v) => update("sector", v)}>
@@ -198,11 +206,10 @@ function Screener() {
                         <SelectValue />
                       </SelectTrigger>
                       <SelectContent>
-                        {["Any", "≤ 6 months", "6–12 months", "12+ months"].map((h) => (
-                          <SelectItem key={h} value={h}>
-                            {h}
-                          </SelectItem>
-                        ))}
+                        <SelectItem value="Any">Any</SelectItem>
+                        <SelectItem value="short">≤ 6 months</SelectItem>
+                        <SelectItem value="medium">6–12 months</SelectItem>
+                        <SelectItem value="long">12+ months</SelectItem>
                       </SelectContent>
                     </Select>
                   </div>
@@ -210,7 +217,7 @@ function Screener() {
               </div>
 
               <button
-                onClick={() => setApplied(filters)}
+                onClick={applyFilters}
                 className="mt-8 w-full py-2.5 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:brightness-110 transition-all"
               >
                 Find Stocks
@@ -221,22 +228,50 @@ function Screener() {
           {/* Results */}
           <div className="col-span-12 lg:col-span-8">
             <div className="flex items-baseline gap-3 mb-6 hairline-b pb-3">
-              <span className="font-serif text-3xl">{results.length}</span>
+              <span className="text-heading-xl tabular-nums">{query.data?.total ?? "–"}</span>
               <span className="text-sm text-ink-muted">
-                {results.length === 1 ? "company matches" : "companies match"} — ranked by overall score
+                {query.data?.total === 1 ? "company matches" : "companies match"} — ranked by overall score
               </span>
             </div>
 
-            <div className="space-y-4">
-              {results.map((c) => (
-                <ResultCard key={c.symbol} company={c} />
-              ))}
-              {results.length === 0 && (
-                <div className="py-16 text-center text-sm text-ink-muted font-serif italic">
-                  No matches. Loosen a filter and try again.
+            {query.isPending && <CompanyRowListSkeleton count={PAGE_SIZE} />}
+
+            {query.isError && (
+              <ErrorState description="Couldn't load screener results." onRetry={() => query.refetch()} />
+            )}
+
+            {query.isSuccess && results.length === 0 && (
+              <EmptyState
+                icon={SearchX}
+                title="No matches"
+                description="Loosen a filter and try again — most screens over-constrain on the first pass."
+                action={
+                  <button onClick={reset} className="text-sm font-medium text-accent hover:underline underline-offset-2">
+                    Reset all filters
+                  </button>
+                }
+              />
+            )}
+
+            {query.isSuccess && results.length > 0 && (
+              <>
+                <div className="space-y-4">
+                  {results.map((c) => (
+                    <ResultCard key={c.symbol} company={c} />
+                  ))}
                 </div>
-              )}
-            </div>
+                {query.data && query.data.totalPages > 1 && (
+                  <Pagination
+                    className="mt-6"
+                    page={query.data.page}
+                    totalPages={query.data.totalPages}
+                    total={query.data.total}
+                    pageSize={query.data.pageSize}
+                    onPageChange={setPage}
+                  />
+                )}
+              </>
+            )}
           </div>
         </div>
       </div>
@@ -249,13 +284,13 @@ function ResultCard({ company: c }: { company: Company }) {
     <Link
       to="/research/$symbol"
       params={{ symbol: c.symbol }}
-      className="block p-5 rounded-xl ring-1 ring-hairline bg-surface-raised hover:ring-hairline-strong hover:shadow-[0_1px_2px_rgba(0,0,0,0.02),0_8px_24px_-12px_rgba(0,0,0,0.08)] transition-all"
+      className="block p-5 rounded-xl ring-1 ring-hairline bg-surface-raised hover:ring-hairline-strong hover:shadow-card-hover transition-all"
     >
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2 mb-1">
             <p className="font-semibold text-[15px]">{c.name}</p>
-            <VerdictPill verdict={c.verdict} />
+            <VerdictBadge verdict={c.verdict} />
           </div>
           <p className="font-mono text-[10px] text-ink-subtle">
             {c.exchange}:{c.symbol} · {c.sector}
@@ -266,8 +301,8 @@ function ResultCard({ company: c }: { company: Company }) {
           </p>
         </div>
         <div className="text-right shrink-0">
-          <div className="font-mono text-sm">₹{c.price.toLocaleString("en-IN")}</div>
-          <div className={"text-[11px] font-mono " + (c.changePct >= 0 ? "text-positive" : "text-negative")}>
+          <div className="font-mono text-sm tabular-nums">₹{c.price.toLocaleString("en-IN")}</div>
+          <div className={"text-[11px] font-mono tabular-nums " + (c.changePct >= 0 ? "text-positive" : "text-negative")}>
             {c.changePct >= 0 ? "+" : ""}
             {c.changePct.toFixed(2)}%
           </div>
@@ -276,48 +311,14 @@ function ResultCard({ company: c }: { company: Company }) {
       </div>
 
       <div className="mt-5 grid grid-cols-3 sm:grid-cols-6 gap-4 hairline-t pt-4">
-        <ScoreMetric label="Overall" value={c.overallScore} highlight />
-        <ScoreMetric label="Fundamental" value={c.fundamentalScore} />
-        <ScoreMetric label="Technical" value={c.technicalScore} />
-        <TextMetric label="Risk" value={c.riskLevel} />
-        <TextMetric label="Expected Return" value={`${c.expectedReturnPct}%`} />
-        <TextMetric label="Horizon" value={`${c.investmentHorizonMonths}mo`} />
+        <StatMetric label="Overall" value={c.overallScore.toFixed(0)} highlight />
+        <StatMetric label="Fundamental" value={c.fundamentalScore.toFixed(0)} />
+        <StatMetric label="Technical" value={c.technicalScore.toFixed(0)} />
+        <StatMetric label="Risk" value={c.riskLevel} size="sm" />
+        <StatMetric label="Expected Return" value={`${c.expectedReturnPct}%`} size="sm" />
+        <StatMetric label="Horizon" value={`${c.investmentHorizonMonths}mo`} size="sm" />
       </div>
     </Link>
-  );
-}
-
-function ScoreMetric({ label, value, highlight }: { label: string; value: number; highlight?: boolean }) {
-  return (
-    <div>
-      <p className="text-[9px] font-mono uppercase tracking-widest text-ink-subtle">{label}</p>
-      <p className={"font-serif text-lg mt-0.5 tabular-nums " + (highlight ? "text-accent" : "text-ink")}>
-        {value.toFixed(0)}
-      </p>
-    </div>
-  );
-}
-
-function TextMetric({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <p className="text-[9px] font-mono uppercase tracking-widest text-ink-subtle">{label}</p>
-      <p className="text-sm mt-0.5 text-ink">{value}</p>
-    </div>
-  );
-}
-
-function VerdictPill({ verdict }: { verdict: string }) {
-  const map: Record<string, string> = {
-    "Strong Conviction": "bg-positive-soft text-positive",
-    Watch: "bg-neutral-soft text-neutral",
-    "Under Review": "bg-[oklch(0.96_0.03_75)] text-[oklch(0.45_0.11_65)]",
-    Pass: "bg-secondary text-ink-subtle",
-  };
-  return (
-    <span className={"px-2 py-0.5 rounded-full text-[9px] font-semibold uppercase tracking-wider " + (map[verdict] ?? map["Watch"])}>
-      {verdict}
-    </span>
   );
 }
 
@@ -328,7 +329,7 @@ function FieldLabel({ children }: { children: React.ReactNode }) {
 function FieldGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="hairline-t pt-6">
-      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-ink-subtle mb-4">{label}</p>
+      <p className="text-eyebrow text-ink-subtle mb-4">{label}</p>
       <div className="space-y-5">{children}</div>
     </div>
   );

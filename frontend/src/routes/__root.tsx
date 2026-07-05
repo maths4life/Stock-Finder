@@ -17,7 +17,7 @@ function NotFoundComponent() {
     <div className="flex min-h-screen items-center justify-center bg-paper px-4">
       <div className="max-w-md text-center">
         <p className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle">Error 404</p>
-        <h1 className="mt-3 font-serif text-5xl text-ink">Not in the terminal.</h1>
+        <h1 className="mt-3 text-display text-ink">Page not found.</h1>
         <p className="mt-3 text-sm text-ink-muted">
           The page you're looking for doesn't exist or has been moved.
         </p>
@@ -44,7 +44,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-screen items-center justify-center bg-paper px-4">
       <div className="max-w-md text-center">
-        <h1 className="font-serif text-3xl text-ink">This page didn't load.</h1>
+        <h1 className="text-heading-xl text-ink">This page didn't load.</h1>
         <p className="mt-2 text-sm text-ink-muted">Try again or head home.</p>
         <div className="mt-6 flex flex-wrap justify-center gap-2">
           <button
