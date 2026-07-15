@@ -4,3 +4,6 @@ numpy
 SQLAlchemy
 psycopg2-binary
 python-dotenv
+fastapi
+uvicorn[standard]
+pydantic

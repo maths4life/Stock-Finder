@@ -1,14 +1,14 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/layout/AppShell";
-import { PageHeader } from "@/components/common/PageHeader";
-import { StatMetric } from "@/components/common/StatMetric";
-import { ErrorState } from "@/components/common/ErrorState";
-import { EmptyState } from "@/components/common/EmptyState";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useJournalEntries } from "@/hooks/useJournalEntries";
-import { useCompaniesForSymbols } from "@/hooks/useCompaniesForSymbols";
-import { fetchJournalEntries } from "@/lib/api/journal";
-import { queryKeys } from "@/hooks/queryKeys";
+import { AppShell } from "@/shared/components/layout/AppShell";
+import { PageHeader } from "@/shared/components/common/PageHeader";
+import { StatMetric } from "@/shared/components/common/StatMetric";
+import { ErrorState } from "@/shared/components/common/ErrorState";
+import { EmptyState } from "@/shared/components/common/EmptyState";
+import { Skeleton } from "@/shared/components/ui/skeleton";
+import { useJournalEntries } from "@/features/journal/hooks/useJournalEntries";
+import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
+import { fetchJournalEntries } from "@/features/journal/api/journal";
+import { queryKeys } from "@/shared/hooks/queryKeys";
 import { NotebookPen } from "lucide-react";
 
 export const Route = createFileRoute("/journal")({

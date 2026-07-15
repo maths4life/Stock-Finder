@@ -1,16 +1,16 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/layout/AppShell";
-import { CompanyCard } from "@/components/company/CompanyCard";
-import { CompanyRow } from "@/components/company/CompanyRow";
-import { SentimentBadge } from "@/components/common/Badge";
-import { ErrorState } from "@/components/common/ErrorState";
-import { CompanyCardGridSkeleton } from "@/components/common/Skeletons";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useCompaniesForSymbols } from "@/hooks/useCompaniesForSymbols";
-import { useDiscoverGroups, useMarketIndicators, usePipeline, useSectorPulse } from "@/hooks/useDiscover";
-import { fetchDiscoverGroups } from "@/lib/api/market";
-import { queryKeys } from "@/hooks/queryKeys";
-import type { DiscoverGroup } from "@/lib/api/types";
+import { AppShell } from "@/shared/components/layout/AppShell";
+import { CompanyCard } from "@/features/company/components/CompanyCard";
+import { CompanyRow } from "@/features/company/components/CompanyRow";
+import { SentimentBadge } from "@/shared/components/common/Badge";
+import { ErrorState } from "@/shared/components/common/ErrorState";
+import { CompanyCardGridSkeleton } from "@/shared/components/common/Skeletons";
+import { Skeleton } from "@/shared/components/ui/skeleton";
+import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
+import { useDiscoverGroups, useMarketIndicators, usePipeline, useSectorPulse } from "@/features/market/hooks/useDiscover";
+import { fetchDiscoverGroups } from "@/features/market/api/market";
+import { queryKeys } from "@/shared/hooks/queryKeys";
+import type { DiscoverGroup } from "@/shared/api/types";
 import { ArrowUpRight } from "lucide-react";
 
 export const Route = createFileRoute("/")({

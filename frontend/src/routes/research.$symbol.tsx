@@ -1,13 +1,18 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
+import { useState } from "react";
 import { ArrowLeft, Check, TriangleAlert, Sparkles } from "lucide-react";
-import { AppShell } from "@/components/layout/AppShell";
-import { Sparkline } from "@/components/common/Sparkline";
-import { StatMetric } from "@/components/common/StatMetric";
-import { ErrorState } from "@/components/common/ErrorState";
-import { Skeleton } from "@/components/ui/skeleton";
-import { useCompany } from "@/hooks/useCompanies";
-import { fetchCompany } from "@/lib/api/companies";
-import { queryKeys } from "@/hooks/queryKeys";
+import { AppShell } from "@/shared/components/layout/AppShell";
+import { Sparkline } from "@/shared/components/common/Sparkline";
+import { StatMetric } from "@/shared/components/common/StatMetric";
+import { ErrorState } from "@/shared/components/common/ErrorState";
+import { Skeleton } from "@/shared/components/ui/skeleton";
+import { useCompany, useCompanyPrices } from "@/features/company/hooks/useCompanies";
+import { fetchCompany, fetchCompanyPrices } from "@/features/company/api/companies";
+import { PriceChart } from "@/features/company/components/PriceChart";
+import { queryKeys } from "@/shared/hooks/queryKeys";
+import type { PriceRange } from "@/shared/api/types";
+
+const DEFAULT_PRICE_RANGE: PriceRange = "6M";
 
 export const Route = createFileRoute("/research/$symbol")({
   loader: async ({ params, context }) => {
@@ -20,6 +25,15 @@ export const Route = createFileRoute("/research/$symbol")({
         queryFn: () => fetchCompany(params.symbol),
       })
       .catch(() => undefined);
+
+    // Same treatment for the Price History chart — identical query key/fn
+    // as useCompanyPrices below, so hydration never mismatches.
+    await context.queryClient
+      .ensureQueryData({
+        queryKey: queryKeys.companies.prices(params.symbol, DEFAULT_PRICE_RANGE),
+        queryFn: () => fetchCompanyPrices(params.symbol, DEFAULT_PRICE_RANGE),
+      })
+      .catch(() => undefined);
   },
   head: ({ params }) => ({
     meta: [{ title: `${params.symbol} — Research | Quant` }],
@@ -30,6 +44,8 @@ export const Route = createFileRoute("/research/$symbol")({
 function ResearchDetail() {
   const { symbol } = Route.useParams();
   const { data: c, isPending, isError, error, refetch } = useCompany(symbol);
+  const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
+  const { data: prices, isPending: pricesPending } = useCompanyPrices(symbol, priceRange);
 
   return (
     <AppShell>
@@ -90,6 +106,12 @@ function ResearchDetail() {
                 <StatMetric label="Technical Score" value={c.technicalScore.toFixed(0) + "/100"} size="lg" />
               </div>
 
+              <div className="grid grid-cols-3 gap-y-6 py-6 hairline-b">
+                <StatMetric label="Risk Level" value={c.riskLevel} size="lg" />
+                <StatMetric label="Expected Return" value={c.expectedReturnPct.toFixed(1) + "%"} tone="positive" size="lg" />
+                <StatMetric label="Investment Horizon" value={`${c.investmentHorizonMonths}mo`} size="lg" />
+              </div>
+
               <div className="mt-8">
                 <Sparkline data={c.spark} tone={c.changePct >= 0 ? "positive" : "negative"} fill width={800} height={80} className="w-full h-20" />
               </div>
@@ -97,6 +119,33 @@ function ResearchDetail() {
 
             {/* Sections */}
             <div className="mt-16 space-y-14">
+              <Section label="Price History">
+                <PriceChart data={prices ?? []} range={priceRange} onRangeChange={setPriceRange} isLoading={pricesPending} />
+              </Section>
+
+              <Section label="Fundamentals">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                  <StatMetric label="P/B" value={c.pb.toFixed(2) + "x"} />
+                  <StatMetric label="ROCE" value={c.roce.toFixed(1) + "%"} />
+                  <StatMetric label="Debt/Equity" value={c.debtToEquity.toFixed(2)} />
+                  <StatMetric label="EPS" value={"₹" + c.eps.toFixed(2)} />
+                  <StatMetric label="Revenue Growth" value={c.salesGrowthPct.toFixed(1) + "%"} tone={c.salesGrowthPct >= 0 ? "positive" : "negative"} />
+                  <StatMetric label="Profit Growth" value={c.profitGrowthPct.toFixed(1) + "%"} tone={c.profitGrowthPct >= 0 ? "positive" : "negative"} />
+                  <StatMetric label="Promoter Holding" value={c.promoterHoldingPct.toFixed(1) + "%"} />
+                </div>
+              </Section>
+
+              <Section label="Technicals">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                  <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
+                  <StatMetric label="Above 50 DMA" value={c.aboveEma50 ? "Yes" : "No"} tone={c.aboveEma50 ? "positive" : "negative"} />
+                  <StatMetric label="Above 200 DMA" value={c.aboveEma200 ? "Yes" : "No"} tone={c.aboveEma200 ? "positive" : "negative"} />
+                  <StatMetric label="Golden Cross" value={c.goldenCross ? "Yes" : "No"} tone={c.goldenCross ? "positive" : "neutral"} />
+                  <StatMetric label="Volume Breakout" value={c.volumeBreakout ? "Yes" : "No"} tone={c.volumeBreakout ? "positive" : "neutral"} />
+                  <StatMetric label="Trend" value={c.trend} tone={c.trend === "Uptrend" ? "positive" : c.trend === "Downtrend" ? "negative" : "neutral"} />
+                </div>
+              </Section>
+
               <Section label="Verdict">
                 <div className="rounded-xl ring-1 ring-hairline bg-secondary/40 p-6">
                   <div className="flex items-center gap-2 mb-3">

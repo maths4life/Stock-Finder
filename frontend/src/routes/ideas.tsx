@@ -1,15 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { AppShell } from "@/components/layout/AppShell";
-import { PageHeader } from "@/components/common/PageHeader";
-import { Sparkline } from "@/components/common/Sparkline";
-import { ErrorState } from "@/components/common/ErrorState";
-import { EmptyState } from "@/components/common/EmptyState";
-import { Skeleton } from "@/components/ui/skeleton";
-import { usePipeline } from "@/hooks/useDiscover";
-import { useCompaniesForSymbols } from "@/hooks/useCompaniesForSymbols";
-import { fetchPipeline } from "@/lib/api/market";
-import { queryKeys } from "@/hooks/queryKeys";
-import type { PipelineColumn } from "@/lib/api/types";
+import { AppShell } from "@/shared/components/layout/AppShell";
+import { PageHeader } from "@/shared/components/common/PageHeader";
+import { Sparkline } from "@/shared/components/common/Sparkline";
+import { ErrorState } from "@/shared/components/common/ErrorState";
+import { EmptyState } from "@/shared/components/common/EmptyState";
+import { Skeleton } from "@/shared/components/ui/skeleton";
+import { usePipeline } from "@/features/market/hooks/useDiscover";
+import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
+import { fetchPipeline } from "@/features/market/api/market";
+import { queryKeys } from "@/shared/hooks/queryKeys";
+import type { PipelineColumn } from "@/shared/api/types";
 import { Inbox } from "lucide-react";
 
 export const Route = createFileRoute("/ideas")({
