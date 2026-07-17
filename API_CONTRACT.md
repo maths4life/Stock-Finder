@@ -1,8 +1,8 @@
 # Stock Finder — API Contract
 
 The contract between the FastAPI backend and the React frontend, written
-module by module to match the Phase 2 migration plan. **Module 1 is
-implemented and described in full below. Modules 2–9 are specced so the
+module by module to match the Phase 2 migration plan. **Modules 1–4 are
+implemented and described in full below. Modules 5–9 are specced so the
 shape is agreed before code is written — they are not built yet.**
 
 Base URL (dev): `http://127.0.0.1:8000`
@@ -24,9 +24,9 @@ shows loading/error states.**
 | # | Module | Endpoint(s) | Frontend uses | Backend service | Status |
 |---|--------|-------------|----------------|------------------|--------|
 | 1 | Companies | `GET /companies`, `GET /company/{symbol}` | `research.tsx`, `screener.tsx`, `research.$symbol.tsx`, `CommandPalette` | `company_service.py`, `scoring_service.py` | ✅ Built |
-| 2 | Dashboard | `GET /dashboard`, `GET /market-status`, `GET /top-gainers`, `GET /top-losers`, `GET /popular` | `index.tsx` | `dashboard_service.py` | Not built |
-| 3 | Company Page (deep detail) | extends `GET /company/{symbol}` | `research.$symbol.tsx` | `fundamental_service.py`, `technical_service.py` | Not built |
-| 4 | Screener | `POST /screener` (filters currently accepted by the UI but not yet applied anywhere — see below) | `screener.tsx` | `screener_service.py` | Not built |
+| 2 | Dashboard | `GET /discover/groups`, `GET /pipeline`, `GET /sectors/pulse`, `GET /market/indicators` | `index.tsx`, `ideas.tsx` | `discover_service.py` | ✅ Built |
+| 3 | Company Page (deep detail) | extends `GET /company/{symbol}` | `research.$symbol.tsx` | `fundamental_service.py`, `technical_service.py` | ✅ Built (see `MODULE_3_REPORT.md`) |
+| 4 | Screener | `GET /companies` (extended with full filter/sort/pagination query params — see below; superseded the originally-specced `POST /screener`) | `screener.tsx`, `research.tsx` | `screener_service.py` | ✅ Built (see `MODULE_4_REPORT.md`) |
 | 5 | Charts | `GET /company/{symbol}/prices` | chart components | `technical_service.py` | Not built |
 | 6 | News | `GET /company/{symbol}/news` | news components | `news_service.py` (needs a news table — not yet in schema) | Not built |
 | 7 | Portfolio | `GET /portfolio` | portfolio page | `portfolio_service.py` (needs a holdings table) | Not built |
@@ -211,16 +211,62 @@ Extends `GET /company/{symbol}` — same endpoint, richer payload. Fills in
 `businessSummary`, `verdictSummary`. Backed by `fundamental_service.py` +
 `technical_service.py`.
 
-## Module 4 — Screener (spec only)
+## Module 4 — Screener ✅ implemented
 
-| Endpoint | Method | Purpose |
-|---|---|---|
-| `POST /screener` | POST | Body: `{sector, marketCap, roe, roce, pe, debtToEquity, promoterHolding, epsGrowth, salesGrowth, technicalFilters, investmentHorizon}` → filtered `Company[]` |
+### `GET /companies` (extended)
 
-Today, `screener.tsx` calls the same `fetchCompanies()` as `research.tsx`
-and applies no server-side filters beyond `search` — the sector/ROE/PE/etc.
-controls in the UI don't filter anything yet. This module moves that logic
-into `screener_service.py`.
+Same endpoint Module 1 built, now the single implementation of filtering,
+sorting, ranking, and pagination for every company-list consumer
+(`screener.tsx` and `research.tsx` both use it via `useCompanies`).
+
+**Architectural decision — deviates from the original spec.** This
+document originally specced a standalone `POST /screener`. By the time
+this module was implemented, `screener.tsx` and `research.tsx` were
+already built against `GET /companies` + `useCompanies(CompanyQueryParams)`
+returning `Paginated<Company>` (see `frontend/src/shared/api/types.ts`).
+Adding a parallel `POST /screener` would have meant filtering/sorting
+logic duplicated across two endpoints for the same resource. Extending
+the existing endpoint in place keeps one implementation, reused by both
+pages — see `backend/services/screener_service.py`'s module docstring for
+the full reasoning.
+
+Full accepted query params (all optional except `page`/`pageSize`, which
+default to `1`/`20`):
+
+`search`, `sector`, `riskLevel` (`Low|Moderate|High|Any`), `horizon`
+(`short|medium|long|Any` — bucketed off `investmentHorizonMonths`: ≤6 /
+6–12 / 12+), `minRoe`, `minRoce`, `minEpsGrowth`, `minSalesGrowth`,
+`maxPe`, `maxDebtToEquity`, `minPromoterHolding`, `aboveEma200`,
+`aboveEma50`, `volumeBreakout`, `sort` (`overallScore|fundamentalScore|
+technicalScore|changePct|marketCapCr|pe|name`), `sortDirection`
+(`asc|desc`), `page`, `pageSize`.
+
+Response: `PaginatedCompanies` (`{items, page, pageSize, total,
+totalPages}`) — mirrors `Paginated<Company>` exactly.
+
+**Where the logic lives.** `screener_service.screen_companies()` calls
+`company_service.get_all_companies()` (Module 1's existing, already-scoped
+`search`-filtered fetch) to get the candidate universe, then applies
+filtering/sorting/pagination in Python. Filtering isn't pushed into the
+SQL `WHERE` clause because several filtered fields (`riskLevel`,
+`horizon` bucket, `volumeBreakout`) are derived in Python by
+`company_service._company_fields()`, not raw columns — duplicating that
+derivation into SQL would mean two implementations of the same rule. See
+that file's scalability note for when this should change (once the
+universe grows well past today's scale — see `README.md`).
+
+`fetchAllCompanies()` and `searchCompanies()` (used by dropdowns, the
+command palette, and watchlist symbol lookups) now call `fetchCompanies()`
+internally and unwrap `.items` — same single backend implementation, no
+separate code path.
+
+**Also fixed while implementing this:** `research.tsx`'s sort dropdown
+offers "Sort: Name (A–Z)" but always sent `sortDirection: "desc"`, which
+would have sorted Z→A once real backend sorting was live (invisible
+before, since the old `fetchCompanies` never actually sorted anything).
+Fixed to send `sortDirection: "asc"` when `sort === "name"`.
+
+Full findings, decisions, and validation: see `MODULE_4_REPORT.md`.
 
 ## Module 5 — Charts (spec only)
 `GET /company/{symbol}/prices?range=1M|6M|1Y|5Y` → `{date, open, high, low, close, volume}[]` from `prices_daily`. Service: `technical_service.py`.

@@ -101,3 +101,15 @@ class Company(CompanyBase):
     checklist: List[ChecklistItem] = Field(default_factory=list)
     businessSummary: str = ""
     verdictSummary: str = ""
+
+
+class PaginatedCompanies(BaseModel):
+    """Returned by GET /companies (Module 4). Mirrors
+    frontend/src/shared/api/types.ts's `Paginated<Company>` exactly —
+    keep the two in sync if either changes."""
+
+    items: List[CompanyListItem]
+    page: int
+    pageSize: int
+    total: int
+    totalPages: int

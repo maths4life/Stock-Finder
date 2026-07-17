@@ -1,5 +1,43 @@
 # Changelog
 
+## Module 4 — Screener
+
+### Backend — files modified
+- `backend/services/screener_service.py` — **new file**. Owns Module 4's
+  filtering/sorting/pagination business logic. Reuses
+  `company_service.get_all_companies()` for the candidate universe (no
+  duplicate SQL/derivation logic); see the file's docstring for the
+  scalability tradeoff of filtering in Python vs. SQL at today's scale.
+- `backend/schemas/company.py` — added `PaginatedCompanies` response
+  model (mirrors `Paginated<Company>` in `frontend/src/shared/api/types.ts`).
+- `backend/routes/companies.py` — `GET /companies` now accepts the full
+  `CompanyQueryParams` contract (sector, riskLevel, horizon, min/max
+  fundamental+technical thresholds, sort, sortDirection, page, pageSize)
+  and returns `PaginatedCompanies` instead of a flat array. Replaces the
+  `limit` param with `page`/`pageSize`.
+
+**Architectural decision:** superseded the originally-specced standalone
+`POST /screener` — see `API_CONTRACT.md`'s Module 4 section and
+`MODULE_4_REPORT.md` for the reasoning (both `screener.tsx` and
+`research.tsx` were already built against `GET /companies`, so extending
+it in place avoids two implementations of the same filtering logic).
+
+### Frontend — files modified
+- `frontend/src/features/company/api/companies.ts` — `fetchCompanies()`
+  now sends the full filter/sort/pagination query string and returns the
+  backend's `Paginated<Company>` response directly (no more client-side
+  slicing/filtering). `fetchAllCompanies()` and `searchCompanies()`
+  rewritten to call `fetchCompanies()` internally and unwrap `.items` —
+  one implementation instead of a second flat-array code path.
+- `frontend/src/routes/research.tsx` — fixed a latent bug: the "Sort:
+  Name (A–Z)" option always sent `sortDirection: "desc"`, which sorts
+  Z→A. Invisible while sorting was fake; real backend sorting exposed it.
+  Now sends `"asc"` when `sort === "name"`.
+
+Full findings, decisions, and validation: see `MODULE_4_REPORT.md`.
+
+---
+
 ## Module 2 — Discover Page (audited, no changes required)
 
 The Discover page backend integration was already complete in the uploaded

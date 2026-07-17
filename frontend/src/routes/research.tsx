@@ -49,7 +49,7 @@ function ResearchIndex() {
   const query = useCompanies({
     search: debouncedSearch,
     sort,
-    sortDirection: "desc",
+    sortDirection: sort === "name" ? "asc" : "desc",
     page,
     pageSize: PAGE_SIZE,
   });

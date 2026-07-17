@@ -1,20 +1,41 @@
 import { ApiError } from "@/shared/api/client";
-import type { Company, CompanyQueryParams, Paginated, PriceBar, PriceRange } from "@/shared/api/types";
+import type {
+  Company,
+  CompanyQueryParams,
+  Paginated,
+  PriceBar,
+  PriceRange,
+} from "@/shared/api/types";
 
 const API_URL = "http://127.0.0.1:8000";
 
 /**
- * GET /companies
- * Backend does the fetch/search (Module 1). Pagination is still applied
- * here on the returned array — that's a display concern, not screening/
- * ranking/filtering, so it's fine to keep client-side for now. Sorting
- * and heavier filtering move server-side in Module 4 (Screener).
+ * GET /companies (Module 4 — Screener)
+ * Backend owns filtering, sorting, ranking, and pagination — this just
+ * forwards CompanyQueryParams to the querystring and returns the
+ * Paginated<Company> envelope as-is. No client-side slicing/filtering.
  */
-export async function fetchCompanies(
-  params: CompanyQueryParams = {}
-): Promise<Paginated<Company>> {
+export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<Paginated<Company>> {
   const qs = new URLSearchParams();
   if (params.search) qs.set("search", params.search);
+  if (params.sector && params.sector !== "All") qs.set("sector", params.sector);
+  if (params.riskLevel && params.riskLevel !== "Any") qs.set("riskLevel", params.riskLevel);
+  if (params.horizon && params.horizon !== "Any") qs.set("horizon", params.horizon);
+  if (params.minRoe) qs.set("minRoe", String(params.minRoe));
+  if (params.minRoce) qs.set("minRoce", String(params.minRoce));
+  if (params.minEpsGrowth) qs.set("minEpsGrowth", String(params.minEpsGrowth));
+  if (params.minSalesGrowth) qs.set("minSalesGrowth", String(params.minSalesGrowth));
+  if (params.maxPe !== undefined) qs.set("maxPe", String(params.maxPe));
+  if (params.maxDebtToEquity !== undefined)
+    qs.set("maxDebtToEquity", String(params.maxDebtToEquity));
+  if (params.minPromoterHolding) qs.set("minPromoterHolding", String(params.minPromoterHolding));
+  if (params.aboveEma200) qs.set("aboveEma200", "true");
+  if (params.aboveEma50) qs.set("aboveEma50", "true");
+  if (params.volumeBreakout) qs.set("volumeBreakout", "true");
+  if (params.sort) qs.set("sort", params.sort);
+  if (params.sortDirection) qs.set("sortDirection", params.sortDirection);
+  qs.set("page", String(params.page ?? 1));
+  qs.set("pageSize", String(params.pageSize ?? 20));
 
   const response = await fetch(`${API_URL}/companies?${qs.toString()}`);
 
@@ -22,21 +43,7 @@ export async function fetchCompanies(
     throw new Error("Failed to fetch companies");
   }
 
-  const companies: Company[] = await response.json();
-
-  const page = params.page ?? 1;
-  const pageSize = params.pageSize ?? 10;
-
-  const start = (page - 1) * pageSize;
-  const end = start + pageSize;
-
-  return {
-    items: companies.slice(start, end),
-    page,
-    pageSize,
-    total: companies.length,
-    totalPages: Math.ceil(companies.length / pageSize),
-  };
+  return response.json();
 }
 
 /**
@@ -64,7 +71,7 @@ export async function fetchCompany(symbol: string): Promise<Company> {
  */
 export async function fetchCompanyPrices(
   symbol: string,
-  range: PriceRange = "6M"
+  range: PriceRange = "6M",
 ): Promise<PriceBar[]> {
   const qs = new URLSearchParams({ range });
   const response = await fetch(`${API_URL}/company/${symbol}/prices?${qs.toString()}`);
@@ -77,47 +84,29 @@ export async function fetchCompanyPrices(
 }
 
 /**
- * Used by search bar. Search now happens in Postgres (ILIKE on name/symbol)
- * via the `search` query param, not a client-side .filter() over the full
- * list.
+ * Used by search bar. Search happens in Postgres (ILIKE on name/symbol)
+ * via the `search` query param; ranked by overall score server-side.
  */
-export async function searchCompanies(
-  query: string,
-  limit = 8
-): Promise<Company[]> {
-  const qs = new URLSearchParams({ search: query, limit: String(limit) });
-  const response = await fetch(`${API_URL}/companies?${qs.toString()}`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch companies");
-  }
-
-  return response.json();
+export async function searchCompanies(query: string, limit = 8): Promise<Company[]> {
+  const { items } = await fetchCompanies({ search: query, pageSize: limit });
+  return items;
 }
 
 /**
- * Used for dropdowns (e.g. sector filter options).
+ * Used for dropdowns (e.g. sector filter options) and as the base list
+ * `fetchCompaniesBySymbols` filters over.
  */
 export async function fetchAllCompanies(): Promise<Company[]> {
-  const response = await fetch(`${API_URL}/companies`);
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch companies");
-  }
-
-  return response.json();
+  const { items } = await fetchCompanies({ sort: "name", pageSize: 1000 });
+  return items;
 }
 
 /**
  * Used by watchlist/portfolio. A lookup by exact symbol, not screening or
  * ranking, so it's fine to filter client-side over the already-fetched list.
  */
-export async function fetchCompaniesBySymbols(
-  symbols: string[]
-): Promise<Company[]> {
+export async function fetchCompaniesBySymbols(symbols: string[]): Promise<Company[]> {
   const companies = await fetchAllCompanies();
 
-  return companies.filter((c) =>
-    symbols.includes(c.symbol.toUpperCase())
-  );
+  return companies.filter((c) => symbols.includes(c.symbol.toUpperCase()));
 }
