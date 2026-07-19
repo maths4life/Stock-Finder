@@ -1,7 +1,6 @@
+import { API_URL } from "@/shared/api/config";
 import { ApiError } from "@/shared/api/client";
 import type { JournalEntry, JournalEntryInput } from "@/shared/api/types";
-
-const API_URL = "http://127.0.0.1:8000";
 
 /** GET /journal-entries */
 export async function fetchJournalEntries(): Promise<JournalEntry[]> {

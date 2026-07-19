@@ -1,3 +1,4 @@
+import { API_URL } from "@/shared/api/config";
 import { ApiError } from "@/shared/api/client";
 import type {
   Company,
@@ -8,8 +9,6 @@ import type {
   PriceRange,
   WeeklyMarketIntelligence,
 } from "@/shared/api/types";
-
-const API_URL = "http://127.0.0.1:8000";
 
 /**
  * GET /companies (Module 4 — Screener)
