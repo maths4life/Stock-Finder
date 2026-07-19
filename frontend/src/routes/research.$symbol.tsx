@@ -6,9 +6,11 @@ import { Sparkline } from "@/shared/components/common/Sparkline";
 import { StatMetric } from "@/shared/components/common/StatMetric";
 import { ErrorState } from "@/shared/components/common/ErrorState";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { useCompany, useCompanyPrices } from "@/features/company/hooks/useCompanies";
-import { fetchCompany, fetchCompanyPrices } from "@/features/company/api/companies";
+import { useCompany, useCompanyAnalysis, useCompanyPrices, useWeeklyMarketIntelligence } from "@/features/company/hooks/useCompanies";
+import { fetchCompany, fetchCompanyAnalysis, fetchCompanyPrices, fetchWeeklyMarketIntelligence } from "@/features/company/api/companies";
 import { PriceChart } from "@/features/company/components/PriceChart";
+import { AIResearchReport } from "@/features/company/components/AIResearchReport";
+import { WeeklyMarketIntelligence } from "@/features/company/components/WeeklyMarketIntelligence";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { PriceRange } from "@/shared/api/types";
 
@@ -34,6 +36,24 @@ export const Route = createFileRoute("/research/$symbol")({
         queryFn: () => fetchCompanyPrices(params.symbol, DEFAULT_PRICE_RANGE),
       })
       .catch(() => undefined);
+
+    // Module 6 AI Research Report — identical query key/fn as
+    // useCompanyAnalysis below, same hydration-safety reasoning.
+    await context.queryClient
+      .ensureQueryData({
+        queryKey: queryKeys.companies.analysis(params.symbol),
+        queryFn: () => fetchCompanyAnalysis(params.symbol),
+      })
+      .catch(() => undefined);
+
+    // Module 7 Weekly Market Intelligence — identical query key/fn as
+    // useWeeklyMarketIntelligence below, same hydration-safety reasoning.
+    await context.queryClient
+      .ensureQueryData({
+        queryKey: queryKeys.companies.weeklyMarketIntelligence(params.symbol),
+        queryFn: () => fetchWeeklyMarketIntelligence(params.symbol),
+      })
+      .catch(() => undefined);
   },
   head: ({ params }) => ({
     meta: [{ title: `${params.symbol} — Research | Quant` }],
@@ -46,6 +66,18 @@ function ResearchDetail() {
   const { data: c, isPending, isError, error, refetch } = useCompany(symbol);
   const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   const { data: prices, isPending: pricesPending } = useCompanyPrices(symbol, priceRange);
+  const {
+    data: analysis,
+    isPending: analysisPending,
+    isError: analysisError,
+    refetch: refetchAnalysis,
+  } = useCompanyAnalysis(symbol);
+  const {
+    data: weeklyIntel,
+    isPending: weeklyIntelPending,
+    isError: weeklyIntelError,
+    refetch: refetchWeeklyIntel,
+  } = useWeeklyMarketIntelligence(symbol);
 
   return (
     <AppShell>
@@ -119,6 +151,18 @@ function ResearchDetail() {
 
             {/* Sections */}
             <div className="mt-16 space-y-14">
+              <Section label="AI Research">
+                {analysisPending && <AIResearchSkeleton />}
+                {analysisError && (
+                  <ErrorState
+                    title="Couldn't load the AI research report"
+                    description="The rest of the page loaded fine — just this section failed."
+                    onRetry={() => refetchAnalysis()}
+                  />
+                )}
+                {analysis && <AIResearchReport analysis={analysis} />}
+              </Section>
+
               <Section label="Price History">
                 <PriceChart data={prices ?? []} range={priceRange} onRangeChange={setPriceRange} isLoading={pricesPending} />
               </Section>
@@ -242,6 +286,18 @@ function ResearchDetail() {
                   ))}
                 </div>
               </Section>
+
+              <Section label="Weekly Market Intelligence">
+                {weeklyIntelPending && <AIResearchSkeleton />}
+                {weeklyIntelError && (
+                  <ErrorState
+                    title="Couldn't load weekly market intelligence"
+                    description="The rest of the page loaded fine — just this section failed."
+                    onRetry={() => refetchWeeklyIntel()}
+                  />
+                )}
+                {weeklyIntel && <WeeklyMarketIntelligence data={weeklyIntel} />}
+              </Section>
             </div>
 
             <div className="mt-14 flex items-center gap-3">
@@ -265,6 +321,18 @@ function Section({ label, children }: { label: string; children: React.ReactNode
       <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-2">{label}</div>
       <div>{children}</div>
     </section>
+  );
+}
+
+function AIResearchSkeleton() {
+  return (
+    <div className="space-y-4">
+      <Skeleton className="h-24 w-full rounded-xl" />
+      <div className="grid md:grid-cols-2 gap-8">
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-40 w-full" />
+      </div>
+    </div>
   );
 }
 

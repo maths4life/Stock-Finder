@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportLovableError } from "../lib/lovable-error-reporting";
+import { Toaster } from "@/shared/components/ui/sonner";
 
 function NotFoundComponent() {
   return (
@@ -67,14 +68,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Quant Terminal — Morning intelligence for Indian equities" },
+      { title: "Stock Finder — Morning intelligence for Indian equities" },
       {
         name: "description",
         content:
           "A calm, editorial research OS for Indian stocks. Discover companies worth researching today, build conviction, and record every thesis.",
       },
-      { name: "author", content: "Quant Terminal" },
-      { property: "og:title", content: "Quant Terminal — Morning intelligence for Indian equities" },
+      { name: "author", content: "Stock Finder" },
+      { property: "og:title", content: "Stock Finder — Morning intelligence for Indian equities" },
       {
         property: "og:description",
         content: "Discover, research, and hold high-conviction Indian equities for the next 6–12 months.",
@@ -112,6 +113,7 @@ function RootComponent() {
   return (
     <QueryClientProvider client={queryClient}>
       <Outlet />
+      <Toaster />
     </QueryClientProvider>
   );
 }

@@ -12,6 +12,8 @@ export const queryKeys = {
     detail: (symbol: string) => ["companies", "detail", symbol] as const,
     search: (query: string) => ["companies", "search", query] as const,
     prices: (symbol: string, range: string) => ["companies", "prices", symbol, range] as const,
+    analysis: (symbol: string) => ["companies", "analysis", symbol] as const,
+    weeklyMarketIntelligence: (symbol: string) => ["companies", "weekly-market-intelligence", symbol] as const,
   },
   discoverGroups: ["discover-groups"] as const,
   pipeline: ["pipeline"] as const,

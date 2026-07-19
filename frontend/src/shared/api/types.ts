@@ -94,6 +94,47 @@ export type Company = {
   verdictSummary: string;
 };
 
+export type AnalysisRating = "Strong Buy" | "Buy" | "Hold" | "Avoid";
+
+export type FundamentalAnalysis = {
+  profitability: string[];
+  growth: string[];
+  valuation: string[];
+  balance_sheet_and_liquidity: string[];
+};
+
+export type TechnicalAnalysisReport = {
+  trend: string[];
+  momentum: string[];
+  volume: string[];
+  moving_averages: string[];
+};
+
+/**
+ * GET /company/{symbol}/analysis — Module 6, the deterministic
+ * rule-based research engine (no LLM). Field names are snake_case,
+ * mirroring backend/schemas/analysis.py's wire contract exactly — a
+ * deliberate, documented exception to this file's usual camelCase
+ * convention, not a mismatch to fix. Same "no transform layer" rule as
+ * every other type here: render what the backend returns.
+ */
+export type CompanyAnalysis = {
+  symbol: string;
+  name: string;
+  investment_summary: string;
+  rating: AnalysisRating;
+  confidence: number; // 0-100
+  business_summary: string;
+  fundamental_analysis: FundamentalAnalysis;
+  technical_analysis: TechnicalAnalysisReport;
+  risk_factors: string[];
+  positive_catalysts: string[];
+  negative_catalysts: string[];
+  valuation_summary: string;
+  outlook_6_12_month: string;
+  overall_verdict: string;
+};
+
 /** GET /company/{symbol}/prices row — mirrors backend/schemas/technical.py's PriceBar exactly. */
 export type PriceBar = {
   date: string; // ISO date, e.g. "2026-06-30"
@@ -182,18 +223,84 @@ export type MarketIndicator = {
   tone: Signal;
 };
 
+/** "Positive" | "Neutral" | "Negative" -- distinct from `Sentiment`
+ * above (Bullish/Positive/Neutral/Bearish), which is the Discover page's
+ * score-derived sector pulse scale. Module 7's outlook is news-derived,
+ * so it gets its own type rather than overloading `Sentiment`. */
+export type SectorOutlook = "Positive" | "Neutral" | "Negative";
+
+export type WeeklyMarketEvent = {
+  headline: string;
+  whyItMatters: string;
+  expectedImpact: string;
+  sourceUrl: string;
+};
+
+/**
+ * GET /company/{symbol}/weekly-market-intelligence -- Module 7. Mirrors
+ * backend/schemas/weekly_intelligence.py's `WeeklyMarketIntelligence`
+ * exactly, camelCase (this endpoint follows the project's usual
+ * camelCase convention, not Module 6's documented snake_case exception).
+ * `sectorResearchCandidates` reuses the exact `Company` shape `GET
+ * /companies` returns, so the Research page can render it with the
+ * existing `CompanyRow` component -- no new list component needed.
+ */
+export type WeeklyMarketIntelligence = {
+  symbol: string;
+  sector: string;
+  sectorOutlook: SectorOutlook;
+  weekStartDate: string; // ISO date
+  weekEndDate: string; // ISO date
+  weeklySummary: string;
+  importantEvents: WeeklyMarketEvent[];
+  marketImpact: string;
+  sectorResearchCandidates: Company[];
+  hasCoverage: boolean;
+  lastRefreshedAt: string | null;
+};
+
+/**
+ * Mirrors backend/schemas/journal.py's JournalEntry exactly — camelCase,
+ * fields lifted directly from the `journal_entries` table in
+ * db/schema.sql. All fields besides `id`/`symbol`/`thesis`/`createdAt`
+ * are optional because the table allows them to be null.
+ */
 export type JournalEntry = {
   id: string;
   symbol: string;
-  title: string;
-  date: string;
+  title: string | null;
   thesis: string;
-  catalysts: string[];
-  risks: string[];
-  conviction: number; // 1-5
-  targetPrice: number;
-  expectedReturnPct: number;
-  horizonMonths: number;
-  sellTrigger: string;
-  reviewDue: string;
+  fundamentalReasons: string | null;
+  technicalReasons: string | null;
+  sectorReasons: string | null;
+  macroReasons: string | null;
+  personalNotes: string | null;
+  sellTrigger: string | null;
+  assumptions: string | null;
+  risksAccepted: string | null;
+  targetPrice: number | null;
+  expectedReturnPct: number | null;
+  horizonMonths: number | null;
+  confidenceLevel: number | null; // 1-5
+  createdAt: string; // ISO datetime
+  reviewDueAt: string | null; // ISO datetime, auto-set from createdAt + horizonMonths
+};
+
+/** Body for POST/PUT /journal-entries — every field but `symbol`/`thesis` optional. */
+export type JournalEntryInput = {
+  symbol: string;
+  title?: string | null;
+  thesis: string;
+  fundamentalReasons?: string | null;
+  technicalReasons?: string | null;
+  sectorReasons?: string | null;
+  macroReasons?: string | null;
+  personalNotes?: string | null;
+  sellTrigger?: string | null;
+  assumptions?: string | null;
+  risksAccepted?: string | null;
+  targetPrice?: number | null;
+  expectedReturnPct?: number | null;
+  horizonMonths?: number | null;
+  confidenceLevel?: number | null;
 };

@@ -204,3 +204,59 @@ create table if not exists pipeline_items (
     note        text,
     updated_at  timestamptz not null default now()
 );
+
+-- ============================================================
+-- 6. Weekly Market Intelligence (Module 7)
+--
+-- Persisted output of the weekly news -> sector intelligence pipeline
+-- (services/weekly_market_intelligence.py). News is fetched and
+-- processed on a weekly cadence (see that module's docstring), not
+-- per-request, so this data is written by a refresh job and read
+-- cheaply by GET /company/{symbol}/weekly-market-intelligence.
+-- ============================================================
+
+-- Deduplicated raw articles for the current + recent refresh windows.
+-- `dedup_key` (a normalized title) is the de-duplication boundary across
+-- providers -- see services/news_provider.py for how it's derived.
+create table if not exists news_articles (
+    id              uuid primary key default gen_random_uuid(),
+    provider        text not null,          -- e.g. 'google_news', 'moneycontrol', 'economic_times'
+    title           text not null,
+    url             text not null,
+    summary         text,
+    published_at    timestamptz,
+    fetched_at      timestamptz not null default now(),
+    dedup_key       text not null,
+    unique (dedup_key)
+);
+
+create index if not exists idx_news_articles_published on news_articles (published_at desc);
+
+-- Many-to-many: one article can touch more than one sector (e.g. a repo
+-- rate cut affects both Private Banks and NBFC-adjacent sectors).
+create table if not exists news_article_sectors (
+    article_id      uuid not null references news_articles(id),
+    sector          text not null,
+    importance      numeric not null default 0,  -- 0-1, see sector_classifier.py
+    primary key (article_id, sector)
+);
+
+create index if not exists idx_news_article_sectors_sector on news_article_sectors (sector);
+
+-- One row per (sector, week). The Weekly Intelligence Engine's output --
+-- everything the Research page's "Weekly Market Intelligence" section
+-- reads is either this row or a live re-rank of already-existing
+-- Opportunity Scores (never recomputed here).
+create table if not exists weekly_sector_intelligence (
+    sector              text not null,
+    week_start_date     date not null,       -- Monday of the covered week
+    week_end_date       date not null,       -- Sunday of the covered week
+    outlook             text not null,       -- 'Positive' | 'Neutral' | 'Negative'
+    summary             text not null,
+    major_events        jsonb not null default '[]'::jsonb,
+    article_count       integer not null default 0,
+    generated_at        timestamptz not null default now(),
+    primary key (sector, week_start_date)
+);
+
+create index if not exists idx_weekly_sector_intel_week on weekly_sector_intelligence (week_start_date desc);
