@@ -18,12 +18,12 @@ export const Route = createFileRoute("/")({
     context.queryClient.ensureQueryData({ queryKey: queryKeys.discoverGroups, queryFn: fetchDiscoverGroups }),
   head: () => ({
     meta: [
-      { title: "Morning Intelligence — Quant" },
+      { title: "Stock Trackr" },
       {
         name: "description",
         content: "Today's most researchable Indian companies, grouped by why they matter.",
       },
-      { property: "og:title", content: "Morning Intelligence — Quant" },
+      { property: "og:title", content: "Stock Trackr" },
       {
         property: "og:description",
         content: "A calm briefing on the Indian companies worth your attention today.",
