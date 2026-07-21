@@ -1,16 +1,15 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Check, TriangleAlert, Sparkles } from "lucide-react";
+import { ArrowLeft, Check } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/AppShell";
 import { Sparkline } from "@/shared/components/common/Sparkline";
 import { StatMetric } from "@/shared/components/common/StatMetric";
 import { ErrorState } from "@/shared/components/common/ErrorState";
 import { Skeleton } from "@/shared/components/ui/skeleton";
-import { useCompany, useCompanyAnalysis, useCompanyPrices, useWeeklyMarketIntelligence } from "@/features/company/hooks/useCompanies";
-import { fetchCompany, fetchCompanyAnalysis, fetchCompanyPrices, fetchWeeklyMarketIntelligence } from "@/features/company/api/companies";
+import { useCompany, useCompanyPrices } from "@/features/company/hooks/useCompanies";
+import { fetchCompany, fetchCompanyPrices } from "@/features/company/api/companies";
 import { PriceChart } from "@/features/company/components/PriceChart";
-import { AIResearchReport } from "@/features/company/components/AIResearchReport";
-import { WeeklyMarketIntelligence } from "@/features/company/components/WeeklyMarketIntelligence";
+import { FinancialComparisonTable } from "@/features/company/components/FinancialComparisonTable";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { PriceRange } from "@/shared/api/types";
 
@@ -36,24 +35,6 @@ export const Route = createFileRoute("/research/$symbol")({
         queryFn: () => fetchCompanyPrices(params.symbol, DEFAULT_PRICE_RANGE),
       })
       .catch(() => undefined);
-
-    // Module 6 AI Research Report — identical query key/fn as
-    // useCompanyAnalysis below, same hydration-safety reasoning.
-    await context.queryClient
-      .ensureQueryData({
-        queryKey: queryKeys.companies.analysis(params.symbol),
-        queryFn: () => fetchCompanyAnalysis(params.symbol),
-      })
-      .catch(() => undefined);
-
-    // Module 7 Weekly Market Intelligence — identical query key/fn as
-    // useWeeklyMarketIntelligence below, same hydration-safety reasoning.
-    await context.queryClient
-      .ensureQueryData({
-        queryKey: queryKeys.companies.weeklyMarketIntelligence(params.symbol),
-        queryFn: () => fetchWeeklyMarketIntelligence(params.symbol),
-      })
-      .catch(() => undefined);
   },
   head: ({ params }) => ({
     meta: [{ title: `${params.symbol} — Research | Quant` }],
@@ -66,18 +47,6 @@ function ResearchDetail() {
   const { data: c, isPending, isError, error, refetch } = useCompany(symbol);
   const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   const { data: prices, isPending: pricesPending } = useCompanyPrices(symbol, priceRange);
-  const {
-    data: analysis,
-    isPending: analysisPending,
-    isError: analysisError,
-    refetch: refetchAnalysis,
-  } = useCompanyAnalysis(symbol);
-  const {
-    data: weeklyIntel,
-    isPending: weeklyIntelPending,
-    isError: weeklyIntelError,
-    refetch: refetchWeeklyIntel,
-  } = useWeeklyMarketIntelligence(symbol);
 
   return (
     <AppShell>
@@ -118,7 +87,7 @@ function ResearchDetail() {
               <h1 className="text-display md:text-display-lg text-balance">{c.name}</h1>
               <p className="mt-5 text-lg text-ink-muted leading-snug max-w-[52ch] text-pretty">{c.rationale}</p>
 
-              <div className="mt-10 grid grid-cols-2 md:grid-cols-5 gap-y-6 hairline-t hairline-b py-6">
+              <div className="mt-10 grid grid-cols-2 md:grid-cols-6 gap-y-6 hairline-t hairline-b py-6">
                 <StatMetric
                   label="Price"
                   value={`₹${c.price.toLocaleString("en-IN")}`}
@@ -130,6 +99,7 @@ function ResearchDetail() {
                 <StatMetric label="P/E" value={c.pe.toFixed(1) + "x"} size="lg" />
                 <StatMetric label="RoE" value={c.roe.toFixed(1) + "%"} tone="positive" size="lg" />
                 <StatMetric label="Div Yield" value={c.divYield.toFixed(2) + "%"} size="lg" />
+                <StatMetric label="Risk Level" value={c.riskLevel} size="lg" />
               </div>
 
               <div className="grid grid-cols-3 gap-y-6 py-6 hairline-b">
@@ -137,34 +107,58 @@ function ResearchDetail() {
                 <StatMetric label="Fundamental Score" value={c.fundamentalScore.toFixed(0) + "/100"} size="lg" />
                 <StatMetric label="Technical Score" value={c.technicalScore.toFixed(0) + "/100"} size="lg" />
               </div>
-
-              <div className="grid grid-cols-3 gap-y-6 py-6 hairline-b">
-                <StatMetric label="Risk Level" value={c.riskLevel} size="lg" />
-                <StatMetric label="Expected Return" value={c.expectedReturnPct.toFixed(1) + "%"} tone="positive" size="lg" />
-                <StatMetric label="Investment Horizon" value={`${c.investmentHorizonMonths}mo`} size="lg" />
-              </div>
-
-              <div className="mt-8">
-                <Sparkline data={c.spark} tone={c.changePct >= 0 ? "positive" : "negative"} fill width={800} height={80} className="w-full h-20" />
-              </div>
             </header>
 
+            {/* Price chart — the dominant visual on the page, so it breaks out of the
+                label-sidebar grid the other sections use and takes the full content width. */}
+            <div className="mt-16">
+              <PriceChart
+                data={prices ?? []}
+                range={priceRange}
+                onRangeChange={setPriceRange}
+                isLoading={pricesPending}
+                symbol={c.symbol}
+              />
+            </div>
+
             {/* Sections */}
-            <div className="mt-16 space-y-14">
-              <Section label="AI Research">
-                {analysisPending && <AIResearchSkeleton />}
-                {analysisError && (
-                  <ErrorState
-                    title="Couldn't load the AI research report"
-                    description="The rest of the page loaded fine — just this section failed."
-                    onRetry={() => refetchAnalysis()}
-                  />
-                )}
-                {analysis && <AIResearchReport analysis={analysis} />}
+            <div className="mt-14 space-y-14">
+              <Section label="Valuation">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                  <StatMetric label="Market Cap" value={c.valuation.marketCap ?? "N/A"} />
+                  <StatMetric label="Enterprise Value" value={fmtCr(c.valuation.enterpriseValueCr)} />
+                  <StatMetric label="P/E Ratio" value={fmtX(c.valuation.pe)} />
+                  <StatMetric label="Forward P/E" value={fmtX(c.valuation.forwardPe)} />
+                  <StatMetric label="PEG Ratio" value={fmtNum(c.valuation.peg)} />
+                  <StatMetric label="Price to Book" value={fmtX(c.valuation.pb)} />
+                  <StatMetric label="EV/EBITDA" value={fmtX(c.valuation.evEbitda)} />
+                  <StatMetric label="Dividend Yield" value={fmtPct(c.valuation.divYield)} />
+                  <StatMetric label="Beta" value={fmtNum(c.valuation.beta)} />
+                  <StatMetric label="Shares Outstanding" value={fmtShares(c.valuation.sharesOutstanding)} />
+                  <StatMetric label="Free Float" value={fmtPct(c.valuation.freeFloatPct)} />
+                  <StatMetric label="Book Value / Share" value={fmtRupee(c.valuation.bookValuePerShare)} />
+                </div>
               </Section>
 
-              <Section label="Price History">
-                <PriceChart data={prices ?? []} range={priceRange} onRangeChange={setPriceRange} isLoading={pricesPending} />
+              <Section label="Quarterly Comparison">
+                <FinancialComparisonTable data={c.quarterlyComparison} />
+              </Section>
+
+              <Section label="Annual Comparison">
+                <FinancialComparisonTable data={c.annualComparison} />
+              </Section>
+
+              <Section label="Support & Resistance">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                  <StatMetric label="Support 1" value={fmtRupee(c.supportResistance.support1)} tone="negative" />
+                  <StatMetric label="Support 2" value={fmtRupee(c.supportResistance.support2)} tone="negative" />
+                  <StatMetric label="Pivot" value={fmtRupee(c.supportResistance.pivot)} />
+                  <StatMetric label="Resistance 1" value={fmtRupee(c.supportResistance.resistance1)} tone="positive" />
+                  <StatMetric label="Resistance 2" value={fmtRupee(c.supportResistance.resistance2)} tone="positive" />
+                  <StatMetric label="VWAP" value={fmtRupee(c.supportResistance.vwap)} />
+                  <StatMetric label="52 Week High" value={fmtRupee(c.supportResistance.high52w)} tone="positive" />
+                  <StatMetric label="52 Week Low" value={fmtRupee(c.supportResistance.low52w)} tone="negative" />
+                </div>
               </Section>
 
               <Section label="Fundamentals">
@@ -188,20 +182,6 @@ function ResearchDetail() {
                   <StatMetric label="Volume Breakout" value={c.volumeBreakout ? "Yes" : "No"} tone={c.volumeBreakout ? "positive" : "neutral"} />
                   <StatMetric label="Trend" value={c.trend} tone={c.trend === "Uptrend" ? "positive" : c.trend === "Downtrend" ? "negative" : "neutral"} />
                 </div>
-              </Section>
-
-              <Section label="Verdict">
-                <div className="rounded-xl ring-1 ring-hairline bg-secondary/40 p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <Sparkles className="size-3.5 text-accent" />
-                    <span className="text-[11px] uppercase tracking-widest font-medium text-accent">{c.verdict}</span>
-                  </div>
-                  <p className="text-heading-lg leading-snug text-ink text-pretty">{c.verdictSummary}</p>
-                </div>
-              </Section>
-
-              <Section label="Business">
-                <p className="text-[15px] leading-relaxed text-ink text-pretty">{c.businessSummary}</p>
               </Section>
 
               <Section label="Quarterly Financials">
@@ -240,35 +220,6 @@ function ResearchDetail() {
                 </div>
               </Section>
 
-              <Section label="Why AI Selected">
-                <div className="rounded-xl ring-1 ring-hairline bg-secondary/40 p-6 flex items-start gap-3">
-                  <Sparkles className="size-4 text-accent mt-0.5 shrink-0" />
-                  <p className="text-[15px] leading-relaxed text-ink text-pretty">{c.rationale}</p>
-                </div>
-              </Section>
-
-              <Section label="Pros">
-                <ul className="space-y-3">
-                  {c.pros.map((s) => (
-                    <li key={s} className="flex items-start gap-3 text-[15px] text-ink">
-                      <Check className="size-4 text-positive mt-1 shrink-0" />
-                      <span>{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-
-              <Section label="Cons">
-                <ul className="space-y-3">
-                  {c.cons.map((s) => (
-                    <li key={s} className="flex items-start gap-3 text-[15px] text-ink">
-                      <TriangleAlert className="size-4 text-[oklch(0.6_0.15_60)] mt-1 shrink-0" />
-                      <span>{s}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Section>
-
               <Section label="Checklist">
                 <div className="rounded-xl ring-1 ring-hairline divide-y divide-hairline overflow-hidden">
                   {c.checklist.map((item) => (
@@ -287,17 +238,6 @@ function ResearchDetail() {
                 </div>
               </Section>
 
-              <Section label="Weekly Market Intelligence">
-                {weeklyIntelPending && <AIResearchSkeleton />}
-                {weeklyIntelError && (
-                  <ErrorState
-                    title="Couldn't load weekly market intelligence"
-                    description="The rest of the page loaded fine — just this section failed."
-                    onRetry={() => refetchWeeklyIntel()}
-                  />
-                )}
-                {weeklyIntel && <WeeklyMarketIntelligence data={weeklyIntel} />}
-              </Section>
             </div>
 
             <div className="mt-14 flex items-center gap-3">
@@ -324,16 +264,32 @@ function Section({ label, children }: { label: string; children: React.ReactNode
   );
 }
 
-function AIResearchSkeleton() {
-  return (
-    <div className="space-y-4">
-      <Skeleton className="h-24 w-full rounded-xl" />
-      <div className="grid md:grid-cols-2 gap-8">
-        <Skeleton className="h-40 w-full" />
-        <Skeleton className="h-40 w-full" />
-      </div>
-    </div>
-  );
+/** Shared N/A-safe formatters for the Valuation and Support & Resistance
+ * StatMetric grids above — every value on `c.valuation`/
+ * `c.supportResistance` can be `null` (see shared/api/types.ts), and
+ * these render that as "N/A" rather than "₹null" or "NaNx". */
+function fmtRupee(value: number | null): string {
+  return value === null ? "N/A" : `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 2 })}`;
+}
+
+function fmtCr(value: number | null): string {
+  return value === null ? "N/A" : `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}cr`;
+}
+
+function fmtX(value: number | null): string {
+  return value === null ? "N/A" : `${value.toFixed(2)}x`;
+}
+
+function fmtPct(value: number | null): string {
+  return value === null ? "N/A" : `${value.toFixed(2)}%`;
+}
+
+function fmtNum(value: number | null): string {
+  return value === null ? "N/A" : value.toFixed(2);
+}
+
+function fmtShares(value: number | null): string {
+  return value === null ? "N/A" : `${(value / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 2 })} Cr`;
 }
 
 function ResearchDetailSkeleton() {

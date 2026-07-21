@@ -35,6 +35,62 @@ export type ChecklistItem = {
   done: boolean;
 };
 
+/** Research page's Valuation Cards. `null` fields have no source
+ * anywhere in the backend schema (see backend/db/schema.sql) and render
+ * as N/A rather than a fabricated number — see
+ * backend/services/company_service.py's `_valuation_metrics`. */
+export type ValuationMetrics = {
+  marketCap: string | null;
+  marketCapCr: number | null;
+  enterpriseValueCr: number | null;
+  pe: number | null;
+  forwardPe: number | null;
+  peg: number | null;
+  pb: number | null;
+  evEbitda: number | null;
+  divYield: number | null;
+  beta: number | null;
+  sharesOutstanding: number | null;
+  freeFloatPct: number | null;
+  bookValuePerShare: number | null;
+};
+
+/** Research page's Support & Resistance section. pivot / support levels /
+ * resistance levels are a standard floor-trader pivot off the latest
+ * day's OHLC; vwap/high52w/low52w are reused straight from
+ * technical_snapshot. See
+ * backend/services/technical_service.py's get_support_resistance. */
+export type PivotLevels = {
+  pivot: number | null;
+  support1: number | null;
+  support2: number | null;
+  resistance1: number | null;
+  resistance2: number | null;
+  vwap: number | null;
+  high52w: number | null;
+  low52w: number | null;
+};
+
+export type ComparisonRow = {
+  metric: string;
+  current: number | null;
+  previous: number | null;
+  diff: number | null;
+  growthPct: number | null;
+};
+
+/** Research page's Quarterly/Annual Financial Comparison tables.
+ * `currentLabel`/`previousLabel` are the real period labels the backend
+ * found (or null when that period doesn't exist for this company) — do
+ * not hardcode "Current Quarter"/"Previous Quarter" as column headers,
+ * use these. Diff/Growth% are computed server-side, not here — see
+ * backend/services/fundamental_service.py. */
+export type ComparisonTable = {
+  currentLabel: string | null;
+  previousLabel: string | null;
+  rows: ComparisonRow[];
+};
+
 export type Company = {
   symbol: string;
   exchange: string;
@@ -85,54 +141,15 @@ export type Company = {
   spark: number[];
 
   // Deep research extras
-  pros: string[];
-  cons: string[];
   shareholdingTrend: ShareholdingRow[];
   quarterlyFinancials: QuarterlyFinancial[];
   checklist: ChecklistItem[];
-  businessSummary: string;
-  verdictSummary: string;
-};
 
-export type AnalysisRating = "Strong Buy" | "Buy" | "Hold" | "Avoid";
-
-export type FundamentalAnalysis = {
-  profitability: string[];
-  growth: string[];
-  valuation: string[];
-  balance_sheet_and_liquidity: string[];
-};
-
-export type TechnicalAnalysisReport = {
-  trend: string[];
-  momentum: string[];
-  volume: string[];
-  moving_averages: string[];
-};
-
-/**
- * GET /company/{symbol}/analysis — Module 6, the deterministic
- * rule-based research engine (no LLM). Field names are snake_case,
- * mirroring backend/schemas/analysis.py's wire contract exactly — a
- * deliberate, documented exception to this file's usual camelCase
- * convention, not a mismatch to fix. Same "no transform layer" rule as
- * every other type here: render what the backend returns.
- */
-export type CompanyAnalysis = {
-  symbol: string;
-  name: string;
-  investment_summary: string;
-  rating: AnalysisRating;
-  confidence: number; // 0-100
-  business_summary: string;
-  fundamental_analysis: FundamentalAnalysis;
-  technical_analysis: TechnicalAnalysisReport;
-  risk_factors: string[];
-  positive_catalysts: string[];
-  negative_catalysts: string[];
-  valuation_summary: string;
-  outlook_6_12_month: string;
-  overall_verdict: string;
+  // Bloomberg/TIKR-style structured data (Company Research page redesign)
+  valuation: ValuationMetrics;
+  supportResistance: PivotLevels;
+  quarterlyComparison: ComparisonTable;
+  annualComparison: ComparisonTable;
 };
 
 /** GET /company/{symbol}/prices row — mirrors backend/schemas/technical.py's PriceBar exactly. */
@@ -198,6 +215,7 @@ export type DiscoverGroup = {
 };
 
 export type PipelineItem = {
+  id: string;
   symbol: string;
   note: string;
   ago: string;
@@ -207,6 +225,27 @@ export type PipelineColumn = {
   stage: PipelineStage;
   hint: string;
   items: PipelineItem[];
+};
+
+/**
+ * Mirrors backend/schemas/pipeline.py's PipelineItemDetail — the flat,
+ * per-item shape returned by the new /pipeline-items CRUD endpoints
+ * (Milestone 3). Distinct from `PipelineItem` above, which is the
+ * grouped-by-stage shape returned by the pre-existing `GET /pipeline`.
+ */
+export type PipelineItemDetail = {
+  id: string;
+  symbol: string;
+  stage: PipelineStage;
+  note: string | null;
+  updatedAt: string; // ISO datetime
+};
+
+/** Body for POST/PUT /pipeline-items. */
+export type PipelineItemInput = {
+  symbol: string;
+  stage: PipelineStage;
+  note?: string | null;
 };
 
 export type SectorPulse = {
@@ -221,42 +260,6 @@ export type MarketIndicator = {
   value: string;
   change: string;
   tone: Signal;
-};
-
-/** "Positive" | "Neutral" | "Negative" -- distinct from `Sentiment`
- * above (Bullish/Positive/Neutral/Bearish), which is the Discover page's
- * score-derived sector pulse scale. Module 7's outlook is news-derived,
- * so it gets its own type rather than overloading `Sentiment`. */
-export type SectorOutlook = "Positive" | "Neutral" | "Negative";
-
-export type WeeklyMarketEvent = {
-  headline: string;
-  whyItMatters: string;
-  expectedImpact: string;
-  sourceUrl: string;
-};
-
-/**
- * GET /company/{symbol}/weekly-market-intelligence -- Module 7. Mirrors
- * backend/schemas/weekly_intelligence.py's `WeeklyMarketIntelligence`
- * exactly, camelCase (this endpoint follows the project's usual
- * camelCase convention, not Module 6's documented snake_case exception).
- * `sectorResearchCandidates` reuses the exact `Company` shape `GET
- * /companies` returns, so the Research page can render it with the
- * existing `CompanyRow` component -- no new list component needed.
- */
-export type WeeklyMarketIntelligence = {
-  symbol: string;
-  sector: string;
-  sectorOutlook: SectorOutlook;
-  weekStartDate: string; // ISO date
-  weekEndDate: string; // ISO date
-  weeklySummary: string;
-  importantEvents: WeeklyMarketEvent[];
-  marketImpact: string;
-  sectorResearchCandidates: Company[];
-  hasCoverage: boolean;
-  lastRefreshedAt: string | null;
 };
 
 /**
@@ -304,3 +307,47 @@ export type JournalEntryInput = {
   horizonMonths?: number | null;
   confidenceLevel?: number | null;
 };
+
+/** "yes" | "partially" | "no" — mirrors backend/schemas/journal_review.py's ThesisOutcome. */
+export type ThesisOutcome = "yes" | "partially" | "no";
+
+/**
+ * Mirrors backend/schemas/journal_review.py's JournalReview exactly —
+ * camelCase, fields lifted directly from the `journal_reviews` table in
+ * db/schema.sql (TD-017). One `JournalEntry` (via `entryId`) can have
+ * zero or more reviews — this is the review/retrospective half of the
+ * journal. `aiComparisonSummary` is a plain, optional, freely-writable
+ * text field; no auto-generation logic exists anywhere in the app for
+ * it — see `DECISIONS.md`.
+ */
+export type JournalReview = {
+  id: string;
+  entryId: string;
+  reviewedAt: string; // ISO datetime, auto-set on create, immutable after
+  thesisPlayedOut: ThesisOutcome | null;
+  whatActuallyHappened: string | null;
+  mistakes: string | null;
+  lessons: string | null;
+  wouldBuyAgain: boolean | null;
+  aiComparisonSummary: string | null;
+};
+
+/** Body for POST /journal-reviews — only `entryId` is required. */
+export type JournalReviewInput = {
+  entryId: string;
+  thesisPlayedOut?: ThesisOutcome | null;
+  whatActuallyHappened?: string | null;
+  mistakes?: string | null;
+  lessons?: string | null;
+  wouldBuyAgain?: boolean | null;
+  aiComparisonSummary?: string | null;
+};
+
+/**
+ * Body for PUT /journal-reviews/{id}. `entryId` is intentionally
+ * excluded — a review's parent entry is immutable after creation (same
+ * treatment as `journal_entries.created_at`) — unlike `JournalEntryInput`,
+ * which is reused as-is for both create and update since
+ * `journal_entries.symbol` IS editable.
+ */
+export type JournalReviewUpdateInput = Omit<JournalReviewInput, "entryId">;

@@ -27,5 +27,13 @@ jobs:
       - name: Compute technical snapshot
         run: python -m ingest.compute_technicals
 
+      # Fundamentals don't actually change daily (Yahoo's own ratios move
+      # roughly on the underlying company's reporting cadence), but running
+      # it daily is cheap (~100 upserts, idempotent) and simpler than a
+      # second cron schedule. Revisit if API load/rate-limiting becomes a
+      # concern — see DATA_STRATEGY.md §3.
+      - name: Fetch fundamentals
+        run: python -m ingest.fetch_fundamentals
+
       - name: Compute scores
         run: python -m ingest.compute_scores

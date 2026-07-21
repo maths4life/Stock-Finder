@@ -5,7 +5,7 @@ Split into a lightweight `CompanyListItem` (GET /companies) and a full
 share `CompanyBase` so the list/detail fields can never drift apart by
 accident.
 """
-from typing import List
+from typing import List, Optional
 
 from pydantic import BaseModel, Field
 
@@ -28,6 +28,66 @@ class QuarterlyFinancial(BaseModel):
 class ChecklistItem(BaseModel):
     label: str
     done: bool
+
+
+class ValuationMetrics(BaseModel):
+    """Research page's Valuation Cards. Optional/None fields have no
+    source anywhere in the schema (see db/schema.sql) and are rendered
+    as N/A by the frontend rather than fabricated -- see
+    company_service.py's `_valuation_metrics` for exactly which fields
+    are reused vs. derived vs. genuinely unavailable."""
+
+    marketCap: Optional[str] = None
+    marketCapCr: Optional[float] = None
+    enterpriseValueCr: Optional[float] = None
+    pe: Optional[float] = None
+    forwardPe: Optional[float] = None
+    peg: Optional[float] = None
+    pb: Optional[float] = None
+    evEbitda: Optional[float] = None
+    divYield: Optional[float] = None
+    beta: Optional[float] = None
+    sharesOutstanding: Optional[float] = None
+    freeFloatPct: Optional[float] = None
+    bookValuePerShare: Optional[float] = None
+
+
+class PivotLevels(BaseModel):
+    """Research page's Support & Resistance section. pivot/support*/
+    resistance* are a standard floor-trader pivot computed off the most
+    recent day's OHLC (see technical_service.get_support_resistance);
+    vwap/high52w/low52w are read straight off technical_snapshot, which
+    ingest/compute_technicals.py already writes."""
+
+    pivot: Optional[float] = None
+    support1: Optional[float] = None
+    support2: Optional[float] = None
+    resistance1: Optional[float] = None
+    resistance2: Optional[float] = None
+    vwap: Optional[float] = None
+    high52w: Optional[float] = None
+    low52w: Optional[float] = None
+
+
+class ComparisonRow(BaseModel):
+    metric: str
+    current: Optional[float] = None
+    previous: Optional[float] = None
+    diff: Optional[float] = None
+    growthPct: Optional[float] = None
+
+
+class ComparisonTable(BaseModel):
+    """Research page's Quarterly/Annual Financial Comparison tables.
+    `currentLabel`/`previousLabel` are the real period labels from
+    financials_quarterly (e.g. '2024-03-31'), None when that period
+    doesn't exist for this company. Every row where the underlying
+    column has no data for a period is None -- see
+    fundamental_service.get_quarterly_comparison/get_annual_comparison."""
+
+    currentLabel: Optional[str] = None
+    previousLabel: Optional[str] = None
+    rows: List[ComparisonRow] = Field(default_factory=list)
 
 
 class CompanyBase(BaseModel):
@@ -94,13 +154,14 @@ class Company(CompanyBase):
     """Returned by GET /company/{symbol} — the complete object, including
     the deep-research fields Module 3 will populate."""
 
-    pros: List[str] = Field(default_factory=list)
-    cons: List[str] = Field(default_factory=list)
     shareholdingTrend: List[ShareholdingRow] = Field(default_factory=list)
     quarterlyFinancials: List[QuarterlyFinancial] = Field(default_factory=list)
     checklist: List[ChecklistItem] = Field(default_factory=list)
-    businessSummary: str = ""
-    verdictSummary: str = ""
+
+    valuation: ValuationMetrics = Field(default_factory=ValuationMetrics)
+    supportResistance: PivotLevels = Field(default_factory=PivotLevels)
+    quarterlyComparison: ComparisonTable = Field(default_factory=ComparisonTable)
+    annualComparison: ComparisonTable = Field(default_factory=ComparisonTable)
 
 
 class PaginatedCompanies(BaseModel):

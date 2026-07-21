@@ -52,7 +52,7 @@ function Discover() {
             Which companies deserve your attention today?
           </h1>
           <p className="mt-5 text-base text-ink-muted max-w-xl leading-relaxed">
-            Eight companies surfaced across four narratives. Take twenty minutes.
+            A shortlist surfaced across four narratives. Take twenty minutes.
             Add one to your pipeline, or move on.
           </p>
         </header>

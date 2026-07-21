@@ -11,6 +11,10 @@ Usage:
 from sqlalchemy import text
 
 from ingest.db import get_engine
+# Milestone 5: no change needed here. UNIVERSE now resolves through
+# ingest/universe.py's CSV-backed load_universe() instead of a hardcoded
+# list — this import is unchanged and transparently picks up all ~100
+# companies from data/universe_top100.csv.
 from ingest.universe import UNIVERSE
 
 
@@ -46,17 +50,26 @@ def fetch_technicals(engine, symbol: str) -> dict | None:
 def fundamental_score(f: dict | None) -> float | None:
     if f is None:
         return None
+
     score = 50.0  # neutral baseline
 
-    if f.get("roe_pct") is not None:
-        score += min(max(f["roe_pct"] - 15, -15), 20)  # reward ROE above 15%
-    if f.get("roce_pct") is not None:
-        score += min(max(f["roce_pct"] - 15, -10), 15)
-    if f.get("profit_growth_pct") is not None:
-        score += min(max(f["profit_growth_pct"] / 2, -15), 15)
-    if f.get("pe") is not None and f["pe"] > 0:
+    roe = float(f["roe_pct"]) if f.get("roe_pct") is not None else None
+    roce = float(f["roce_pct"]) if f.get("roce_pct") is not None else None
+    profit_growth = float(f["profit_growth_pct"]) if f.get("profit_growth_pct") is not None else None
+    pe = float(f["pe"]) if f.get("pe") is not None else None
+
+    if roe is not None:
+        score += min(max(roe - 15, -15), 20)
+
+    if roce is not None:
+        score += min(max(roce - 15, -10), 15)
+
+    if profit_growth is not None:
+        score += min(max(profit_growth / 2, -15), 15)
+
+    if pe is not None and pe > 0:
         # Mild penalty for very expensive multiples, mild reward for cheap ones.
-        score += min(max((35 - f["pe"]) / 5, -10), 10)
+        score += min(max((35 - pe) / 5, -10), 10)
 
     return round(min(max(score, 0), 100), 1)
 

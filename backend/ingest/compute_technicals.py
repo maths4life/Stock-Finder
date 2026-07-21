@@ -18,6 +18,10 @@ from ingest.indicators import (
     compute_vwap,
     detect_golden_cross,
 )
+# Milestone 5: no change needed here. UNIVERSE now resolves through
+# ingest/universe.py's CSV-backed load_universe() instead of a hardcoded
+# list — this import is unchanged and transparently picks up all ~100
+# companies from data/universe_top100.csv.
 from ingest.universe import UNIVERSE
 
 

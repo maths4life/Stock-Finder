@@ -147,7 +147,7 @@ _STAGE_ORDER = ["Watching", "Researching", "Conviction"]
 
 _PIPELINE_QUERY = text(
     """
-    select stage, symbol, note, updated_at
+    select id, stage, symbol, note, updated_at
     from pipeline_items
     order by updated_at desc
     """
@@ -184,7 +184,7 @@ def get_pipeline() -> List[dict]:
             updated_at = updated_at.replace(tzinfo=timezone.utc)
         ago = _humanize_ago((now - updated_at).total_seconds()) if updated_at else "—"
         by_stage[stage].append(
-            PipelineItem(symbol=row["symbol"], note=row["note"] or "", ago=ago)
+            PipelineItem(id=str(row["id"]), symbol=row["symbol"], note=row["note"] or "", ago=ago)
         )
 
     return [

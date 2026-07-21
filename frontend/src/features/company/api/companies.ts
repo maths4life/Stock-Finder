@@ -1,14 +1,7 @@
-import { API_URL } from "@/shared/api/config";
 import { ApiError } from "@/shared/api/client";
-import type {
-  Company,
-  CompanyAnalysis,
-  CompanyQueryParams,
-  Paginated,
-  PriceBar,
-  PriceRange,
-  WeeklyMarketIntelligence,
-} from "@/shared/api/types";
+import type { Company, CompanyQueryParams, Paginated, PriceBar, PriceRange } from "@/shared/api/types";
+
+const API_URL = "http://127.0.0.1:8000";
 
 /**
  * GET /companies (Module 4 — Screener)
@@ -59,47 +52,6 @@ export async function fetchCompany(symbol: string): Promise<Company> {
 
   if (!response.ok) {
     throw new Error("Failed to fetch company");
-  }
-
-  return response.json();
-}
-
-/**
- * GET /company/{symbol}/analysis (Module 6 — AI-style research engine)
- * Backend generates the full report deterministically from stored
- * fundamentals/technicals/scores — no client-side computation, same
- * "backend owns the logic" split as fetchCompanies/fetchCompany above.
- */
-export async function fetchCompanyAnalysis(symbol: string): Promise<CompanyAnalysis> {
-  const response = await fetch(`${API_URL}/company/${symbol}/analysis`);
-
-  if (response.status === 404) {
-    throw new ApiError(`No company found for symbol "${symbol}"`, 404);
-  }
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch company analysis");
-  }
-
-  return response.json();
-}
-
-/**
- * GET /company/{symbol}/weekly-market-intelligence (Module 7)
- * Backend owns the entire pipeline — news collection, deduplication,
- * sector classification, and re-ranking sector peers by the existing
- * Opportunity Score. This just fetches the fully processed result; no
- * news parsing, scoring, or ranking happens on the client.
- */
-export async function fetchWeeklyMarketIntelligence(symbol: string): Promise<WeeklyMarketIntelligence> {
-  const response = await fetch(`${API_URL}/company/${symbol}/weekly-market-intelligence`);
-
-  if (response.status === 404) {
-    throw new ApiError(`No company found for symbol "${symbol}"`, 404);
-  }
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch weekly market intelligence");
   }
 
   return response.json();

@@ -55,3 +55,61 @@ def get_price_history(symbol: str, range_: str = DEFAULT_RANGE) -> List[dict]:
         ).model_dump()
         for row in rows
     ]
+
+
+# ---------------------------------------------------------------------------
+# Research page's Support & Resistance section (Bloomberg/TIKR redesign)
+# ---------------------------------------------------------------------------
+
+_LATEST_OHLC_QUERY = text(
+    """
+    select high, low, close
+    from prices_daily
+    where symbol = :symbol
+    order by date desc
+    limit 1
+    """
+)
+
+_SNAPSHOT_LEVELS_QUERY = text(
+    """
+    select vwap, high_52w, low_52w
+    from technical_snapshot
+    where symbol = :symbol
+    """
+)
+
+
+def get_support_resistance(symbol: str) -> dict:
+    """GET /company/{symbol} 'supportResistance'. No existing pivot/
+    support/resistance calculation exists anywhere in the codebase —
+    ingest/compute_technicals.py and this module only write/read RSI,
+    moving averages, VWAP, and 52-week high/low — so pivot/S1/S2/R1/R2
+    are computed here with the standard floor-trader formula off the
+    most recent day's OHLC in `prices_daily` (the same table the Price
+    History chart above already reads; no new table). VWAP and 52-week
+    high/low are read straight off `technical_snapshot`, not
+    recalculated."""
+    with engine.connect() as conn:
+        ohlc = conn.execute(_LATEST_OHLC_QUERY, {"symbol": symbol.upper()}).mappings().first()
+        snap = conn.execute(_SNAPSHOT_LEVELS_QUERY, {"symbol": symbol.upper()}).mappings().first()
+
+    pivot = support1 = support2 = resistance1 = resistance2 = None
+    if ohlc and ohlc["high"] is not None and ohlc["low"] is not None and ohlc["close"] is not None:
+        high, low, close = float(ohlc["high"]), float(ohlc["low"]), float(ohlc["close"])
+        pivot = (high + low + close) / 3
+        support1 = 2 * pivot - high
+        resistance1 = 2 * pivot - low
+        support2 = pivot - (high - low)
+        resistance2 = pivot + (high - low)
+
+    return {
+        "pivot": pivot,
+        "support1": support1,
+        "support2": support2,
+        "resistance1": resistance1,
+        "resistance2": resistance2,
+        "vwap": float(snap["vwap"]) if snap and snap["vwap"] is not None else None,
+        "high52w": float(snap["high_52w"]) if snap and snap["high_52w"] is not None else None,
+        "low52w": float(snap["low_52w"]) if snap and snap["low_52w"] is not None else None,
+    }

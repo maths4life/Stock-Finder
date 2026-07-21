@@ -32,8 +32,8 @@
 
 ## Phase E5 — Scale validation (aligned with Product Phase 2)
 
-- Load-test the ingest cron against a 150–300 symbol universe before it's relied on.
-- Add basic monitoring/alerting on the GitHub Actions cron (currently silent-fail if `fetch_prices`/`compute_technicals`/`compute_scores` errors — verify what actually happens today and whether failures are visible anywhere).
+- ~~Load-test the ingest cron against a 150–300 symbol universe before it's relied on.~~ **Partially done, Milestone 5** — the universe was expanded to ~100 (an intermediate step short of 150–300, by deliberate founder choice) and ingestion time/storage/API performance were *estimated* from the actual code paths (sleep intervals, row counts, query shape), but not measured against a real run — no live Postgres or `yfinance` access was available in that session. **Still open:** an actual timed run of `fetch_prices` → `compute_technicals` → `compute_scores` against the live ~100-company universe. See `TECHNICAL_DEBT.md` TD-023/TD-024.
+- Add basic monitoring/alerting on the GitHub Actions cron (currently silent-fail if `fetch_prices`/`compute_technicals`/`compute_scores` errors — verify what actually happens today and whether failures are visible anywhere). **Not started** — `fetch_prices.py` gained a per-run summary of successes/failures as part of Milestone 5, printed to the job log, but nothing surfaces that summary anywhere outside the raw Action log (no alert, no notification) if a run partially or fully fails.
 
 ## Phase E6 — News pipeline validation (aligned with Product Phase 5)
 
@@ -45,5 +45,5 @@
 ## Standing rules that apply across every phase
 
 1. **No module is "done" until its status in `CURRENT_STATE.md` is updated in the same change.** The drift documented in `CURRENT_STATE.md` §0 (stale `API_CONTRACT.md`, contradictory `CLAUDE.MD` — both since resolved by removing the files, per `DECISIONS.md` ADR-012) happened because documentation updates were treated as optional. Don't repeat that.
-2. **No new database table without checking `ENGINEERING_GUIDE.md`'s "when to add a table" rule first** — `pipeline_items` and `journal_reviews` were added well ahead of the API that uses them (`journal_entries` closed this gap in Milestone 2); avoid growing that gap further.
+2. **No new database table without checking `ENGINEERING_GUIDE.md`'s "when to add a table" rule first** — `pipeline_items` and `journal_reviews` were added well ahead of the API that uses them (`journal_entries` closed this gap in Milestone 2, `pipeline_items` closed it in Milestone 3, `journal_reviews` closed it in Milestone 4); every first-party table now has its API — avoid reopening this gap with a new table.
 3. **Any code claiming to be "AI" must actually call a model, or be renamed.** Per ADR-006, the current "AI Insights" naming is already inaccurate; don't add a second instance of the same mismatch.

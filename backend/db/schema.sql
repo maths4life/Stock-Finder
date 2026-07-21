@@ -7,15 +7,25 @@
 -- ============================================================
 
 create table if not exists companies (
-    symbol          text primary key,          -- e.g. 'POLYCAB'
-    yahoo_ticker    text not null,              -- e.g. 'POLYCAB.NS'
-    exchange        text not null default 'NSE',
-    name            text not null,
-    sector          text,
-    isin            text,
-    is_active       boolean not null default true,
-    created_at      timestamptz not null default now()
+    symbol            text primary key,          -- e.g. 'HDFCBANK'
+    yahoo_ticker      text not null,              -- e.g. 'HDFCBANK.NS'
+    exchange          text not null default 'NSE',
+    name              text not null,
+    sector            text,
+    isin              text,
+    is_active         boolean not null default true,
+    index_membership  text,                       -- e.g. 'NIFTY50' /
+                                                    -- 'NIFTYNEXT50', free-text,
+                                                    -- sourced from the universe
+                                                    -- CSV (ingest/universe.py) —
+                                                    -- see Milestone 5
+    created_at        timestamptz not null default now()
 );
+
+-- Idempotent migration guard, same convention as financials_quarterly /
+-- shareholding_pattern below: safe to re-run on a database created from an
+-- older version of this file.
+alter table companies add column if not exists index_membership text;
 
 -- ============================================================
 -- 2. Prices — the only thing yfinance is fully trustworthy for
@@ -92,7 +102,9 @@ create table if not exists financials_quarterly (
                                       -- historical series)
     book_value          numeric,     -- per-share book value, same
                                       -- 'latest'-row-only caveat as above
-    source              text default 'kaggle_seed',
+    source              text default 'kaggle_seed',   -- default is legacy; rows written by
+                                                        -- ingest/fetch_fundamentals.py explicitly
+                                                        -- set 'yfinance' (see DATA_STRATEGY.md §1)
     updated_at          timestamptz not null default now(),
     primary key (symbol, quarter)
 );

@@ -1,0 +1,101 @@
+symbol,yahoo_ticker,exchange,name,sector,index_membership,is_active
+ADANIENT,ADANIENT.NS,NSE,Adani Enterprises,Metals & Mining,NIFTY50,true
+ADANIPORTS,ADANIPORTS.NS,NSE,Adani Ports & SEZ,Services,NIFTY50,true
+APOLLOHOSP,APOLLOHOSP.NS,NSE,Apollo Hospitals,Healthcare,NIFTY50,true
+ASIANPAINT,ASIANPAINT.NS,NSE,Asian Paints,Consumer Durables,NIFTY50,true
+AXISBANK,AXISBANK.NS,NSE,Axis Bank,Financial Services,NIFTY50,true
+BAJAJ-AUTO,BAJAJ-AUTO.NS,NSE,Bajaj Auto,Automobile and Auto Components,NIFTY50,true
+BAJFINANCE,BAJFINANCE.NS,NSE,Bajaj Finance,Financial Services,NIFTY50,true
+BAJAJFINSV,BAJAJFINSV.NS,NSE,Bajaj Finserv,Financial Services,NIFTY50,true
+BEL,BEL.NS,NSE,Bharat Electronics,Capital Goods,NIFTY50,true
+BHARTIARTL,BHARTIARTL.NS,NSE,Bharti Airtel,Telecommunication,NIFTY50,true
+CIPLA,CIPLA.NS,NSE,Cipla,Healthcare,NIFTY50,true
+COALINDIA,COALINDIA.NS,NSE,Coal India,Oil Gas & Consumable Fuels,NIFTY50,true
+DRREDDY,DRREDDY.NS,NSE,Dr. Reddy's Laboratories,Healthcare,NIFTY50,true
+EICHERMOT,EICHERMOT.NS,NSE,Eicher Motors,Automobile and Auto Components,NIFTY50,true
+ETERNAL,ETERNAL.NS,NSE,Eternal,Consumer Services,NIFTY50,true
+GRASIM,GRASIM.NS,NSE,Grasim Industries,Construction Materials,NIFTY50,true
+HCLTECH,HCLTECH.NS,NSE,HCLTech,Information Technology,NIFTY50,true
+HDFCBANK,HDFCBANK.NS,NSE,HDFC Bank,Financial Services,NIFTY50,true
+HDFCLIFE,HDFCLIFE.NS,NSE,HDFC Life,Financial Services,NIFTY50,true
+HINDALCO,HINDALCO.NS,NSE,Hindalco Industries,Metals & Mining,NIFTY50,true
+HINDUNILVR,HINDUNILVR.NS,NSE,Hindustan Unilever,Fast Moving Consumer Goods,NIFTY50,true
+ICICIBANK,ICICIBANK.NS,NSE,ICICI Bank,Financial Services,NIFTY50,true
+INDIGO,INDIGO.NS,NSE,IndiGo,Services,NIFTY50,true
+INFY,INFY.NS,NSE,Infosys,Information Technology,NIFTY50,true
+ITC,ITC.NS,NSE,ITC,Fast Moving Consumer Goods,NIFTY50,true
+JIOFIN,JIOFIN.NS,NSE,Jio Financial Services,Financial Services,NIFTY50,true
+JSWSTEEL,JSWSTEEL.NS,NSE,JSW Steel,Metals & Mining,NIFTY50,true
+KOTAKBANK,KOTAKBANK.NS,NSE,Kotak Mahindra Bank,Financial Services,NIFTY50,true
+LT,LT.NS,NSE,Larsen & Toubro,Construction,NIFTY50,true
+M&M,M&M.NS,NSE,Mahindra & Mahindra,Automobile and Auto Components,NIFTY50,true
+MARUTI,MARUTI.NS,NSE,Maruti Suzuki,Automobile and Auto Components,NIFTY50,true
+MAXHEALTH,MAXHEALTH.NS,NSE,Max Healthcare,Healthcare,NIFTY50,true
+NESTLEIND,NESTLEIND.NS,NSE,Nestle India,Fast Moving Consumer Goods,NIFTY50,true
+NTPC,NTPC.NS,NSE,NTPC,Power,NIFTY50,true
+ONGC,ONGC.NS,NSE,Oil and Natural Gas Corporation,Oil Gas & Consumable Fuels,NIFTY50,true
+POWERGRID,POWERGRID.NS,NSE,Power Grid,Power,NIFTY50,true
+RELIANCE,RELIANCE.NS,NSE,Reliance Industries,Oil Gas & Consumable Fuels,NIFTY50,true
+SBILIFE,SBILIFE.NS,NSE,SBI Life Insurance Company,Financial Services,NIFTY50,true
+SHRIRAMFIN,SHRIRAMFIN.NS,NSE,Shriram Finance,Financial Services,NIFTY50,true
+SBIN,SBIN.NS,NSE,State Bank of India,Financial Services,NIFTY50,true
+SUNPHARMA,SUNPHARMA.NS,NSE,Sun Pharma,Healthcare,NIFTY50,true
+TCS,TCS.NS,NSE,Tata Consultancy Services,Information Technology,NIFTY50,true
+TATACONSUM,TATACONSUM.NS,NSE,Tata Consumer Products,Fast Moving Consumer Goods,NIFTY50,true
+TMPV,TMPV.NS,NSE,Tata Motors Passenger Vehicles,Automobile and Auto Components,NIFTY50,true
+TATASTEEL,TATASTEEL.NS,NSE,Tata Steel,Metals & Mining,NIFTY50,true
+TECHM,TECHM.NS,NSE,Tech Mahindra,Information Technology,NIFTY50,true
+TITAN,TITAN.NS,NSE,Titan Company,Consumer Durables,NIFTY50,true
+TRENT,TRENT.NS,NSE,Trent Ltd,Consumer Services,NIFTY50,true
+ULTRACEMCO,ULTRACEMCO.NS,NSE,UltraTech Cement,Construction Materials,NIFTY50,true
+WIPRO,WIPRO.NS,NSE,Wipro,Information Technology,NIFTY50,true
+ABB,ABB.NS,NSE,ABB India,Capital Goods,NIFTYNEXT50,true
+ADANIENSOL,ADANIENSOL.NS,NSE,Adani Energy Solutions,Power,NIFTYNEXT50,true
+ADANIGREEN,ADANIGREEN.NS,NSE,Adani Green Energy,Power,NIFTYNEXT50,true
+ADANIPOWER,ADANIPOWER.NS,NSE,Adani Power,Power,NIFTYNEXT50,true
+AMBUJACEM,AMBUJACEM.NS,NSE,Ambuja Cements,Construction Materials,NIFTYNEXT50,true
+BAJAJHLDNG,BAJAJHLDNG.NS,NSE,Bajaj Holdings,Financial Services,NIFTYNEXT50,true
+BAJAJHFL,BAJAJHFL.NS,NSE,Bajaj Housing Finance,Financial Services,NIFTYNEXT50,true
+BANKBARODA,BANKBARODA.NS,NSE,Bank of Baroda,Financial Services,NIFTYNEXT50,true
+BPCL,BPCL.NS,NSE,Bharat Petroleum,Oil Gas & Consumable Fuels,NIFTYNEXT50,true
+BRITANNIA,BRITANNIA.NS,NSE,Britannia Industries,Fast Moving Consumer Goods,NIFTYNEXT50,true
+BOSCHLTD,BOSCHLTD.NS,NSE,Bosch,Automobile and Auto Components,NIFTYNEXT50,true
+CANBK,CANBK.NS,NSE,Canara Bank,Financial Services,NIFTYNEXT50,true
+CGPOWER,CGPOWER.NS,NSE,CG Power and Industrial Solutions,Capital Goods,NIFTYNEXT50,true
+CHOLAFIN,CHOLAFIN.NS,NSE,Cholamandalam Investment and Finance,Financial Services,NIFTYNEXT50,true
+DIVISLAB,DIVISLAB.NS,NSE,Divi's Laboratories,Healthcare,NIFTYNEXT50,true
+DLF,DLF.NS,NSE,DLF,Realty,NIFTYNEXT50,true
+DMART,DMART.NS,NSE,Avenue Supermarts (DMart),Consumer Services,NIFTYNEXT50,true
+GAIL,GAIL.NS,NSE,GAIL India,Oil Gas & Consumable Fuels,NIFTYNEXT50,true
+GODREJCP,GODREJCP.NS,NSE,Godrej Consumer Products,Fast Moving Consumer Goods,NIFTYNEXT50,true
+HAVELLS,HAVELLS.NS,NSE,Havells India,Consumer Durables,NIFTYNEXT50,true
+HAL,HAL.NS,NSE,Hindustan Aeronautics,Capital Goods,NIFTYNEXT50,true
+HINDZINC,HINDZINC.NS,NSE,Hindustan Zinc,Metals & Mining,NIFTYNEXT50,true
+HYUNDAI,HYUNDAI.NS,NSE,Hyundai Motor India,Automobile and Auto Components,NIFTYNEXT50,true
+ICICIGI,ICICIGI.NS,NSE,ICICI Lombard General Insurance,Financial Services,NIFTYNEXT50,true
+INDHOTEL,INDHOTEL.NS,NSE,Indian Hotels Company,Consumer Services,NIFTYNEXT50,true
+IOC,IOC.NS,NSE,Indian Oil Corporation,Oil Gas & Consumable Fuels,NIFTYNEXT50,true
+NAUKRI,NAUKRI.NS,NSE,Info Edge,Consumer Services,NIFTYNEXT50,true
+IRFC,IRFC.NS,NSE,Indian Railway Finance Corporation,Financial Services,NIFTYNEXT50,true
+JINDALSTEL,JINDALSTEL.NS,NSE,Jindal Steel & Power,Metals & Mining,NIFTYNEXT50,true
+JSWENERGY,JSWENERGY.NS,NSE,JSW Energy,Power,NIFTYNEXT50,true
+LICI,LICI.NS,NSE,Life Insurance Corporation of India,Financial Services,NIFTYNEXT50,true
+LODHA,LODHA.NS,NSE,Macrotech Developers (Lodha),Realty,NIFTYNEXT50,true
+LTIM,LTIM.NS,NSE,LTIMindtree,Information Technology,NIFTYNEXT50,true
+MAZDOCK,MAZDOCK.NS,NSE,Mazagon Dock Shipbuilders,Capital Goods,NIFTYNEXT50,true
+PIDILITIND,PIDILITIND.NS,NSE,Pidilite Industries,Chemicals,NIFTYNEXT50,true
+PFC,PFC.NS,NSE,Power Finance Corporation,Financial Services,NIFTYNEXT50,true
+PNB,PNB.NS,NSE,Punjab National Bank,Financial Services,NIFTYNEXT50,true
+RECLTD,RECLTD.NS,NSE,REC Limited,Financial Services,NIFTYNEXT50,true
+MOTHERSON,MOTHERSON.NS,NSE,Samvardhana Motherson International,Automobile and Auto Components,NIFTYNEXT50,true
+SHREECEM,SHREECEM.NS,NSE,Shree Cement,Construction Materials,NIFTYNEXT50,true
+SIEMENS,SIEMENS.NS,NSE,Siemens,Capital Goods,NIFTYNEXT50,true
+ENRIN,ENRIN.NS,NSE,Siemens Energy India,Capital Goods,NIFTYNEXT50,true
+SOLARINDS,SOLARINDS.NS,NSE,Solar Industries India,Chemicals,NIFTYNEXT50,true
+TATAPOWER,TATAPOWER.NS,NSE,Tata Power,Power,NIFTYNEXT50,true
+TORNTPHARM,TORNTPHARM.NS,NSE,Torrent Pharmaceuticals,Healthcare,NIFTYNEXT50,true
+TVSMOTOR,TVSMOTOR.NS,NSE,TVS Motor Company,Automobile and Auto Components,NIFTYNEXT50,true
+UNITDSPR,UNITDSPR.NS,NSE,United Spirits,Fast Moving Consumer Goods,NIFTYNEXT50,true
+VBL,VBL.NS,NSE,Varun Beverages,Fast Moving Consumer Goods,NIFTYNEXT50,true
+VEDL,VEDL.NS,NSE,Vedanta,Metals & Mining,NIFTYNEXT50,true
+ZYDUSLIFE,ZYDUSLIFE.NS,NSE,Zydus Lifesciences,Healthcare,NIFTYNEXT50,true

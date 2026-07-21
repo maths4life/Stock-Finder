@@ -1,6 +1,7 @@
-import { API_URL } from "@/shared/api/config";
 import { ApiError } from "@/shared/api/client";
 import type { DiscoverGroup, MarketIndicator, PipelineColumn, SectorPulse } from "@/shared/api/types";
+
+const API_URL = "http://127.0.0.1:8000";
 
 /** GET /discover/groups */
 export async function fetchDiscoverGroups(): Promise<DiscoverGroup[]> {

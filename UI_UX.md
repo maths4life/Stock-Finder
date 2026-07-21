@@ -43,8 +43,8 @@ Should answer: "Should I seriously consider investing in this company?" The curr
 The most under-built part of the product relative to how central it is to the vision. Per `PRODUCT_REQUIREMENTS.md`, the journal exists to force explicit, falsifiable reasoning (including a pre-committed sell trigger) and to close the loop later via review. UX-wise, this means:
 
 - Writing an entry should take under two minutes — friction here directly reduces whether it gets used at all.
-- The review flow (`journal_reviews`, `review_due_at`) should surface proactively — a "Due for Review" view, not something the founder has to remember to seek out. Nothing in the current frontend does this yet.
-- Reviews should show the thesis alongside what the score/price actually did since — this is where `journal_reviews.ai_comparison_summary` is meant to matter, and it should stay deterministic/data-driven per the same explainability rule as the scoring engine, not become a place AI narrative sneaks in unjustified.
+- The review flow (`journal_reviews`, `review_due_at`) should surface proactively — a "Due for Review" view, not something the founder has to remember to seek out. As of Milestone 4, a review can be recorded inline under each journal entry, and the "+ Add review" affordance is highlighted once `review_due_at` has passed — but there's still no dedicated cross-entry "Due for Review" surface independent of the main journal feed.
+- Reviews should show the thesis alongside what the score/price actually did since — this is where `journal_reviews.ai_comparison_summary` is meant to matter, and it should stay deterministic/data-driven per the same explainability rule as the scoring engine, not become a place AI narrative sneaks in unjustified. As built in Milestone 4, `ai_comparison_summary` is a plain user-writable field with no automation behind it at all — see `DECISIONS.md` ADR-013 — so this principle hasn't yet been tested against a real automated version of the field, only guarded against pre-emptively.
 
 ## 6. Information hierarchy rules (apply to any new page)
 

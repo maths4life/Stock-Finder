@@ -1,4 +1,12 @@
-"""One-time (or occasional) seed of fundamentals + shareholding data from
+"""LEGACY / OPTIONAL path. The default way to populate fundamentals is now
+`ingest/fetch_fundamentals.py`, which pulls live from yfinance and needs
+no external dataset — run that instead unless you specifically have the
+Kaggle export below and want its (frozen, one-time) numbers instead. This
+script cannot run at all on a fresh checkout of this project: the
+dataset is not bundled here and was never checked in (see
+`DATA_STRATEGY.md` §4 and `TECHNICAL_DEBT.md` TD-001).
+
+One-time (or occasional) seed of fundamentals + shareholding data from
 the free Kaggle dataset:
 
     "Detailed Financials Data Of 4492 NSE & BSE Company"

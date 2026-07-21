@@ -1,30 +1,20 @@
 """Module 7 -- the Weekly Intelligence Engine.
 
-This is the one file services/analysis_service.py-style callers (the
-route layer) talk to. It owns the two operations Module 7 needs:
+This file owns the weekly refresh pipeline:
+`refresh_weekly_intelligence()` (news_provider -> sector_classifier ->
+market_summary_generator -> `weekly_sector_intelligence` table). Meant to
+run once a week (e.g. every Sunday via cron/Task Scheduler calling
+`python -m ingest.weekly_news_refresh`), not per-request -- see that
+script and the "Weekly refresh workflow" section of MODULE_7_REPORT.md.
 
-1. `refresh_weekly_intelligence()` -- the weekly refresh pipeline
-   (news_provider -> sector_classifier -> market_summary_generator ->
-   `weekly_sector_intelligence` table). Meant to run once a week (e.g.
-   every Sunday via cron/Task Scheduler calling
-   `python -m ingest.weekly_news_refresh`), not per-request -- see that
-   script and the "Weekly refresh workflow" section of
-   MODULE_7_REPORT.md.
-
-2. `get_weekly_market_intelligence_for_company(symbol)` -- the read path
-   GET /company/{symbol}/weekly-market-intelligence calls. Purely reads
-   already-computed data:
-   - the latest `weekly_sector_intelligence` row for the company's sector
-     (written by #1 above -- never recomputed per-request)
-   - the company's own record via `company_service.get_company_by_symbol`
-     (reused, not re-queried piecemeal)
-   - sibling companies in the same sector ranked by the existing
-     Opportunity Score, via `screener_service.screen_companies` (reused,
-     not reimplemented)
-
-No business logic (scoring, ranking, sector aggregation) lives in
-routes/weekly_intelligence.py -- same "API stays thin, service owns the
-logic" convention as every other module in this project.
+The read path this module used to expose --
+`get_weekly_market_intelligence_for_company(symbol)`, backing
+GET /company/{symbol}/weekly-market-intelligence -- was removed along
+with the Company Research page's "Weekly Market Intelligence" section
+(see routes/weekly_intelligence.py). The refresh pipeline and the
+`weekly_sector_intelligence` table it writes are untouched, since
+`ingest/weekly_news_refresh.py` still calls `refresh_weekly_intelligence`
+directly and isn't part of that page.
 """
 from __future__ import annotations
 
@@ -35,14 +25,11 @@ from typing import Dict, List, Optional
 from sqlalchemy import text
 
 from db.db import engine
-from services.company_service import get_company_by_symbol
 from services.market_summary_generator import build_major_events, sector_outlook_from_articles, weekly_sector_summary
 from services.news_provider import RawArticle, fetch_all_recent_articles
-from services.screener_service import screen_companies
 from services.sector_classifier import classify_article, get_classification_context, importance_score
 
 REFRESH_WINDOW_DAYS = 7
-MAX_RESEARCH_CANDIDATES = 5
 
 
 def _week_bounds(reference_date: Optional[date] = None) -> tuple[date, date]:
@@ -105,9 +92,9 @@ def refresh_weekly_intelligence(reference_date: Optional[date] = None) -> Dict:
     sectors -> group similar events -> generate weekly sector
     intelligence -> upsert into `weekly_sector_intelligence`.
 
-    Reuses Opportunity Scores / AI Insight summaries at *read* time
-    (get_weekly_market_intelligence_for_company), not here -- this
-    function only ever writes sector-level news intelligence.
+    Sector-level output only -- there's no per-company read path in this
+    module anymore (see the module docstring for why); this function
+    only ever writes sector-level news intelligence.
     """
     week_start, week_end = _week_bounds(reference_date)
 
@@ -202,105 +189,3 @@ def refresh_weekly_intelligence(reference_date: Optional[date] = None) -> Dict:
 
 def _to_jsonb(value) -> str:
     return json.dumps(value)
-
-
-# ---------------------------------------------------------------------------
-# 2. Read path -- GET /company/{symbol}/weekly-market-intelligence
-# ---------------------------------------------------------------------------
-
-_LATEST_SECTOR_INTEL_QUERY = text(
-    """
-    select sector, week_start_date, week_end_date, outlook, summary, major_events, generated_at
-    from weekly_sector_intelligence
-    where sector = :sector
-    order by week_start_date desc
-    limit 1
-    """
-)
-
-
-def get_weekly_market_intelligence_for_company(symbol: str) -> Optional[Dict]:
-    """Builds the full Research-page payload for one company. Returns
-    `None` only if the symbol itself doesn't exist (mirrors
-    company_service.get_company_by_symbol / analysis_service's 404
-    convention) -- a company that exists but whose sector has no
-    generated intelligence yet still returns a payload, with
-    `hasCoverage: False` and an honest "no data yet" summary rather than
-    a 404 or fabricated content.
-    """
-    company = get_company_by_symbol(symbol)
-    if company is None:
-        return None
-
-    sector = company["sector"]
-
-    with engine.connect() as conn:
-        row = conn.execute(_LATEST_SECTOR_INTEL_QUERY, {"sector": sector}).mappings().first()
-
-    candidates_page = screen_companies(
-        sector=sector,
-        sort="overallScore",
-        sort_direction="desc",
-        page=1,
-        page_size=MAX_RESEARCH_CANDIDATES + 1,  # +1 headroom in case the researched company is in the list
-    )
-    candidates = [c for c in candidates_page["items"] if c["symbol"] != company["symbol"]][:MAX_RESEARCH_CANDIDATES]
-
-    if row is None:
-        week_start, week_end = _week_bounds()
-        return {
-            "symbol": company["symbol"],
-            "sector": sector,
-            "sectorOutlook": "Neutral",
-            "weekStartDate": week_start.isoformat(),
-            "weekEndDate": week_end.isoformat(),
-            "weeklySummary": (
-                f"No Weekly Market Intelligence has been generated for {sector} yet. "
-                "Run the weekly refresh (see README) to populate this section."
-            ),
-            "importantEvents": [],
-            "marketImpact": (
-                f"{company['name']}'s sector ({sector}) has no processed news coverage for the current week yet."
-            ),
-            "sectorResearchCandidates": candidates,
-            "hasCoverage": False,
-            "lastRefreshedAt": None,
-        }
-
-    market_impact = _market_impact_sentence(company, row["outlook"], sector)
-
-    return {
-        "symbol": company["symbol"],
-        "sector": sector,
-        "sectorOutlook": row["outlook"],
-        "weekStartDate": row["week_start_date"].isoformat(),
-        "weekEndDate": row["week_end_date"].isoformat(),
-        "weeklySummary": row["summary"],
-        "importantEvents": row["major_events"],
-        "marketImpact": market_impact,
-        "sectorResearchCandidates": candidates,
-        "hasCoverage": True,
-        "lastRefreshedAt": row["generated_at"].isoformat(),
-    }
-
-
-def _market_impact_sentence(company: Dict, outlook: str, sector: str) -> str:
-    """Template sentence connecting this week's sector outlook to the
-    specific company being researched -- reuses the company's own
-    already-computed `overallScore`/`verdict` (from scoring_service, via
-    company_service) rather than recomputing anything."""
-    verdict = company.get("verdict", "Under Review")
-    overall_score = company.get("overallScore", 0.0)
-
-    if outlook == "Positive":
-        stance = f"a tailwind for {sector} names"
-    elif outlook == "Negative":
-        stance = f"a headwind for {sector} names"
-    else:
-        stance = f"a mixed backdrop for {sector} names"
-
-    return (
-        f"This week's {sector} news reads as {stance}. Combined with {company['name']}'s "
-        f"existing platform verdict of '{verdict}' (overall score {overall_score:.0f}/100), "
-        f"this is context for your research -- not a recommendation to buy or sell."
-    )

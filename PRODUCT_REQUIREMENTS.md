@@ -66,7 +66,7 @@ Because this is a single-user personal tool, success is behavioral, not commerci
 
 1. **Habitual use.** The founder opens this before looking anywhere else, at least most weekdays. If usage lapses for an extended period, that is a product failure signal, not a marketing problem.
 2. **Shortlist trust.** A majority of the daily/weekly shortlist should be names the founder didn't already have in mind — i.e., the tool is actually surfacing, not just redisplaying a pre-curated list. (Currently unmeasurable — see `CURRENT_STATE.md` §1, universe = 8 companies.)
-3. **Journal follow-through.** A meaningful fraction of journal theses get a completed review (`journal_reviews.thesis_played_out` populated) within the stated horizon. (Currently unmeasurable — no write path exists yet.)
+3. **Journal follow-through.** A meaningful fraction of journal theses get a completed review (`journal_reviews.thesis_played_out` populated) within the stated horizon. (A write path now exists as of Milestone 4 — `POST`/`PUT`/`DELETE /journal-reviews` — but no actual reviews have been recorded yet in any real deployment, so this metric remains unmeasured until the founder starts using it.)
 4. **Calibration.** Over time, higher-scored companies should, on average, outperform lower-scored ones over the stated 6–12 month horizon, measured against the founder's own journal history. (Not yet measured — see `SCORING_ENGINE.md` §5.)
 
 Explicitly *not* a success metric at this stage: user count, revenue, retention curves, or any other SaaS-shaped metric. If those become relevant, this PRD needs a new version, not a footnote.

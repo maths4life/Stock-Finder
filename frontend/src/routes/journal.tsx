@@ -19,15 +19,21 @@ import {
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
 import { useJournalEntries, useDeleteJournalEntry } from "@/features/journal/hooks/useJournalEntries";
+import { useJournalReviews } from "@/features/journal/hooks/useJournalReviews";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
 import { fetchJournalEntries } from "@/features/journal/api/journal";
+import { fetchJournalReviews } from "@/features/journal/api/journalReviews";
 import { JournalEntryForm } from "@/features/journal/components/JournalEntryForm";
+import { JournalReviewList } from "@/features/journal/components/JournalReviewList";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { JournalEntry } from "@/shared/api/types";
 
 export const Route = createFileRoute("/journal")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({ queryKey: queryKeys.journalEntries, queryFn: fetchJournalEntries }),
+    Promise.all([
+      context.queryClient.ensureQueryData({ queryKey: queryKeys.journalEntries, queryFn: fetchJournalEntries }),
+      context.queryClient.ensureQueryData({ queryKey: queryKeys.journalReviews, queryFn: fetchJournalReviews }),
+    ]),
   head: () => ({
     meta: [
       { title: "Journal — Quant" },
@@ -43,8 +49,13 @@ function formatDate(iso: string) {
 
 function Journal() {
   const { data: entries = [], isPending, isError, refetch } = useJournalEntries();
+  const { data: reviews = [] } = useJournalReviews();
   const { data: companies = [] } = useCompaniesForSymbols(entries.map((e) => e.symbol));
   const companyBySymbol = new Map(companies.map((c) => [c.symbol, c]));
+  const reviewsByEntryId = new Map<string, typeof reviews>();
+  for (const r of reviews) {
+    reviewsByEntryId.set(r.entryId, [...(reviewsByEntryId.get(r.entryId) ?? []), r]);
+  }
   const deleteMutation = useDeleteJournalEntry();
 
   const [formOpen, setFormOpen] = useState(false);
@@ -210,6 +221,12 @@ function Journal() {
                       Review reopens {formatDate(e.reviewDueAt)}
                     </div>
                   )}
+
+                  <JournalReviewList
+                    entryId={e.id}
+                    reviews={reviewsByEntryId.get(e.id) ?? []}
+                    reviewDueAt={e.reviewDueAt}
+                  />
                 </article>
               );
             })}

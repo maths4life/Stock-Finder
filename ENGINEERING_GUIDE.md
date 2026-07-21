@@ -25,7 +25,7 @@ Add a table only when:
 1. The data is genuinely first-party (user-authored) or genuinely derived from other stored data, **and**
 2. There is a concrete plan — ideally in the same pull request — to build the API that reads/writes it.
 
-`pipeline_items` (and, within the journal domain, `journal_reviews`) are the cautionary example: added to the schema well ahead of any API, sitting unusable for an unknown period as a result (`TECHNICAL_DEBT.md` TD-004, TD-017). `journal_entries` was in the same position until Milestone 2 closed the gap — proof the pattern is fixable, not a reason to let it recur. Don't repeat it. If you're adding a table "for later," write the plan into `PRODUCT_ROADMAP.md` or `IDEAS.md` instead of committing schema for a feature with no near-term implementation plan.
+`pipeline_items` and `journal_reviews` were the cautionary examples: both added to the schema well ahead of any API, sitting unusable for a while as a result (`TECHNICAL_DEBT.md` TD-004, TD-017 — both resolved as of Milestone 3 and Milestone 4 respectively). `journal_entries` was in the same position until Milestone 2 closed the gap. Every first-party writable table now has a real API — proof the pattern is fixable, not a reason to let it recur. Don't repeat it. If you're adding a table "for later," write the plan into `PRODUCT_ROADMAP.md` or `IDEAS.md` instead of committing schema for a feature with no near-term implementation plan.
 
 ## 3. When *not* to add a database table
 

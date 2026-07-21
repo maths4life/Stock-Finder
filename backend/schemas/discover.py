@@ -17,6 +17,7 @@ class DiscoverGroup(BaseModel):
 
 
 class PipelineItem(BaseModel):
+    id: str
     symbol: str
     note: str
     ago: str

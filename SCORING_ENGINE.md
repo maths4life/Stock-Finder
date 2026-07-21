@@ -66,7 +66,7 @@ A second, separate scale — Strong Buy / Buy / Hold / Avoid — derived from th
 3. **Institutional interest is schema-complete, score-absent.** `shareholding_pattern` has `fii_pct`, `dii_pct`, `pledge_pct` — none of it is referenced in `compute_scores.py` or `scoring_service.py`. Rising institutional holding and falling pledge% are real, cheap, high-signal additions.
 4. **Momentum and mean-reversion are conflated.** RSI (mean-reversion) and moving-average trend (momentum) are combined into one `technical_score` with no separation. A stock in a strong, healthy uptrend can get penalized by the same number that's supposed to reward it, because RSI naturally runs high in strong uptrends.
 5. **Valuation isn't relative.** "P/E under 40" is one more absolute-threshold problem. `peg` exists in the schema and is unused. Compare P/E/PEG against the company's own historical average and sector average, not a flat number.
-6. **No calibration.** Nothing in the codebase checks whether higher-scored companies actually perform better over the stated 6–12 month horizon. `journal_reviews.thesis_played_out` and `ai_comparison_summary` exist for exactly this purpose and are unused because the journal has no write path at all (see `CURRENT_STATE.md`).
+6. **No calibration.** Nothing in the codebase checks whether higher-scored companies actually perform better over the stated 6–12 month horizon. `journal_reviews.thesis_played_out` and `ai_comparison_summary` exist for exactly this purpose; a write path now exists as of Milestone 4 (see `CURRENT_STATE.md`), but no calibration analysis reads from `journal_reviews` yet — that's a separate, future piece of work once real review data accumulates.
 7. **Weight/threshold provenance is undocumented.** The specific numbers (15% ROE bar, 1.5x D/E, RSI 30–70, P/E 40) are not derived from any backtest or documented rationale visible in the code or docs — they read as reasonable analyst rules of thumb, not calibrated weights.
 
 ---
@@ -95,8 +95,8 @@ Keep the additive, capped, explainable structure — it works and it's the right
 
 ### 4.3 Calibration loop
 
-1. Every journal entry, once the write path exists (`PRODUCT_ROADMAP.md` Phase 1), captures the `overall_score` and factor breakdown at time of entry.
-2. `journal_reviews.thesis_played_out` gets populated on review (manually at first — automation is a later idea, see `IDEAS.md`).
+1. Every journal entry, now that the write path exists (`journal_entries`, Milestone 2), captures the `overall_score` and factor breakdown at time of entry.
+2. `journal_reviews.thesis_played_out` gets populated on review — the write path for this now exists too (Milestone 4), so this step is unblocked; still manual for now, automation is a later idea, see `IDEAS.md`.
 3. Periodically (quarterly is reasonable at this scale), compare scores-at-entry against outcomes-at-review. If higher scores aren't correlating with better outcomes even loosely, the weights are decorative regardless of how principled they look in source comments — revisit the factor weights, not the UI.
 
 ---

@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 import { cn } from "@/shared/utils/utils";
-import type { AnalysisRating, RiskLevel, SectorOutlook, Sentiment, Verdict } from "@/shared/api/types";
+import type { RiskLevel, Sentiment, Verdict } from "@/shared/api/types";
 
 export type BadgeTone = "positive" | "negative" | "neutral" | "warning" | "muted";
 
@@ -52,41 +52,6 @@ export function SentimentBadge({ sentiment, className }: { sentiment: Sentiment;
   return (
     <Badge tone={SENTIMENT_TONE[sentiment] ?? "neutral"} className={className}>
       {sentiment}
-    </Badge>
-  );
-}
-
-const RATING_TONE: Record<AnalysisRating, BadgeTone> = {
-  "Strong Buy": "positive",
-  Buy: "positive",
-  Hold: "warning",
-  Avoid: "negative",
-};
-
-/** Module 6's Strong Buy/Buy/Hold/Avoid rating — a distinct scale from
- * VerdictBadge's Strong Conviction/Watch/Under Review/Pass above, so
- * kept as its own component rather than overloading VERDICT_TONE. */
-export function RatingBadge({ rating, className }: { rating: AnalysisRating; className?: string }) {
-  return (
-    <Badge tone={RATING_TONE[rating] ?? "neutral"} className={className}>
-      {rating}
-    </Badge>
-  );
-}
-
-const OUTLOOK_TONE: Record<SectorOutlook, BadgeTone> = {
-  Positive: "positive",
-  Neutral: "neutral",
-  Negative: "negative",
-};
-
-/** Module 7's Weekly Market Intelligence sector outlook -- a distinct,
- * news-derived scale from SentimentBadge's score-derived Sector Pulse
- * above, so kept as its own component rather than reusing SENTIMENT_TONE. */
-export function OutlookBadge({ outlook, className }: { outlook: SectorOutlook; className?: string }) {
-  return (
-    <Badge tone={OUTLOOK_TONE[outlook] ?? "neutral"} className={className}>
-      {outlook}
     </Badge>
   );
 }

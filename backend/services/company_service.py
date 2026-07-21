@@ -15,20 +15,25 @@ Scalability notes (see API_CONTRACT.md for the full review):
   since Module 4 and Module 9 will reuse them.
 """
 from typing import Dict, List, Optional
+from decimal import Decimal
 
 from sqlalchemy import bindparam, text
 
 from db.db import engine
 from schemas.company import Company, CompanyListItem
-from services.fundamental_service import get_business_summary, get_quarterly_financials, get_shareholding_trend
+from services.fundamental_service import (
+    get_annual_comparison,
+    get_quarterly_comparison,
+    get_quarterly_financials,
+    get_shareholding_trend,
+)
 from services.scoring_service import (
     expected_return_and_horizon,
-    pros_and_cons,
     research_checklist,
     risk_level,
     trend_label,
-    verdict_summary,
 )
+from services.technical_service import get_support_resistance
 
 SPARK_POINTS = 14
 VOLUME_BREAKOUT_MULTIPLE = 1.5
@@ -49,7 +54,7 @@ BASE_QUERY = """
         c.symbol, c.exchange, c.name, c.sector,
         f.market_cap_cr, f.pe, f.pb, f.peg, f.roe_pct, f.roce_pct, f.eps,
         f.revenue_growth_pct, f.profit_growth_pct, f.dividend_yield_pct,
-        f.current_ratio,
+        f.current_ratio, f.book_value,
         de.debt_to_equity,
         sh.promoter_pct, sh.fii_pct, sh.dii_pct,
         t.close, t.change_pct, t.rsi_14, t.above_50dma, t.above_200dma,
@@ -184,13 +189,75 @@ def _company_fields(row, spark: list, latest_volume: Optional[int]) -> dict:
     )
 
 
+def _valuation_metrics(fields: dict, row) -> dict:
+    """Research page's Valuation Cards. Reuses fields already computed
+    by `_company_fields` for this same row — no duplicate calculation,
+    no extra query.
+
+    - marketCap/pe/pb/peg/divYield: straight reuse of existing fields.
+      `or None` (not `or 0.0`) so a genuinely missing value renders as
+      N/A instead of a misleading 0.
+    - bookValuePerShare: newly exposed from financials_quarterly.book_value
+      (already in the DB, just never selected/returned before this).
+    - sharesOutstanding: derived as marketCapCr*1e7 / price — both
+      already-fetched values, standard algebra, not a new data source.
+    - freeFloatPct: approximated as 100 - promoter holding % (the
+      common proxy — free float = non-promoter shareholding). An
+      approximation, not a true free-float figure (which would also
+      exclude government/strategic holders the schema doesn't track).
+    - enterpriseValueCr/forwardPe/evEbitda/beta: genuinely unavailable —
+      no absolute debt/cash, forward-earnings estimate, or benchmark
+      price series exists anywhere in the schema, so these stay None
+      (N/A) rather than being invented.
+    """
+    market_cap_cr = fields.get("marketCapCr") or None
+    price = fields.get("price") or None
+    shares_outstanding = (
+    float(market_cap_cr) * 10_000_000 / float(price)
+    if market_cap_cr is not None and price not in (None, 0)
+    else None
+)
+
+    promoter = fields.get("promoterHoldingPct")
+    free_float_pct = (100 - promoter) if promoter else None
+
+    book_value = row["book_value"]
+
+    return dict(
+        marketCap=fields.get("marketCap"),
+        marketCapCr=market_cap_cr,
+        enterpriseValueCr=None,
+        pe=fields.get("pe") or None,
+        forwardPe=None,
+        peg=fields.get("peg") or None,
+        pb=fields.get("pb") or None,
+        evEbitda=None,
+        divYield=fields.get("divYield") or None,
+        beta=None,
+        sharesOutstanding=shares_outstanding,
+        freeFloatPct=free_float_pct,
+        bookValuePerShare=float(book_value) if book_value is not None else None,
+    )
+
+
 def get_all_companies(search: Optional[str] = None, limit: int = 500) -> List[dict]:
     """GET /companies — lightweight list shape (CompanyListItem). Exactly
     3 DB round trips total, independent of result size."""
-    where = ""
+    # Milestone 5: companies.is_active is now genuinely populated (kept in
+    # sync with the universe CSV by ensure_company_rows in
+    # ingest/fetch_prices.py) rather than an unused default-true column, so
+    # it's meaningful to filter on here. A company that leaves the tracked
+    # universe (e.g. dropped from Nifty 50/Next 50 at a rebalance) is never
+    # deleted — its historical price/fundamentals/journal data stays intact
+    # — but it stops appearing in Discover/Search/Screener once flipped to
+    # is_active = false. get_company_by_symbol (below) deliberately has no
+    # such filter, so a direct lookup — e.g. from an existing journal entry
+    # or pipeline item that points at a symbol which has since left the
+    # universe — still resolves instead of 404ing.
+    where = "where c.is_active"
     params = {"limit": limit}
     if search:
-        where = "where c.name ilike :search or c.symbol ilike :search"
+        where += " and (c.name ilike :search or c.symbol ilike :search)"
         params["search"] = f"%{search}%"
 
     query = text(f"{BASE_QUERY} {where} order by c.name limit :limit")
@@ -232,20 +299,22 @@ def get_company_by_symbol(symbol: str) -> Optional[dict]:
         fields = _company_fields(row, spark, latest_volume)
         symbol_upper = row["symbol"]
 
-        # Deep-research fields (Module 3). Rule-based derivations
-        # (pros/cons/checklist/verdictSummary) reuse the fields already
+        # Deep-research fields (Module 3 + the Bloomberg/TIKR redesign).
+        # Rule-based derivations (checklist) reuse the fields already
         # computed above — no extra queries. History-backed fields
-        # (shareholdingTrend/quarterlyFinancials) each cost exactly one
-        # more query, scoped to this single symbol — see
-        # fundamental_service.py. businessSummary stays "" — see that
-        # module's docstring for why (no description column in schema).
-        pros, cons = pros_and_cons(fields)
-        fields["pros"] = pros
-        fields["cons"] = cons
+        # (shareholdingTrend/quarterlyFinancials/quarterlyComparison/
+        # annualComparison) each cost one more query, scoped to this
+        # single symbol — see fundamental_service.py. valuation reuses
+        # `fields`/`row` with no extra query — see
+        # company_service._valuation_metrics. supportResistance costs
+        # two more small single-symbol queries — see
+        # technical_service.get_support_resistance.
         fields["checklist"] = research_checklist(fields)
-        fields["verdictSummary"] = verdict_summary(fields, pros, cons)
         fields["shareholdingTrend"] = get_shareholding_trend(symbol_upper)
         fields["quarterlyFinancials"] = get_quarterly_financials(symbol_upper)
-        fields["businessSummary"] = get_business_summary(symbol_upper)
+        fields["valuation"] = _valuation_metrics(fields, row)
+        fields["supportResistance"] = get_support_resistance(symbol_upper)
+        fields["quarterlyComparison"] = get_quarterly_comparison(symbol_upper)
+        fields["annualComparison"] = get_annual_comparison(symbol_upper)
 
         return Company(**fields).model_dump()
