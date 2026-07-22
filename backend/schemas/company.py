@@ -90,6 +90,33 @@ class ComparisonTable(BaseModel):
     rows: List[ComparisonRow] = Field(default_factory=list)
 
 
+class ScoreMetric(BaseModel):
+    """One row of the "Why this score?" breakdown — mirrors
+    analysis/scoring_engine.ScoreMetric exactly. `value` is the
+    company's real underlying reading (a number, a bool, a short label
+    like "Golden Cross", or None if the metric had no data). `score`/
+    `maxScore` are in the same units the metric was weighted in, not
+    percentages — see analysis/scoring_engine.py's module docstring for
+    the full points table."""
+
+    metric: str
+    value: Optional[float | bool | str] = None
+    score: float
+    maxScore: float
+    passed: bool
+    reason: str
+
+
+class ScoreBreakdown(BaseModel):
+    fundamental: List[ScoreMetric] = Field(default_factory=list)
+    technical: List[ScoreMetric] = Field(default_factory=list)
+
+
+class ScoreWeighting(BaseModel):
+    fundamental: float
+    technical: float
+
+
 class CompanyBase(BaseModel):
     symbol: str
     exchange: str
@@ -123,6 +150,7 @@ class CompanyBase(BaseModel):
     aboveEma200: bool
     aboveEma50: bool
     goldenCross: bool
+    deathCross: bool
     volumeBreakout: bool
     trend: str  # "Uptrend" | "Downtrend" | "Sideways" — see scoring_service.trend_label
 
@@ -162,6 +190,12 @@ class Company(CompanyBase):
     supportResistance: PivotLevels = Field(default_factory=PivotLevels)
     quarterlyComparison: ComparisonTable = Field(default_factory=ComparisonTable)
     annualComparison: ComparisonTable = Field(default_factory=ComparisonTable)
+
+    # "Why this score?" — full transparency for fundamentalScore /
+    # technicalScore / overallScore above. Every entry traces back to a
+    # real stored metric; see analysis/scoring_engine.py.
+    weighting: ScoreWeighting = Field(default_factory=lambda: ScoreWeighting(fundamental=0.6, technical=0.4))
+    scoreBreakdown: ScoreBreakdown = Field(default_factory=ScoreBreakdown)
 
 
 class PaginatedCompanies(BaseModel):

@@ -44,3 +44,17 @@ def detect_golden_cross(df: pd.DataFrame, lookback: int = 10) -> bool:
         return False
     diff = recent["MA50"] - recent["MA200"]
     return bool((diff.iloc[:-1] < 0).any() and diff.iloc[-1] > 0)
+
+
+def detect_death_cross(df: pd.DataFrame, lookback: int = 10) -> bool:
+    """True if MA50 crossed below MA200 within the last `lookback`
+    sessions -- the bearish mirror of detect_golden_cross above, added
+    so the scoring engine can score a fresh bearish trend-change signal
+    instead of only ever rewarding the bullish one."""
+    if "MA50" not in df or "MA200" not in df:
+        return False
+    recent = df.dropna(subset=["MA50", "MA200"]).tail(lookback + 1)
+    if len(recent) < 2:
+        return False
+    diff = recent["MA50"] - recent["MA200"]
+    return bool((diff.iloc[:-1] > 0).any() and diff.iloc[-1] < 0)

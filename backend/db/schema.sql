@@ -63,8 +63,14 @@ create table if not exists technical_snapshot (
     above_50dma     boolean,
     above_200dma    boolean,
     golden_cross    boolean,        -- MA50 crossed above MA200 recently
+    death_cross     boolean,        -- MA50 crossed below MA200 recently
     updated_at      timestamptz not null default now()
 );
+
+-- Idempotent migration guard, same convention as the other alter table
+-- blocks in this file: safe to re-run on a database created before the
+-- scoring-engine review added death_cross.
+alter table technical_snapshot add column if not exists death_cross boolean;
 
 -- ============================================================
 -- 3. Fundamentals — sourced from the Kaggle seed + manual NSE refresh,

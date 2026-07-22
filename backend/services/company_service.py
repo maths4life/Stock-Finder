@@ -19,6 +19,7 @@ from decimal import Decimal
 
 from sqlalchemy import bindparam, text
 
+from analysis.scoring_engine import compute_scores, verdict_for
 from db.db import engine
 from schemas.company import Company, CompanyListItem
 from services.fundamental_service import (
@@ -58,8 +59,7 @@ BASE_QUERY = """
         de.debt_to_equity,
         sh.promoter_pct, sh.fii_pct, sh.dii_pct,
         t.close, t.change_pct, t.rsi_14, t.above_50dma, t.above_200dma,
-        t.golden_cross, t.avg_volume_20,
-        s.fundamental_score, s.technical_score, s.overall_score,
+        t.golden_cross, t.death_cross, t.avg_volume_20, t.high_52w, t.low_52w,
         s.verdict, s.rationale
     from companies c
     left join financials_quarterly f
@@ -110,6 +110,30 @@ _LATEST_VOLUME_QUERY = text(
     """
 ).bindparams(bindparam("symbols", expanding=True))
 
+# Peer-average P/E per sector, for the scoring engine's sector-relative
+# P/E metric (analysis/scoring_engine._score_pe). One query for the
+# whole universe regardless of how many companies are being scored —
+# same query ingest/compute_scores.py runs for the batch-persisted
+# `scores` table, so the live and batch numbers compare against the
+# same peer set. `having count(*) >= 2` avoids a "sector average" of
+# one company comparing against itself.
+_SECTOR_AVG_PE_QUERY = text(
+    """
+    select c.sector, avg(f.pe) as avg_pe
+    from companies c
+    join financials_quarterly f
+        on f.symbol = c.symbol and f.quarter = 'latest'
+    where c.is_active and f.pe is not null and f.pe > 0
+    group by c.sector
+    having count(*) >= 2
+    """
+)
+
+
+def _fetch_sector_avg_pe(conn) -> Dict[str, float]:
+    rows = conn.execute(_SECTOR_AVG_PE_QUERY).mappings().all()
+    return {row["sector"]: float(row["avg_pe"]) for row in rows}
+
 
 def _fetch_spark_batch(conn, symbols: List[str], n: int = SPARK_POINTS) -> Dict[str, list]:
     if not symbols:
@@ -125,16 +149,25 @@ def _fetch_latest_volume_batch(conn, symbols: List[str]) -> Dict[str, int]:
     return {row["symbol"]: int(row["volume"]) for row in rows if row["volume"] is not None}
 
 
-def _company_fields(row, spark: list, latest_volume: Optional[int]) -> dict:
+def _company_fields(row, spark: list, latest_volume: Optional[int], sector_avg_pe: Optional[float]) -> dict:
     """Pure — no I/O. Builds the shared CompanyBase field dict from an
-    already-fetched DB row plus already-batched spark/volume lookups."""
+    already-fetched DB row plus already-batched spark/volume/sector-PE
+    lookups.
+
+    Scores are computed live by analysis.scoring_engine, not read off
+    the `scores` table — see that module's docstring for why: it's the
+    same engine ingest/compute_scores.py uses to populate `scores` (so
+    SQL-level sorting in Discover/Screener stays close to these
+    numbers), but computing it here, on the same request that already
+    fetched every underlying field, is what guarantees the score shown
+    on a company card and the "Why this score?" breakdown on its detail
+    page can never disagree.
+    """
     symbol = row["symbol"]
 
     debt_to_equity = row["debt_to_equity"]
     roe = row["roe_pct"]
     risk = risk_level(debt_to_equity, roe)
-    overall_score = row["overall_score"]
-    expected_return, horizon = expected_return_and_horizon(risk, overall_score)
 
     avg_volume_20 = row["avg_volume_20"]
     volume_breakout = bool(
@@ -142,6 +175,34 @@ def _company_fields(row, spark: list, latest_volume: Optional[int]) -> dict:
         and avg_volume_20
         and latest_volume > VOLUME_BREAKOUT_MULTIPLE * avg_volume_20
     )
+
+    score_result = compute_scores(
+        {
+            "roe": float(roe) if roe is not None else None,
+            "roce": float(row["roce_pct"]) if row["roce_pct"] is not None else None,
+            "salesGrowthPct": float(row["revenue_growth_pct"]) if row["revenue_growth_pct"] is not None else None,
+            "profitGrowthPct": float(row["profit_growth_pct"]) if row["profit_growth_pct"] is not None else None,
+            "debtToEquity": float(debt_to_equity) if debt_to_equity is not None else None,
+            "currentRatio": float(row["current_ratio"]) if row["current_ratio"] is not None else None,
+            "pe": float(row["pe"]) if row["pe"] is not None else None,
+            "pb": float(row["pb"]) if row["pb"] is not None else None,
+            "peg": float(row["peg"]) if row["peg"] is not None else None,
+            "sectorAvgPe": sector_avg_pe,
+            "divYield": float(row["dividend_yield_pct"]) if row["dividend_yield_pct"] is not None else None,
+            "promoterHoldingPct": float(row["promoter_pct"]) if row["promoter_pct"] is not None else None,
+            "rsi": float(row["rsi_14"]) if row["rsi_14"] is not None else None,
+            "aboveEma50": row["above_50dma"],
+            "aboveEma200": row["above_200dma"],
+            "goldenCross": row["golden_cross"],
+            "deathCross": row["death_cross"],
+            "volumeBreakout": volume_breakout,
+            "price": float(row["close"]) if row["close"] is not None else None,
+            "high52w": float(row["high_52w"]) if row["high_52w"] is not None else None,
+            "low52w": float(row["low_52w"]) if row["low_52w"] is not None else None,
+        }
+    )
+    overall_score = score_result["overallScore"]
+    expected_return, horizon = expected_return_and_horizon(risk, overall_score)
 
     market_cap_cr = row["market_cap_cr"]
 
@@ -175,15 +236,18 @@ def _company_fields(row, spark: list, latest_volume: Optional[int]) -> dict:
         aboveEma200=bool(row["above_200dma"]),
         aboveEma50=bool(row["above_50dma"]),
         goldenCross=bool(row["golden_cross"]),
+        deathCross=bool(row["death_cross"]),
         volumeBreakout=volume_breakout,
         trend=trend_label(row["above_50dma"], row["above_200dma"]),
-        fundamentalScore=row["fundamental_score"] or 0.0,
-        technicalScore=row["technical_score"] or 0.0,
-        overallScore=overall_score or 0.0,
+        fundamentalScore=score_result["fundamentalScore"],
+        technicalScore=score_result["technicalScore"],
+        overallScore=overall_score,
+        weighting=score_result["weighting"],
+        scoreBreakdown=score_result["scoreBreakdown"],
         riskLevel=risk,
         expectedReturnPct=expected_return,
         investmentHorizonMonths=horizon,
-        verdict=row["verdict"] or "Under Review",
+        verdict=verdict_for(overall_score),
         rationale=row["rationale"] or f"{symbol}: not enough data yet to generate a rationale.",
         spark=spark,
     )
@@ -268,6 +332,7 @@ def get_all_companies(search: Optional[str] = None, limit: int = 500) -> List[di
 
         spark_by_symbol = _fetch_spark_batch(conn, symbols)
         volume_by_symbol = _fetch_latest_volume_batch(conn, symbols)
+        sector_avg_pe_by_sector = _fetch_sector_avg_pe(conn)
 
         return [
             CompanyListItem(
@@ -275,6 +340,7 @@ def get_all_companies(search: Optional[str] = None, limit: int = 500) -> List[di
                     row,
                     spark_by_symbol.get(row["symbol"], []),
                     volume_by_symbol.get(row["symbol"]),
+                    sector_avg_pe_by_sector.get(row["sector"]),
                 )
             ).model_dump()
             for row in rows
@@ -295,8 +361,9 @@ def get_company_by_symbol(symbol: str) -> Optional[dict]:
         symbols = [row["symbol"]]
         spark = _fetch_spark_batch(conn, symbols).get(row["symbol"], [])
         latest_volume = _fetch_latest_volume_batch(conn, symbols).get(row["symbol"])
+        sector_avg_pe = _fetch_sector_avg_pe(conn).get(row["sector"])
 
-        fields = _company_fields(row, spark, latest_volume)
+        fields = _company_fields(row, spark, latest_volume, sector_avg_pe)
         symbol_upper = row["symbol"]
 
         # Deep-research fields (Module 3 + the Bloomberg/TIKR redesign).

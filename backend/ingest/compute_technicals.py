@@ -16,6 +16,7 @@ from ingest.indicators import (
     compute_moving_averages,
     compute_rsi,
     compute_vwap,
+    detect_death_cross,
     detect_golden_cross,
 )
 # Milestone 5: no change needed here. UNIVERSE now resolves through
@@ -72,6 +73,7 @@ def compute_snapshot(df: pd.DataFrame) -> dict | None:
         "above_50dma": bool(latest["Close"] > latest["MA50"]) if pd.notna(latest["MA50"]) else None,
         "above_200dma": bool(latest["Close"] > latest["MA200"]) if pd.notna(latest["MA200"]) else None,
         "golden_cross": detect_golden_cross(df),
+        "death_cross": detect_death_cross(df),
     }
 
 
@@ -84,11 +86,11 @@ def upsert_snapshot(engine, symbol: str, snap: dict):
                 insert into technical_snapshot (
                     symbol, as_of_date, close, change_pct, rsi_14,
                     ma20, ma50, ma200, vwap, high_52w, low_52w,
-                    avg_volume_20, above_50dma, above_200dma, golden_cross
+                    avg_volume_20, above_50dma, above_200dma, golden_cross, death_cross
                 ) values (
                     :symbol, :as_of_date, :close, :change_pct, :rsi_14,
                     :ma20, :ma50, :ma200, :vwap, :high_52w, :low_52w,
-                    :avg_volume_20, :above_50dma, :above_200dma, :golden_cross
+                    :avg_volume_20, :above_50dma, :above_200dma, :golden_cross, :death_cross
                 )
                 on conflict (symbol) do update set
                     as_of_date = excluded.as_of_date,
@@ -105,6 +107,7 @@ def upsert_snapshot(engine, symbol: str, snap: dict):
                     above_50dma = excluded.above_50dma,
                     above_200dma = excluded.above_200dma,
                     golden_cross = excluded.golden_cross,
+                    death_cross = excluded.death_cross,
                     updated_at = now()
                 """
             ),

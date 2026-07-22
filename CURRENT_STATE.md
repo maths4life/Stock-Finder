@@ -98,7 +98,7 @@ The frontend is built on TanStack Start with SSR and deployed to Cloudflare Work
 - The daily ingest cron for prices/technicals/scores.
 
 **Prototype-quality (works, but shouldn't be trusted or extended yet):**
-- `services/scoring_service.py` / `ingest/compute_scores.py` — genuinely transparent, but a 4-input linear heuristic with absolute (not sector-relative) thresholds; see `SCORING_ENGINE.md`.
+- `services/scoring_service.py` / `analysis/scoring_engine.py` (Milestone 6) — transparent, rule-based, now sector-relative on P/E specifically and fully explained in the UI ("Why this score?" breakdown); still not sector-relative on every factor and not yet trend/multi-quarter aware — see `SCORING_ENGINE.md` §0 and §4 for what's shipped vs. what's still v2-target.
 - Module 7 (news/weekly intelligence) — well-architected but unvalidated against real data; do not treat "code exists" as "feature works."
 
 **Not connected / effectively fictional in production:**

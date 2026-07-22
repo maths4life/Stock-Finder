@@ -10,6 +10,7 @@ import { useCompany, useCompanyPrices } from "@/features/company/hooks/useCompan
 import { fetchCompany, fetchCompanyPrices } from "@/features/company/api/companies";
 import { PriceChart } from "@/features/company/components/PriceChart";
 import { FinancialComparisonTable } from "@/features/company/components/FinancialComparisonTable";
+import { ScoreBreakdownPanel } from "@/features/company/components/ScoreBreakdown";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { PriceRange } from "@/shared/api/types";
 
@@ -107,6 +108,8 @@ function ResearchDetail() {
                 <StatMetric label="Fundamental Score" value={c.fundamentalScore.toFixed(0) + "/100"} size="lg" />
                 <StatMetric label="Technical Score" value={c.technicalScore.toFixed(0) + "/100"} size="lg" />
               </div>
+
+              <ScoreBreakdownPanel company={c} />
             </header>
 
             {/* Price chart — the dominant visual on the page, so it breaks out of the

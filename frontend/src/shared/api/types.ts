@@ -91,6 +91,31 @@ export type ComparisonTable = {
   rows: ComparisonRow[];
 };
 
+/** One row of the "Why this score?" breakdown — mirrors backend
+ * analysis/scoring_engine.ScoreMetric exactly. `value` is the company's
+ * real underlying reading (a number, a bool, a short label like
+ * "Golden Cross", or null if the metric had no data for this company).
+ * `score`/`maxScore` are point totals in the units documented in
+ * backend/backend/analysis/scoring_engine.py, not percentages. */
+export type ScoreMetric = {
+  metric: string;
+  value: number | boolean | string | null;
+  score: number;
+  maxScore: number;
+  passed: boolean;
+  reason: string;
+};
+
+export type ScoreBreakdown = {
+  fundamental: ScoreMetric[];
+  technical: ScoreMetric[];
+};
+
+export type ScoreWeighting = {
+  fundamental: number; // e.g. 0.6
+  technical: number; // e.g. 0.4
+};
+
 export type Company = {
   symbol: string;
   exchange: string;
@@ -123,6 +148,7 @@ export type Company = {
   aboveEma200: boolean;
   aboveEma50: boolean;
   goldenCross: boolean;
+  deathCross: boolean;
   volumeBreakout: boolean;
   trend: Trend;
 
@@ -130,6 +156,14 @@ export type Company = {
   fundamentalScore: number;
   technicalScore: number;
   overallScore: number;
+
+  // "Why this score?" full transparency breakdown — present on the
+  // detail endpoint (GET /company/{symbol}); omitted from the lighter
+  // list endpoint (GET /companies), which has no UI that needs it.
+  // Every entry traces back to a real stored metric, see
+  // backend/backend/analysis/scoring_engine.py.
+  weighting?: ScoreWeighting;
+  scoreBreakdown?: ScoreBreakdown;
 
   // Discovery metadata
   riskLevel: RiskLevel;
