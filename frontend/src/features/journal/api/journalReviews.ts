@@ -5,8 +5,8 @@ import type {
   JournalReviewUpdateInput,
 } from "@/shared/api/types";
 
-const API_URL = "http://127.0.0.1:8000";
-
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 /** GET /journal-reviews — every review across every entry. The journal
  * page groups these by `entryId` client-side, the same way it already
  * joins entries to companies via a Map instead of a server-side join. */

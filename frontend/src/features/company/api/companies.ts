@@ -1,8 +1,8 @@
 import { ApiError } from "@/shared/api/client";
 import type { Company, CompanyQueryParams, Paginated, PriceBar, PriceRange } from "@/shared/api/types";
 
-const API_URL = "http://127.0.0.1:8000";
-
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 /**
  * GET /companies (Module 4 — Screener)
  * Backend owns filtering, sorting, ranking, and pagination — this just

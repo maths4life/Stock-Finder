@@ -1,8 +1,8 @@
 import { ApiError } from "@/shared/api/client";
 import type { PipelineItemDetail, PipelineItemInput, PipelineStage } from "@/shared/api/types";
 
-const API_URL = "http://127.0.0.1:8000";
-
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 /**
  * Per-item pipeline CRUD (Milestone 3). Distinct from `fetchPipeline` in
  * `features/market/api/market.ts`, which calls the pre-existing grouped

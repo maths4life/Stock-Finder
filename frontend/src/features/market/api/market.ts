@@ -1,8 +1,8 @@
 import { ApiError } from "@/shared/api/client";
 import type { DiscoverGroup, MarketIndicator, PipelineColumn, SectorPulse } from "@/shared/api/types";
 
-const API_URL = "http://127.0.0.1:8000";
-
+const API_URL =
+  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 /** GET /discover/groups */
 export async function fetchDiscoverGroups(): Promise<DiscoverGroup[]> {
   const response = await fetch(`${API_URL}/discover/groups`);
