@@ -15,12 +15,42 @@ export type Sentiment = "Bullish" | "Positive" | "Neutral" | "Bearish";
 export type PipelineStage = "Watching" | "Researching" | "Conviction";
 export type Trend = "Uptrend" | "Downtrend" | "Sideways";
 
+/** One reporting period's shareholding breakdown. mutualFunds/government/
+ * others are Module 7.5 additions — null when the underlying source
+ * (see backend/backend/ingest/fetch_shareholding.py) didn't report that
+ * category (e.g. the yfinance-approximation fallback only has a combined
+ * institutions figure, not a real MF/Government/Others split). Never a
+ * fabricated 0 — render as N/A, not 0%. */
 export type ShareholdingRow = {
   quarter: string;
   promoter: number;
   fii: number;
   dii: number;
   public: number;
+  mutualFunds: number | null;
+  government: number | null;
+  others: number | null;
+};
+
+/** Module 7.5 — one category's latest vs. previous reporting-period
+ * holding. changePct is a percentage-POINT change (e.g. Promoter 52.34%
+ * now vs 52.10% last quarter -> changePct = 0.24), not a growth rate. */
+export type ShareholdingCategoryChange = {
+  category: string;
+  latest: number | null;
+  previous: number | null;
+  changePct: number | null;
+};
+
+/** GET /company/{symbol}/shareholding (and Company.shareholdingSummary).
+ * `source` is 'nse' (a real NSE disclosure) or 'yfinance_approx' (see
+ * ingest/fetch_shareholding.py) — surface it if you want to indicate
+ * data quality to the user, e.g. a small badge/tooltip. */
+export type ShareholdingSummary = {
+  latestQuarter: string | null;
+  previousQuarter: string | null;
+  categories: ShareholdingCategoryChange[];
+  source: string | null;
 };
 
 export type QuarterlyFinancial = {
@@ -176,6 +206,7 @@ export type Company = {
 
   // Deep research extras
   shareholdingTrend: ShareholdingRow[];
+  shareholdingSummary: ShareholdingSummary;
   quarterlyFinancials: QuarterlyFinancial[];
   checklist: ChecklistItem[];
 

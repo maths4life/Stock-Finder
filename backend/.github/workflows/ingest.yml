@@ -29,11 +29,27 @@ jobs:
 
       # Fundamentals don't actually change daily (Yahoo's own ratios move
       # roughly on the underlying company's reporting cadence), but running
-      # it daily is cheap (~100 upserts, idempotent) and simpler than a
-      # second cron schedule. Revisit if API load/rate-limiting becomes a
-      # concern — see DATA_STRATEGY.md §3.
+      # it daily is cheap (~500 upserts as of Milestone 7's universe
+      # expansion, idempotent) and simpler than a second cron schedule.
+      # Revisit if API load/rate-limiting becomes a concern — see
+      # DATA_STRATEGY.md §3. Also writes the shareholding-pattern
+      # approximation (delegates to fetch_shareholding.py's shared logic —
+      # see MODULE_7C_SHAREHOLDING_REPORT.md) and company sector/industry
+      # metadata enrichment.
       - name: Fetch fundamentals
         run: python -m ingest.fetch_fundamentals
+
+      # Real multi-period Quarterly/Annual financial statement history
+      # (Module 7, Milestone 7) — a separate step from "Fetch fundamentals"
+      # above because it hits yfinance's *statement* endpoints, not
+      # Ticker.info, and changes cadence is genuinely quarterly (a
+      # company's reported financials don't change between its own
+      # earnings releases) rather than needing a daily refresh for
+      # correctness — kept in the same daily job anyway for the same
+      # "cheap and idempotent, simpler than a second schedule" reasoning
+      # as fundamentals above.
+      - name: Fetch financial statements
+        run: python -m ingest.fetch_financial_statements
 
       - name: Compute scores
         run: python -m ingest.compute_scores

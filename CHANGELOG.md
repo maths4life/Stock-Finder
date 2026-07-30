@@ -1,6 +1,56 @@
 # Changelog
 
-## Milestone 6 — Scoring Engine Quant Review & Full Transparency ("Why this score?")
+## Milestone 7 — Financial Statements, Shareholding Pattern, Universe Expansion to ~500
+
+Feature milestone covering three founder-specified modules in one session: real Quarterly/Annual Financial Statement comparisons (previously always N/A — see `MODULE_7B_FINANCIAL_STATEMENTS_REPORT.md`), a full 7-category Shareholding Pattern breakdown (see `MODULE_7C_SHAREHOLDING_REPORT.md`), and expanding the tracked universe from ~100 to 498 companies plus hardening the ingestion pipelines for that scale (see `MODULE_8_UNIVERSE_EXPANSION_REPORT.md`). Each linked report has the full audit/architecture/verification detail; this entry is the dated "what changed, where" index, per this file's existing convention.
+
+**Naming note:** the founder's brief numbered these Module 7 / 7.5 / 8 independently of this repo's own internal module numbering (which already has a `MODULE_7_REPORT.md` for an unrelated feature, Weekly Market Intelligence). The three new report files are named for what they cover rather than reusing a colliding number — see each report's own naming note.
+
+### Backend — files created
+- `backend/backend/services/financial_statements_service.py` — dedicated service for `get_quarterly_comparison`/`get_annual_comparison`, reading the new `financial_statements` history table.
+- `backend/backend/services/shareholding_service.py` — dedicated service for `get_shareholding_summary`.
+- `backend/backend/routes/financial_statements.py` — `GET /company/{symbol}/quarterly`, `/annual`, `/shareholding`.
+- `backend/backend/ingest/fetch_financial_statements.py` — pulls yfinance's statement endpoints (real multi-period history, unlike `Ticker.info`), computes EBITDA/margins/FCF/debt with documented fallbacks, upserts into `financial_statements`.
+- `backend/backend/ingest/fetch_shareholding.py` — NSE-first, yfinance-approx-fallback shareholding fetch; every row tagged with an honest `source`.
+- `backend/backend/ingest/nse_client.py` — best-effort NSE shareholding-disclosure client (unverified live in this sandbox — see its own docstring and the Shareholding module report).
+- `backend/backend/ingest/resilience.py` — shared `retry()` decorator + `ConcurrentRunner` (bounded concurrency, shared rate limiter, per-item failure isolation) used by the two ingest scripts that make external network calls.
+- `backend/backend/ingest/fiscal.py` — shared Indian-FY labeling helper (`fiscal_year_label`/`fiscal_quarter_label`), used by both new ingest scripts so they can't disagree on period labels.
+- `backend/backend/data/universe_nifty500.csv` — 498-company universe (see `MODULE_8_UNIVERSE_EXPANSION_REPORT.md` for full provenance and honesty notes).
+- `backend/backend/db/migrations/001_financial_statements_shareholding_and_metadata.sql` — standalone migration for an existing database (every statement also lives in `schema.sql`; this file is for "I already have a DB running" — verified idempotent).
+
+### Backend — files modified
+- `backend/backend/db/schema.sql` — new `financial_statements` table (real `period_type`-tagged history, replacing the old single-snapshot-row limitation — see that table's own extensive comment block for why it's a new table rather than an extension of `financials_quarterly`); `shareholding_pattern` extended with `mutual_funds_pct`/`government_pct`/`others_pct`/`period_end`; `companies.industry` added.
+- `backend/backend/services/fundamental_service.py` — old gap-inference quarterly/annual comparison logic removed, re-exported from the new dedicated service instead (`company_service.py`'s import didn't need to change); `get_shareholding_trend` extended with the 3 new categories and now sorts by the real `period_end` column.
+- `backend/backend/services/company_service.py` — new `Company.shareholdingSummary` field populated.
+- `backend/backend/schemas/company.py` — `ShareholdingRow` extended (3 new optional fields); new `ShareholdingCategoryChange`/`ShareholdingSummary` models.
+- `backend/backend/app.py` — new `financial_statements` router registered.
+- `backend/backend/ingest/universe.py` — default `UNIVERSE_CSV_PATH` now `universe_nifty500.csv`; new `UNIVERSE_SIZE` env var to trim the loaded universe (respects the file's index-priority row order, so e.g. `UNIVERSE_SIZE=50` yields exactly NIFTY50).
+- `backend/backend/ingest/fetch_prices.py` — retried + fanned out through `ConcurrentRunner`; pre-existing incremental-fetch logic unchanged.
+- `backend/backend/ingest/fetch_fundamentals.py` — same retry/concurrency treatment; new `enrich_company_metadata` (writes `companies.sector`/`.industry` from the same `Ticker.info` payload already fetched — the brief's "One additional improvement" company-metadata request); shareholding write now delegates to `fetch_shareholding.py`'s shared implementation instead of a second, independent copy (fixes a latent bug — the two copies wrote incompatible `quarter` values into the same `(symbol, quarter)`-keyed table).
+- `backend/backend/ingest/compute_technicals.py`, `compute_scores.py` — no logic changes (DB-only, no external calls — the larger universe doesn't introduce new failure modes here); comments updated.
+- `backend/backend/requirements.txt` — added `requests` (used directly by `ingest/nse_client.py`).
+
+### Frontend — files modified
+- `frontend/src/shared/api/types.ts` — `ShareholdingRow` extended (`mutualFunds`/`government`/`others`, all nullable); new `ShareholdingCategoryChange`/`ShareholdingSummary` types; `Company.shareholdingSummary` added. `ComparisonTable`/`ComparisonRow` (pre-existing) needed no changes — the new backend service was built to match their existing shape exactly.
+- `frontend/src/routes/research.$symbol.tsx` — Shareholding table extended from 4 to 7 data columns (wrapped in `overflow-x-auto` — the first table in this codebase wide enough to need it) plus a latest/previous-quarter summary line above it. Quarterly/Annual Comparison tables (`FinancialComparisonTable.tsx`) needed **no frontend changes at all** — they were already correctly built to render real data whenever the backend provided it.
+
+### Verification performed
+- Full local PostgreSQL 16 instance stood up in the working environment specifically to verify this milestone against real data rather than syntax-only checks (this sandbox has no persistent DB by default). `schema.sql` and the standalone migration file both applied cleanly and idempotently.
+- Statement-parsing and NSE-response-parsing logic unit tested against realistic synthetic data (fabricated for the test only, matching yfinance's/NSE's real response shapes as documented in each module's own file) — see the three module reports for the specific assertions.
+- `resilience.py`'s retry/concurrency primitives unit tested (backoff timing, exhaustion, concurrent execution with isolated per-item failures).
+- `services/financial_statements_service.py` and `services/shareholding_service.py` tested against real seeded Postgres data.
+- Full round-trip through the live FastAPI app (`TestClient`, real Postgres): all three new endpoints, the embedded `Company` fields, and the pre-existing scoring/verdict/comparison sections all verified together in the same test run — confirms nothing existing broke.
+- `fetch_prices.py`/`fetch_fundamentals.py` refactors tested end-to-end with mocked yfinance calls, including failure-isolation cases.
+- `python3 -m py_compile` on every backend `.py` file, and `from app import app` against live Postgres — both pass.
+- Frontend: `npx tsc --noEmit` run against both the original uploaded frontend (baseline) and the modified version, diffed line-by-line — **zero new errors introduced**; the only diff is line-number shifts in a pre-existing, unrelated error in a dead (never-imported) mock-data file. `npm run build` (`vite build`) succeeds, including the modified `research.$symbol` route bundle.
+- `data/universe_nifty500.csv` validated: 498 unique symbols, correct per-tier counts, no blank required fields, all special-character ticker overrides spot-checked.
+
+### Not verified (network-restricted sandbox — see each module report's "Honest limitations")
+- Live yfinance calls in `fetch_financial_statements.py`/`fetch_prices.py`/`fetch_fundamentals.py` — parsing/derivation logic is verified, the actual network round-trip is not, because this sandbox's egress is restricted to package registries and cannot reach `finance.yahoo.com`.
+- Live NSE calls in `nse_client.py` — same restriction (cannot reach `nseindia.com`); degrades safely to the yfinance approximation on any failure.
+- A full ingestion run across all 498 companies (only small `--limit`-bounded and fully-mocked runs were exercised in this session).
+
+---
 
 Feature milestone: a quantitative-finance-style review of the scoring engine (`ingest/compute_scores.py`'s v1 additive model), followed by targeted improvements, followed by making every point of every score fully explainable in the UI. Scope, priorities, and the specific problems addressed are documented in full in `SCORING_ENGINE.md` §0 (new) — that document, not this entry, is the source of truth for the "why" behind every threshold; this entry is the "what changed, where."
 

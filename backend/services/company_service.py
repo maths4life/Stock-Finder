@@ -28,6 +28,7 @@ from services.fundamental_service import (
     get_quarterly_financials,
     get_shareholding_trend,
 )
+from services.shareholding_service import get_shareholding_summary
 from services.scoring_service import (
     expected_return_and_horizon,
     research_checklist,
@@ -378,6 +379,7 @@ def get_company_by_symbol(symbol: str) -> Optional[dict]:
         # technical_service.get_support_resistance.
         fields["checklist"] = research_checklist(fields)
         fields["shareholdingTrend"] = get_shareholding_trend(symbol_upper)
+        fields["shareholdingSummary"] = get_shareholding_summary(symbol_upper)
         fields["quarterlyFinancials"] = get_quarterly_financials(symbol_upper)
         fields["valuation"] = _valuation_metrics(fields, row)
         fields["supportResistance"] = get_support_resistance(symbol_upper)

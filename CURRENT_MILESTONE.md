@@ -4,6 +4,33 @@
 
 ---
 
+## Milestone 7: Financial Statements, Shareholding Pattern, Universe Expansion to 498
+
+**Status:** ✅ Complete.
+
+**Documentation gap found, flagged not silently fixed:** this file jumps from Milestone 5 directly to this Milestone 7 section — Milestone 6 (Scoring Engine Quant Review, documented in `CHANGELOG.md` and `SCORING_ENGINE.md` §0) was never given its own section here. The doc appears to have gone stale after that milestone, the same failure mode `CURRENT_STATE.md` §0 already documents for an earlier round of docs. Not backfilled retroactively as part of this milestone (out of scope) — `CHANGELOG.md` remains the complete, accurate historical record regardless of this file's gaps.
+
+### Objective
+
+Three founder-specified modules in one session: real Quarterly/Annual Financial Statement comparisons (previously always N/A for lack of real multi-period data), a full 7-category Shareholding Pattern breakdown, and expanding the tracked universe from ~100 to ~500 companies with hardened ingestion. Full detail in `CHANGELOG.md`'s Milestone 7 entry and the three linked module reports (`MODULE_7B_FINANCIAL_STATEMENTS_REPORT.md`, `MODULE_7C_SHAREHOLDING_REPORT.md`, `MODULE_8_UNIVERSE_EXPANSION_REPORT.md`).
+
+### Scope (all completed)
+
+- New `financial_statements` table + `ingest/fetch_financial_statements.py` — real multi-period quarterly/annual history from yfinance's statement endpoints, replacing the old (never-populated) gap-inference logic.
+- New `services/financial_statements_service.py` (dedicated, per the brief's explicit instruction), `routes/financial_statements.py` — `GET /company/{symbol}/quarterly`, `/annual`, `/shareholding`.
+- Shareholding Pattern extended to 7 categories (Promoter/FII/DII/Mutual Funds/Public/Government/Others), NSE-first with an automatic yfinance-approximation fallback, every row tagged with an honest `source`.
+- Universe expanded from ~100 to 498 real companies (`data/universe_nifty500.csv`); new `UNIVERSE_SIZE` config knob; zero code changes needed in any script that already used `load_universe()`/`UNIVERSE` — same pattern Milestone 5 established, held again at 5x the scale.
+- `ingest/resilience.py` (new, shared retry + bounded-concurrency helper) wired into the two ingest scripts that make external network calls (`fetch_prices.py`, `fetch_fundamentals.py`).
+- Company metadata quality: `fetch_fundamentals.py` now enriches `companies.sector`/`.industry` from Yahoo's own classification on every run (new `companies.industry` column).
+- Scoring engine (`analysis/scoring_engine.py`, `services/scoring_service.py`) — explicitly **not touched**, per the brief's instruction not to remove or simplify it.
+
+### Honest limitations carried forward (see `TECHNICAL_DEBT.md` TD-027/TD-028)
+
+- None of the new/changed network calls (yfinance statement endpoints, NSE's shareholding API) were exercised against the live internet in this session's build environment — logic is verified via real Postgres + unit tests against realistic synthetic payloads, not a live end-to-end run.
+- The universe's Midcap150/Smallcap250 tagging is a market-cap-rank approximation, not a verified read of NSE's official constituent lists — see `MODULE_8_UNIVERSE_EXPANSION_REPORT.md`.
+
+---
+
 ## Milestone 5: Universe Expansion (8 → ~100) & Fresh Database Initialization
 
 **Status:** ✅ Complete.

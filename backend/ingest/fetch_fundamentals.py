@@ -47,38 +47,56 @@ What this does NOT give you (left NULL, not invented):
     seed's 'latest' row had. `financials_quarterly` remains a time
     series table in principle (see `TECHNICAL_DEBT.md` TD-010); this
     script only ever writes/updates the 'latest' row for each symbol.
-  - `pledge_pct`, and a true promoter/FII/DII/public shareholding
-    split. `Ticker.info`'s `heldPercentInsiders` /
-    `heldPercentInstitutions` are NOT the same thing as NSE's
-    promoter/FII/DII categories (insider holding in particular means
-    something different for a US-style filing than "promoter" means
-    for an Indian company). Written to `shareholding_pattern` anyway,
-    with `source = 'yfinance_approx'` (never `'kaggle_seed'` or a bare
-    `'yfinance'`) specifically so nothing downstream mistakes it for a
-    real NSE shareholding disclosure. See `DATA_STRATEGY.md` §4 — a
-    real promoter/FII/DII/pledge% feed still needs NSE's own filings.
+    (Module 7 added a separate, real multi-period history table,
+    `financial_statements` — see ingest/fetch_financial_statements.py
+    — for the Quarterly/Annual Comparison feature specifically; this
+    script's 'latest' row is unrelated to that and still exists for
+    the other ratios only Ticker.info has, like PE/PB/ROE/D-E.)
+
+Module 8 ("One additional improvement" — company metadata quality):
+this script now also enriches `companies.sector` / `.industry` /
+`.market_cap_cr` from the same `Ticker.info` payload it already fetched
+for the ratios above (see `enrich_company_metadata`). Previously
+`sector` only ever came from whatever the universe CSV happened to have
+hand-curated at seed time (blank for anything added in the Module 8
+universe expansion — see ingest/universe.py's docstring); this makes it
+self-healing on every ingestion run instead, sourced from Yahoo's own
+classification rather than guessed from the company name.
+
+Module 7.5 (Shareholding Pattern) note: shareholding writes here now
+delegate to `ingest/fetch_shareholding.py`'s yfinance-approximation
+path (`_from_yfinance`) instead of keeping a second, slightly-different
+copy of the same approximation logic. Two independent implementations
+of "insiders/institutions -> promoter/DII proxy" would have been a
+real risk of drifting out of sync, and the old version here wrote
+`quarter='latest'` while fetch_shareholding.py writes a real fiscal
+quarter label (e.g. 'Q1 FY26') — since both share the same
+`(symbol, quarter)` primary key, running both independently would have
+left a permanent, never-cleaned-up `'latest'` row alongside the real
+dated ones. Calling this script with `--skip-shareholding` (unchanged
+flag) skips this entirely, same as before; run
+`ingest/fetch_shareholding.py` on its own for shareholding-only runs.
 
 Usage:
     python -m ingest.fetch_fundamentals
     python -m ingest.fetch_fundamentals --limit 10        # smoke test
     python -m ingest.fetch_fundamentals --dry-run          # fetch + parse only, no DB writes
     python -m ingest.fetch_fundamentals --skip-shareholding # financials only
+    python -m ingest.fetch_fundamentals --workers 4         # concurrency (Module 8)
 """
 import argparse
-import time
 
 import yfinance as yf
 from sqlalchemy import text
 
 from ingest.db import get_engine
+from ingest.fetch_shareholding import UPSERT_SHAREHOLDING
+from ingest.fetch_shareholding import _from_yfinance as _shareholding_from_yfinance
+from ingest.fiscal import fiscal_quarter_label
+from ingest.resilience import ConcurrentRunner, retry
 from ingest.universe import UNIVERSE
 
 CR = 1e7  # 1 crore = 10,000,000 — Yahoo reports absolute INR, schema wants crores
-
-# Be polite to Yahoo's unofficial endpoint, same rationale/value as
-# ingest/fetch_prices.py's delay between tickers.
-REQUEST_DELAY_SECONDS = 1.5
-
 
 # ------------------------------------------------------------------
 # Low-level helpers
@@ -211,30 +229,22 @@ def build_financials_row(symbol: str, info: dict, roce_pct) -> dict:
     }
 
 
-def build_shareholding_row(symbol: str, info: dict) -> dict | None:
-    """Best-effort only — see module docstring. Returns None if Yahoo
-    gave us neither field, rather than writing an all-null row."""
-    insiders = _normalize_pct_field(info.get("heldPercentInsiders"))
-    institutions = _normalize_pct_field(info.get("heldPercentInstitutions"))
-    if insiders is None and institutions is None:
+def enrich_company_metadata(info: dict) -> dict | None:
+    """Module 8 metadata-quality improvement. `Ticker.info` carries
+    Yahoo's own sector/industry classification — a real field from the
+    same payload this script already fetches for the ratios above, not
+    derived/guessed. (Market cap already has a home in
+    `financials_quarterly.market_cap_cr`, written by
+    `build_financials_row` in the same run — not duplicated onto
+    `companies` here.) Returns None if Yahoo gave us neither sector nor
+    industry (some smaller/newer listings lack classification), so the
+    caller can skip the update rather than overwrite a possibly-better
+    existing value with nulls."""
+    sector = (info.get("sector") or "").strip() or None
+    industry = (info.get("industry") or "").strip() or None
+    if sector is None and industry is None:
         return None
-
-    promoter = insiders  # closest available proxy, NOT equivalent to NSE "promoter" — see docstring
-    dii = institutions   # institutional total, not split into FII vs DII — see docstring
-    fii = None
-    public = None
-    known = [v for v in (promoter, dii) if v is not None]
-    if known:
-        public = max(0.0, round(100.0 - sum(known), 4))
-
-    return {
-        "symbol": symbol,
-        "quarter": "latest",
-        "promoter_pct": promoter,
-        "fii_pct": fii,
-        "dii_pct": dii,
-        "public_pct": public,
-    }
+    return {"sector": sector, "industry": industry}
 
 
 # ------------------------------------------------------------------
@@ -278,25 +288,22 @@ UPSERT_FINANCIALS = text("""
         updated_at = now()
 """)
 
-UPSERT_SHAREHOLDING = text("""
-    insert into shareholding_pattern (
-        symbol, quarter, promoter_pct, fii_pct, dii_pct, public_pct, source
-    ) values (
-        :symbol, :quarter, :promoter_pct, :fii_pct, :dii_pct, :public_pct, 'yfinance_approx'
-    )
-    on conflict (symbol, quarter) do update set
-        promoter_pct = excluded.promoter_pct,
-        fii_pct = excluded.fii_pct,
-        dii_pct = excluded.dii_pct,
-        public_pct = excluded.public_pct,
-        source = 'yfinance_approx',
-        updated_at = now()
+UPSERT_COMPANY_METADATA = text("""
+    update companies
+    set sector = coalesce(:sector, sector),
+        industry = coalesce(:industry, industry)
+    where symbol = :symbol
 """)
 
 
 def upsert_financials(engine, row: dict):
     with engine.begin() as conn:
         conn.execute(UPSERT_FINANCIALS, row)
+
+
+def upsert_company_metadata(engine, symbol: str, meta: dict):
+    with engine.begin() as conn:
+        conn.execute(UPSERT_COMPANY_METADATA, {**meta, "symbol": symbol})
 
 
 def upsert_shareholding(engine, row: dict):
@@ -308,66 +315,82 @@ def upsert_shareholding(engine, row: dict):
 # Main
 # ------------------------------------------------------------------
 
+@retry(times=3, base_delay_seconds=2.0)
+def _fetch_one(company: dict) -> dict:
+    """Everything needed for one company, in a single retried unit —
+    the .info payload is shared by financials, ROCE, metadata, and
+    shareholding, so a transient failure retries the whole cheap-ish
+    bundle rather than four separate retry loops."""
+    symbol, ticker = company["symbol"], company["yahoo_ticker"]
+    yft = yf.Ticker(ticker)
+    info = yft.info or {}
+    if not info:
+        raise ValueError("empty info payload")
+    roce_pct = compute_roce(yft)
+    return {
+        "symbol": symbol,
+        "fin_row": build_financials_row(symbol, info, roce_pct),
+        "roce_pct": roce_pct,
+        "meta": enrich_company_metadata(info),
+        "info": info,
+    }
+
+
 def main():
     parser = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     parser.add_argument("--limit", type=int, default=None, help="Only process the first N universe companies (smoke test)")
     parser.add_argument("--dry-run", action="store_true", help="Fetch and parse but skip all DB writes")
     parser.add_argument("--skip-shareholding", action="store_true", help="Only write financials_quarterly, skip the shareholding_pattern approximation")
+    parser.add_argument("--workers", type=int, default=4, help="Concurrent fetch workers (default 4)")
     args = parser.parse_args()
 
     engine = None if args.dry_run else get_engine()
-
     companies = UNIVERSE[: args.limit] if args.limit else UNIVERSE
 
-    n_ok = 0
-    n_roce = 0
-    n_shareholding = 0
-    failed = []
+    counts = {"ok": 0, "roce": 0, "shareholding": 0, "metadata": 0}
 
-    for i, company in enumerate(companies, start=1):
+    def handle_result(company, result, error):
         symbol = company["symbol"]
-        ticker = company["yahoo_ticker"]
-        print(f"[{i}/{len(companies)}] {symbol} ({ticker}) ...", flush=True)
+        if error is not None:
+            print(f"[{symbol}] FAILED: {error}")
+            return
 
-        try:
-            yft = yf.Ticker(ticker)
-            info = yft.info or {}
-            if not info:
-                raise ValueError("empty info payload")
+        fin_row = result["fin_row"]
+        if engine:
+            upsert_financials(engine, fin_row)
+        counts["ok"] += 1
+        if result["roce_pct"] is not None:
+            counts["roce"] += 1
+        print(f"[{symbol}] pe={fin_row['pe']} roe={fin_row['roe_pct']} roce={fin_row['roce_pct']} "
+              f"d/e={fin_row['debt_to_equity']} rev_growth={fin_row['revenue_growth_pct']}")
 
-            roce_pct = compute_roce(yft)
-            if roce_pct is not None:
-                n_roce += 1
-
-            fin_row = build_financials_row(symbol, info, roce_pct)
+        if result["meta"] is not None:
             if engine:
-                upsert_financials(engine, fin_row)
-            n_ok += 1
-            print(f"  pe={fin_row['pe']} roe={fin_row['roe_pct']} roce={fin_row['roce_pct']} "
-                  f"d/e={fin_row['debt_to_equity']} rev_growth={fin_row['revenue_growth_pct']}")
+                upsert_company_metadata(engine, symbol, result["meta"])
+            counts["metadata"] += 1
 
-            if not args.skip_shareholding:
-                sh_row = build_shareholding_row(symbol, info)
-                if sh_row is not None:
-                    if engine:
-                        upsert_shareholding(engine, sh_row)
-                    n_shareholding += 1
+        if not args.skip_shareholding:
+            sh_row = _shareholding_from_yfinance(symbol, company["yahoo_ticker"], info=result["info"])
+            if sh_row is not None:
+                sh_row["symbol"] = symbol
+                sh_row["quarter"] = fiscal_quarter_label(sh_row["period_end"])
+                if engine:
+                    upsert_shareholding(engine, sh_row)
+                counts["shareholding"] += 1
 
-        except Exception as exc:
-            print(f"  FAILED: {exc}")
-            failed.append(symbol)
-
-        time.sleep(REQUEST_DELAY_SECONDS)
+    runner = ConcurrentRunner(max_workers=args.workers, delay_seconds=1.5)
+    summary = runner.run(companies, _fetch_one, handle_result, key=lambda c: c["symbol"])
 
     print()
     print("fetch_fundamentals summary")
-    print(f"  Universe processed:        {len(companies)}")
-    print(f"  Financials written:        {n_ok}")
-    print(f"  With computed ROCE:        {n_roce}")
-    print(f"  Shareholding (approx) written: {n_shareholding}")
-    print(f"  Failed:                    {len(failed)}")
-    if failed:
-        print(f"    {', '.join(failed)}")
+    print(f"  Universe processed:            {len(companies)}")
+    print(f"  Financials written:            {counts['ok']}")
+    print(f"  With computed ROCE:            {counts['roce']}")
+    print(f"  Metadata (sector/industry) enriched: {counts['metadata']}")
+    print(f"  Shareholding (approx) written:  {counts['shareholding']}")
+    print(f"  Failed:                         {summary.n_failed}")
+    if summary.failed_keys:
+        print(f"    {', '.join(summary.failed_keys)}")
     if args.dry_run:
         print("  (dry run -- nothing was written to the DB)")
 

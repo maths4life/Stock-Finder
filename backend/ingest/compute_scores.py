@@ -15,10 +15,15 @@ from sqlalchemy import text
 
 from analysis.scoring_engine import compute_scores, verdict_for
 from ingest.db import get_engine
-# Milestone 5: no change needed here. UNIVERSE now resolves through
+# Milestone 5 / Module 8: no change needed here. UNIVERSE resolves through
 # ingest/universe.py's CSV-backed load_universe() instead of a hardcoded
-# list — this import is unchanged and transparently picks up all ~100
-# companies from data/universe_top100.csv.
+# list — this import is unchanged and transparently picked up the Module 8
+# expansion from ~100 to 498 companies (data/universe_nifty500.csv) with
+# zero edits to this file. This script is DB-only (reads prices_daily /
+# financials_quarterly, no external API calls), so the larger universe
+# means more per-symbol queries, not more network flakiness -- no
+# retry/concurrency changes were needed here the way fetch_prices.py and
+# fetch_fundamentals.py needed them.
 from ingest.universe import UNIVERSE
 
 

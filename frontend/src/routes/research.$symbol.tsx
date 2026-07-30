@@ -203,23 +203,45 @@ function ResearchDetail() {
               </Section>
 
               <Section label="Shareholding">
-                <div className="rounded-xl ring-1 ring-hairline overflow-hidden">
-                  <div className="grid grid-cols-5 px-5 py-2.5 bg-secondary/50 text-[10px] uppercase tracking-widest text-ink-subtle">
+                {c.shareholdingSummary.latestQuarter && (
+                  <p className="text-[11px] text-ink-subtle mb-2.5">
+                    {c.shareholdingSummary.latestQuarter}
+                    {c.shareholdingSummary.previousQuarter && ` vs ${c.shareholdingSummary.previousQuarter}`}
+                    {c.shareholdingSummary.source === "yfinance_approx" && " · approximate (see note)"}
+                  </p>
+                )}
+                <div className="rounded-xl ring-1 ring-hairline overflow-hidden overflow-x-auto">
+                  <div className="grid grid-cols-8 min-w-[640px] px-5 py-2.5 bg-secondary/50 text-[10px] uppercase tracking-widest text-ink-subtle">
                     <span>Quarter</span>
                     <span className="text-right">Promoter</span>
                     <span className="text-right">FII</span>
                     <span className="text-right">DII</span>
+                    <span className="text-right">Mutual Funds</span>
                     <span className="text-right">Public</span>
+                    <span className="text-right">Govt</span>
+                    <span className="text-right">Others</span>
                   </div>
                   {c.shareholdingTrend.map((row) => (
-                    <div key={row.quarter} className="grid grid-cols-5 px-5 py-3 text-sm hairline-t">
+                    <div key={row.quarter} className="grid grid-cols-8 min-w-[640px] px-5 py-3 text-sm hairline-t">
                       <span className="text-ink-muted">{row.quarter}</span>
                       <span className="text-right font-mono tabular-nums">{row.promoter.toFixed(1)}%</span>
                       <span className="text-right font-mono tabular-nums">{row.fii.toFixed(1)}%</span>
                       <span className="text-right font-mono tabular-nums">{row.dii.toFixed(1)}%</span>
+                      <span className="text-right font-mono tabular-nums">
+                        {row.mutualFunds !== null ? `${row.mutualFunds.toFixed(1)}%` : "N/A"}
+                      </span>
                       <span className="text-right font-mono tabular-nums">{row.public.toFixed(1)}%</span>
+                      <span className="text-right font-mono tabular-nums">
+                        {row.government !== null ? `${row.government.toFixed(1)}%` : "N/A"}
+                      </span>
+                      <span className="text-right font-mono tabular-nums">
+                        {row.others !== null ? `${row.others.toFixed(1)}%` : "N/A"}
+                      </span>
                     </div>
                   ))}
+                  {c.shareholdingTrend.length === 0 && (
+                    <div className="px-5 py-3 text-sm text-ink-subtle">No shareholding data available yet.</div>
+                  )}
                 </div>
               </Section>
 

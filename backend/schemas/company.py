@@ -11,11 +11,52 @@ from pydantic import BaseModel, Field
 
 
 class ShareholdingRow(BaseModel):
+    """One reporting period's shareholding breakdown.
+
+    `promoter`/`fii`/`dii`/`public` are the original 4-way split
+    (kept non-optional — every row has always had these). `mutualFunds`/
+    `government`/`others` are the Module 7.5 additions: NSE's real
+    disclosure reports these as their own categories, but the
+    yfinance-approximation fallback (see ingest/fetch_shareholding.py)
+    has no field that maps to any of them — Optional/None here means
+    "this source didn't report this category", never a fabricated 0.
+    """
+
     quarter: str
     promoter: float
     fii: float
     dii: float
     public: float
+    mutualFunds: Optional[float] = None
+    government: Optional[float] = None
+    others: Optional[float] = None
+
+
+class ShareholdingCategoryChange(BaseModel):
+    """One row of the Module 7.5 shareholding summary — a single
+    category's latest vs. previous reporting-period holding and the
+    percentage-point change between them (e.g. Promoter 52.34% now vs.
+    52.10% last quarter -> changePct = +0.24). Not a growth-rate percent
+    (that would be misleading for a value that's already a percentage)."""
+
+    category: str
+    latest: Optional[float] = None
+    previous: Optional[float] = None
+    changePct: Optional[float] = None
+
+
+class ShareholdingSummary(BaseModel):
+    """Module 7.5 — 'Also include: Latest reporting quarter, Previous
+    reporting quarter, Percentage change'. `source` is 'nse' (a real
+    disclosure) or 'yfinance_approx' (see ingest/fetch_shareholding.py),
+    surfaced so the frontend/consumer can tell which kind of number
+    they're looking at; None if this company has no shareholding data
+    at all yet."""
+
+    latestQuarter: Optional[str] = None
+    previousQuarter: Optional[str] = None
+    categories: List[ShareholdingCategoryChange] = Field(default_factory=list)
+    source: Optional[str] = None
 
 
 class QuarterlyFinancial(BaseModel):
@@ -183,6 +224,7 @@ class Company(CompanyBase):
     the deep-research fields Module 3 will populate."""
 
     shareholdingTrend: List[ShareholdingRow] = Field(default_factory=list)
+    shareholdingSummary: ShareholdingSummary = Field(default_factory=ShareholdingSummary)
     quarterlyFinancials: List[QuarterlyFinancial] = Field(default_factory=list)
     checklist: List[ChecklistItem] = Field(default_factory=list)
 

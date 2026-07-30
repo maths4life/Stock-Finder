@@ -2,16 +2,59 @@
 
 Milestone 5: this module used to be a hardcoded Python list of 8 dev
 companies. It is now a thin loader over a structured external dataset
-(`data/universe_top100.csv`) — the CSV is the source of truth, this file
-just parses it into the same shape the ingest scripts already expect.
+— the CSV is the source of truth, this file just parses it into the
+same shape the ingest scripts already expect.
 
-Why a CSV and not a DB table: which companies are "in scope" is an
-infrequent, human, auditable decision (index rebalances happen twice a
-year, per NSE's own semi-annual review calendar) — not something that
-needs live, in-app mutation. A file under version control gives free
-diff/review history for that kind of change; a table would need its own
-admin workflow to get the same auditability, which is explicitly out of
-scope for this milestone (see md/CURRENT_MILESTONE.md).
+Module 8 (Expand Universe): default universe grew from
+`data/universe_top100.csv` (~100 companies, NIFTY 50 + Next 50) to
+`data/universe_nifty500.csv` (498 companies — see that file's
+provenance note below). Every ingest script (fetch_prices,
+fetch_fundamentals, fetch_financial_statements, fetch_shareholding,
+compute_technicals, compute_scores) only ever calls `load_universe()`
+or imports `UNIVERSE`, so none of them needed to change for this
+expansion — this was the entire point of routing everything through
+this module rather than importing a list directly. Scaling further
+later means replacing/extending the CSV (or pointing UNIVERSE_CSV_PATH
+elsewhere) — no ingest script code changes required, per the brief's
+"future expansion should require changing only one configuration
+value."
+
+Two independent config knobs, layered:
+  UNIVERSE_CSV_PATH  -- which file to load (default: universe_nifty500.csv)
+  UNIVERSE_SIZE      -- optional int; if set, keep only the first N rows
+                        *after* loading. Since the CSV is ordered by
+                        index priority (NIFTY50 block, then
+                        NIFTYNEXT50, then NIFTYMIDCAP150, then
+                        NIFTYSMALLCAP250 -- see that file's header),
+                        UNIVERSE_SIZE=100 reproduces the old top-100
+                        universe from the new file without needing a
+                        separate CSV, and UNIVERSE_SIZE=50 gives just
+                        NIFTY 50. Mainly useful for a fast local
+                        smoke-test ingestion run; production should
+                        leave this unset and use the full file.
+
+`data/universe_nifty500.csv` provenance and honesty note: built from a
+live market-cap-ranked NSE listing (498 companies -- 2 near-duplicate
+listings of already-included companies were excluded, see that file's
+own header comment) fetched at the time this module was built.
+`index_membership` (NIFTY50 / NIFTYNEXT50 / NIFTYMIDCAP150 /
+NIFTYSMALLCAP250) is assigned by total-market-cap rank as an
+**approximation** of the official free-float-weighted NSE indices, not
+a verified read of NSE's actual current constituent lists for the
+middle two -- the official indices use 6-month-average free-float
+market cap with semi-annual rebalancing (see NSE's own eligibility
+criteria), which will disagree with a rank-by-today's-total-market-cap
+snapshot at the margins between tiers. NIFTY 50 and NIFTY Next 50
+(ranks 1-100) are large, stable, well-known blue-chip companies where
+this approximation is very unlikely to be wrong about *membership*
+(these companies are unambiguously large/liquid); the
+Midcap150/Smallcap250 boundary (rank ~250) is where an official
+rebalance is most likely to disagree with this snapshot. `sector` is
+pre-filled from the previously-curated 100-company file where a symbol
+matches; the rest are blank and get filled in by
+ingest/fetch_fundamentals.py's metadata enrichment (Yahoo's own sector/
+industry classification) on first ingestion run, rather than guessed
+here.
 
 CSV columns:
     symbol            -> internal symbol, matches companies.symbol in the DB
@@ -29,19 +72,16 @@ CSV columns:
                          price/fundamentals data tied to it via FK is
                          never orphaned. See db/schema.sql's
                          companies.is_active and ingest/reset_market_data.py.
-
-To scale from ~100 to the full NSE universe later: replace or extend this
-CSV (or point UNIVERSE_CSV_PATH at a differently-generated file) — nothing
-in fetch_prices.py / compute_technicals.py / compute_scores.py needs to
-change, since they only ever call load_universe().
 """
 import csv
 import os
 from pathlib import Path
-from typing import List, TypedDict
+from typing import List, Optional, TypedDict
 
 DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-UNIVERSE_CSV_PATH = Path(os.environ.get("UNIVERSE_CSV_PATH", DATA_DIR / "universe_top100.csv"))
+DEFAULT_UNIVERSE_CSV = DATA_DIR / "universe_nifty500.csv"
+UNIVERSE_CSV_PATH = Path(os.environ.get("UNIVERSE_CSV_PATH", DEFAULT_UNIVERSE_CSV))
+UNIVERSE_SIZE = int(os.environ["UNIVERSE_SIZE"]) if os.environ.get("UNIVERSE_SIZE") else None
 
 REQUIRED_COLUMNS = {"symbol", "yahoo_ticker", "exchange", "name", "sector"}
 
@@ -60,7 +100,9 @@ def _parse_bool(raw: str) -> bool:
     return str(raw).strip().lower() in ("true", "1", "yes", "y")
 
 
-def load_universe(csv_path: Path = UNIVERSE_CSV_PATH, active_only: bool = True) -> List[UniverseRow]:
+def load_universe(
+    csv_path: Path = UNIVERSE_CSV_PATH, active_only: bool = True, size: Optional[int] = UNIVERSE_SIZE
+) -> List[UniverseRow]:
     """Load the tracked universe from the CSV source of truth.
 
     active_only=True (the default, and what every ingest script should
@@ -69,6 +111,12 @@ def load_universe(csv_path: Path = UNIVERSE_CSV_PATH, active_only: bool = True) 
     file has ever contained (not currently needed anywhere, kept for
     completeness/debugging).
 
+    size caps the result to the first N rows *after* filtering
+    (defaults to the UNIVERSE_SIZE env var, so this needs no code change
+    to use — just set the env var). Since the CSV is index-priority
+    ordered, a smaller size is a smaller, still-sensible universe
+    (NIFTY50 first), not an arbitrary truncation.
+
     Raises FileNotFoundError with a clear message if the CSV is missing,
     and ValueError if a row is missing a required column — fail loudly
     here rather than silently ingesting a partial/malformed universe.
@@ -76,7 +124,7 @@ def load_universe(csv_path: Path = UNIVERSE_CSV_PATH, active_only: bool = True) 
     if not csv_path.is_file():
         raise FileNotFoundError(
             f"Universe file not found at {csv_path}. Set UNIVERSE_CSV_PATH "
-            "or restore data/universe_top100.csv."
+            f"or restore {DEFAULT_UNIVERSE_CSV.name}."
         )
 
     rows: List[UniverseRow] = []
@@ -114,16 +162,22 @@ def load_universe(csv_path: Path = UNIVERSE_CSV_PATH, active_only: bool = True) 
     if not rows:
         raise ValueError(f"{csv_path} produced zero active rows — refusing to run against an empty universe.")
 
+    if size is not None:
+        if size <= 0:
+            raise ValueError(f"UNIVERSE_SIZE must be positive, got {size}")
+        rows = rows[:size]
+
     return rows
 
 
 # Backwards-compatible module-level constant. A handful of older call
 # sites (and any ad-hoc scripts a developer may have written against the
 # old hardcoded list) imported `UNIVERSE` directly rather than calling a
-# function. Loaded once at import time — fine for a ~100-row CSV; if this
-# module is ever imported somewhere that shouldn't fail on a missing/bad
-# CSV (e.g. at FastAPI app startup), prefer calling load_universe()
-# directly instead of relying on this constant.
+# function. Loaded once at import time -- fine even at ~500 rows (a few
+# hundred KB of CSV, parsed once); if this module is ever imported
+# somewhere that shouldn't fail on a missing/bad CSV (e.g. at FastAPI app
+# startup), prefer calling load_universe() directly instead of relying on
+# this constant.
 UNIVERSE: List[UniverseRow] = load_universe()
 
 

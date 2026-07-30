@@ -12,6 +12,12 @@ create table if not exists companies (
     exchange          text not null default 'NSE',
     name              text not null,
     sector            text,
+    industry          text,                       -- finer-grained than sector,
+                                                    -- e.g. sector='Financial
+                                                    -- Services', industry='Private
+                                                    -- Sector Bank'. Added Module 8 --
+                                                    -- see ingest/fetch_fundamentals.py's
+                                                    -- enrich_company_metadata().
     isin              text,
     is_active         boolean not null default true,
     index_membership  text,                       -- e.g. 'NIFTY50' /
@@ -26,6 +32,7 @@ create table if not exists companies (
 -- shareholding_pattern below: safe to re-run on a database created from an
 -- older version of this file.
 alter table companies add column if not exists index_membership text;
+alter table companies add column if not exists industry text;
 
 -- ============================================================
 -- 2. Prices — the only thing yfinance is fully trustworthy for
@@ -160,6 +167,75 @@ alter table shareholding_pattern add column if not exists public_pct     numeric
 alter table shareholding_pattern add column if not exists pledge_pct      numeric;
 alter table shareholding_pattern add column if not exists source          text default 'kaggle_seed';
 alter table shareholding_pattern add column if not exists updated_at      timestamptz not null default now();
+
+-- Module 7.5 (Shareholding Pattern): NSE discloses a finer breakdown than
+-- the original promoter/FII/DII/public split above — Mutual Funds is its
+-- own disclosed category (a subset of DII, but reported separately),
+-- and Government + "Others" (bodies corporate, NBFC/AIF, trusts, HUF,
+-- etc.) are both distinct categories in the actual shareholding
+-- disclosure. Added as new nullable columns rather than repurposing
+-- existing ones so a source that can only give the coarser 4-way split
+-- (e.g. the yfinance-approximation fallback — see
+-- ingest/fetch_shareholding.py) can still write a valid, honest row
+-- with these three left null instead of guessed.
+alter table shareholding_pattern add column if not exists mutual_funds_pct numeric;
+alter table shareholding_pattern add column if not exists government_pct  numeric;
+alter table shareholding_pattern add column if not exists others_pct      numeric;
+-- Real chronological anchor for "latest vs previous reporting quarter".
+-- `quarter` remains the human-readable label (e.g. 'Q1FY26'); text-sorting
+-- labels like 'Q1FY26'/'Q4FY25' does not sort chronologically, so anything
+-- that needs "most recent N periods" orders by this column instead.
+alter table shareholding_pattern add column if not exists period_end      date;
+
+create index if not exists idx_shareholding_symbol_period on shareholding_pattern (symbol, period_end desc nulls last);
+
+-- ============================================================
+-- 3b. Financial Statements — real multi-period quarterly & annual
+--     history (Module 7: Quarterly & Annual Financial Statements).
+--
+-- Deliberately a NEW table, not an extension of financials_quarterly
+-- above. financials_quarterly is a single-row-per-symbol "latest
+-- snapshot" table today (see ingest/fetch_fundamentals.py's docstring —
+-- yfinance's `Ticker.info` has no history, only a current snapshot,
+-- always written as quarter='latest'). Reusing it for real history
+-- would either risk regressing its existing consumers
+-- (company_service.py, screener_service.py, scoring, which all assume
+-- 'latest' is the current snapshot) or resurrect the old gap-based
+-- quarterly/annual classification heuristic this table replaces (see
+-- git history of services/fundamental_service.py) — which only worked
+-- when 2+ dated rows happened to exist for a symbol, and in practice
+-- nothing ever wrote more than one, so the comparison tables always
+-- rendered N/A.
+--
+-- financial_statements is written by ingest/fetch_financial_statements.py
+-- from yfinance's *statement* endpoints (Ticker.quarterly_income_stmt /
+-- .quarterly_balance_sheet / .quarterly_cashflow and their annual
+-- counterparts), which — unlike Ticker.info — really do return multiple
+-- historical periods (typically the last 4-5 quarters / 4 years). Each
+-- period is its own row, uniquely identified by (symbol, period_type,
+-- period_end), so re-running ingestion upserts in place instead of
+-- duplicating rows.
+create table if not exists financial_statements (
+    symbol              text not null references companies(symbol),
+    period_type         text not null check (period_type in ('quarterly', 'annual')),
+    period_end          date not null,          -- statement period-end date, e.g. 2025-06-30
+    period_label        text not null,          -- display label, e.g. 'Q1 FY26' or 'FY25'
+    revenue_cr          numeric,
+    net_profit_cr       numeric,
+    eps                 numeric,
+    ebitda_cr           numeric,                 -- absolute EBITDA (Operating Income + D&A), not a margin
+    ebitda_margin_pct   numeric,
+    operating_margin_pct numeric,                -- Operating Income / Revenue
+    cash_cr             numeric,                 -- cash & cash equivalents (+ short-term investments where Yahoo bundles them)
+    debt_cr             numeric,                 -- total debt (short + long term borrowings)
+    free_cash_flow_cr   numeric,                 -- Operating Cash Flow − CapEx (or yfinance's own Free Cash Flow line when present)
+    source              text not null default 'yfinance',
+    updated_at          timestamptz not null default now(),
+    primary key (symbol, period_type, period_end)
+);
+
+create index if not exists idx_financial_statements_symbol_type
+    on financial_statements (symbol, period_type, period_end desc);
 
 -- ============================================================
 -- 4. Scores — derived from (2) + (3), never fetched, always computed

@@ -22,7 +22,7 @@ This `/docs` folder is the single source of truth for the Stock Finder project. 
    - `DECISIONS.md` — why past choices were made, so they aren't re-litigated.
    - `ENGINEERING_GUIDE.md` — how to add code without adding debt.
    - `IDEAS.md` — things that are interesting but not planned. Do not build from this list without promoting an idea into the roadmap first.
-   - `CHANGELOG.md`, `MODULE_*_REPORT.md` — historical logs of completed work; read for context, never edit to reflect a later state.
+   - `CHANGELOG.md`, `MODULE_*_REPORT.md` — historical logs of completed work; read for context, never edit to reflect a later state. Most recent: `MODULE_7B_FINANCIAL_STATEMENTS_REPORT.md`, `MODULE_7C_SHAREHOLDING_REPORT.md`, `MODULE_8_UNIVERSE_EXPANSION_REPORT.md` (Quarterly/Annual Financial Statements, Shareholding Pattern, and the ~100→498 company universe expansion — see `CHANGELOG.md`'s Milestone 7 entry for the index).
 
 ---
 

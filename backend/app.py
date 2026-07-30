@@ -5,6 +5,7 @@ from db.db import engine
 
 from routes.companies import router as company_router
 from routes.discover import router as discover_router
+from routes.financial_statements import router as financial_statements_router
 from routes.journal import router as journal_router
 from routes.journal_reviews import router as journal_reviews_router
 from routes.pipeline import router as pipeline_router
@@ -24,6 +25,7 @@ app.add_middleware(
 
 app.include_router(company_router)
 app.include_router(discover_router)
+app.include_router(financial_statements_router)
 app.include_router(weekly_intelligence_router)
 app.include_router(journal_router)
 app.include_router(journal_reviews_router)
