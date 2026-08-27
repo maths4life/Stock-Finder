@@ -15,6 +15,7 @@ on:
     # a week — do not widen the day-of-week field without re-checking this
     # comment.
     - cron: "30 20 * * 5"
+
   workflow_dispatch:
     inputs:
       run_news_refresh:
@@ -31,8 +32,10 @@ on:
 jobs:
   refresh:
     runs-on: ubuntu-latest
+
     env:
       DATABASE_URL: ${{ secrets.DATABASE_URL }}
+
     steps:
       - uses: actions/checkout@v4
 
@@ -41,6 +44,7 @@ jobs:
           python-version: "3.12"
 
       - name: Install dependencies
+        working-directory: backend
         run: pip install -r requirements.txt
 
       # --- Dependency order matters below: prices -> technicals ->
@@ -54,9 +58,11 @@ jobs:
       # fetch can never silently feed stale data into technicals/scores.
 
       - name: Fetch prices
+        working-directory: backend
         run: python -m ingest.fetch_prices
 
       - name: Compute technical snapshot
+        working-directory: backend
         run: python -m ingest.compute_technicals
 
       # Also writes the shareholding-pattern approximation (delegates to
@@ -64,14 +70,16 @@ jobs:
       # metadata enrichment — unchanged from the previous daily job, see
       # MODULE_7C_SHAREHOLDING_REPORT.md.
       - name: Fetch fundamentals
+        working-directory: backend
         run: python -m ingest.fetch_fundamentals
 
       # Real multi-period Quarterly/Annual financial statement history
-      # (Module 7) — hits yfinance's *statement* endpoints, not
+      # (Module 7) — hits yfinance's statement endpoints, not
       # Ticker.info. Genuinely quarterly-cadence data, but refreshed
       # every weekly run anyway: cheap and idempotent (upserts), and
       # keeps a single schedule rather than a second one.
       - name: Fetch financial statements
+        working-directory: backend
         run: python -m ingest.fetch_financial_statements
 
       # Weekly Market Intelligence (news) refresh — manual-trigger only,
@@ -80,10 +88,12 @@ jobs:
       # TECHNICAL_DEBT.md TD-008/TD-009 for what "closed" requires.
       - name: Weekly market intelligence (news) refresh [manual opt-in only]
         if: github.event_name == 'workflow_dispatch' && inputs.run_news_refresh == true
+        working-directory: backend
         run: python -m ingest.weekly_news_refresh
 
       # Always last: scores are derived from the fundamentals, financial
       # statements, prices, and technicals refreshed above, so recomputing
       # them first would score against the previous week's data.
       - name: Compute scores
+        working-directory: backend
         run: python -m ingest.compute_scores
