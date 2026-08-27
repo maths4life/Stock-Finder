@@ -82,6 +82,56 @@ class RunSummary(Generic[T]):
     failed_keys: List[str] = field(default_factory=list)
 
 
+class PipelineFailureError(RuntimeError):
+    """Raised when a run's failure rate is too high to trust its output --
+    distinguishes 'a handful of flaky symbols failed' (normal, tolerated,
+    per this module's own docstring) from 'the whole run is broken'
+    (rate-limited, expired credentials, upstream API/site down), which
+    must fail the calling script (and therefore the GitHub Actions step)
+    loudly instead of letting downstream stages compute from mostly-empty
+    data while the workflow still reports success.
+
+    Weekly-refresh addition -- see .github/workflows/ingest.yml and
+    DATA_STRATEGY.md/HANDOFF.md's "failure handling" notes. Does not
+    change retry()/ConcurrentRunner's own per-item behavior at all;
+    every ingest script still keeps going through individual symbol
+    failures exactly as before, and only refuses to report an
+    apparently-successful exit code when the *aggregate* result isn't
+    trustworthy."""
+
+
+def assert_healthy(summary: "RunSummary", label: str, max_failure_rate: float = 0.5) -> None:
+    """Call after a ConcurrentRunner.run() completes. Raises
+    PipelineFailureError (uncaught -> non-zero process exit -> the
+    GitHub Actions step is marked failed) if:
+      - at least one item was attempted, and every single one failed, or
+      - the failure rate exceeds `max_failure_rate` (default 50%).
+
+    A handful of per-symbol failures (a delisted ticker, one transient
+    timeout that survived all retries) is normal and does not trip this
+    -- only a run whose result is mostly-or-entirely failures does."""
+    total = summary.n_ok + summary.n_failed
+    if total == 0:
+        return
+    if summary.n_ok == 0:
+        raise PipelineFailureError(
+            f"{label}: 0/{total} succeeded -- refusing to treat this as a "
+            f"successful run. Downstream stages would otherwise compute "
+            f"from stale/missing data while the workflow still reports "
+            f"success. Failed: {', '.join(summary.failed_keys[:10])}"
+            f"{'...' if len(summary.failed_keys) > 10 else ''}"
+        )
+    failure_rate = summary.n_failed / total
+    if failure_rate > max_failure_rate:
+        raise PipelineFailureError(
+            f"{label}: {summary.n_failed}/{total} ({failure_rate:.0%}) failed, "
+            f"exceeding the {max_failure_rate:.0%} threshold -- refusing to "
+            f"treat this as a successful run. Failed: "
+            f"{', '.join(summary.failed_keys[:10])}"
+            f"{'...' if len(summary.failed_keys) > 10 else ''}"
+        )
+
+
 class _RateLimiter:
     """Ensures at least `delay_seconds` between successive submissions,
     shared across all worker threads — i.e. the aggregate request rate

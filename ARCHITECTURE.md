@@ -16,12 +16,12 @@ flowchart LR
         RSS[RSS feeds\nGoogle News / Moneycontrol / ET / Business Standard]
     end
 
-    subgraph Ingest["Ingest (backend/backend/ingest/, cron via GitHub Actions)"]
+    subgraph Ingest["Ingest (backend/backend/ingest/, cron via GitHub Actions, weekly)"]
         FP[fetch_prices.py]
         CT[compute_technicals.py]
         CS[compute_scores.py]
         SF[seed_fundamentals.py\n(one-time, manual)]
-        WNR[weekly_news_refresh.py\n(not scheduled)]
+        WNR[weekly_news_refresh.py\n(manual opt-in only)]
     end
 
     subgraph DB["PostgreSQL (db/schema.sql)"]
@@ -61,7 +61,7 @@ flowchart LR
     technical_snapshot --> CS --> scores
     KAGGLE --> SF --> financials_quarterly
     KAGGLE --> SF --> shareholding_pattern
-    RSS -.never run live.-> WNR -.-> news_articles
+    RSS -.manual opt-in only, unverified live.-> WNR -.-> news_articles
     news_articles -.-> weekly_sector_intelligence
 
     companies --> R1
@@ -89,9 +89,7 @@ flowchart LR
     R6 <--> Ideas
 ```
 
-Dotted lines mark paths that are built but not proven to work end-to-end in production (news pipeline). `journal_entries <--> R5` (Milestone 2), `pipeline_items <--> R6` (Milestone 3), and `journal_reviews <--> R5` (Milestone 4) are all bidirectional — every first-party table with a frontend page now has a real write path. `pipeline_items --> R2` (into the grouped `GET /pipeline` read) stays a one-way read arrow, unchanged since Milestone 3.
-
----
+Dotted lines mark paths that are built but not proven to work end-to-end in production (news pipeline). `journal_entries <--> R5` (Milestone 2), `pipeline_items <--> R6` (Milestone 3), and `journal_reviews <--> R5` (Milestone 4) are all bidirectional — every first-party table with a frontend page now has a real write path. `pipeline_items --> R2` (into the grouped `GET /pipeline` read) stays a one-way read arrow, unchanged since Milestone 3.---
 
 ## 2. Backend architecture
 
@@ -185,7 +183,7 @@ erDiagram
 
 - **Frontend:** TanStack Start SSR, built for and deployed to Cloudflare Workers (`frontend/.output/server/wrangler.json`).
 - **Backend:** FastAPI, presumed to run as a standalone process (no Dockerfile or deployment config found in the audited zip beyond the app itself) — deployment target for the API is not currently documented anywhere in the repo. This is a gap; see `TECHNICAL_DEBT.md` TD-006.
-- **Data refresh:** GitHub Actions, `.github/workflows/ingest.yml`, weekdays 18:00 UTC, running `fetch_prices` → `compute_technicals` → `compute_scores` against a `DATABASE_URL` secret.
+- **Data refresh:** GitHub Actions, `.github/workflows/ingest.yml`, **weekly (Fridays 20:30 UTC / Saturdays 02:00 IST, once per week — Milestone 9, changed from weekdays 18:00 UTC)**, running `fetch_prices` → `compute_technicals` → `fetch_fundamentals` → `fetch_financial_statements` → `compute_scores` against a `DATABASE_URL` secret, plus a manual `workflow_dispatch`-only opt-in step for the weekly news/market-intelligence refresh (still gated on `TECHNICAL_DEBT.md` TD-008). Each network-calling stage now fails the job loudly if most/all of its attempted symbols failed (`ingest/resilience.py`'s `assert_healthy()`), instead of letting a broken fetch silently propagate into technicals/scores while the workflow still reports success.
 
 **Where this should evolve:** for a single-user tool, SSR/edge deployment is solving a problem (multi-user latency at global scale) that doesn't exist yet. Recommendation, detailed in `DECISIONS.md` ADR-010 and `ENGINEERING_ROADMAP.md`: move to a static SPA build against the same FastAPI backend, hosted on the simplest possible platform, until there's an actual multi-user reason to bring SSR back.
 

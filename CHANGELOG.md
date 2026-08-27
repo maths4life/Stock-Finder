@@ -1,5 +1,51 @@
 # Changelog
 
+## Milestone 9 — Weekly Production Refresh
+
+Ops/ingestion milestone: changed the scheduled GitHub Actions refresh from daily-weekdays to once-weekly, reordered the pipeline so scoring always runs after fundamentals/financial-statements (not just prices/technicals), added an opt-in manual trigger for the still-unverified news pipeline, and closed a real "silent success on a broken run" gap found while doing this. No routes, schemas, or frontend code touched — see `HANDOFF.md` §14 for the full operational detail (exact schedule, execution order, idempotency, failure handling, manual trigger).
+
+### Backend — files modified
+- `backend/backend/.github/workflows/ingest.yml` — cron changed from `"0 18 * * 1-5"` (weekdays, daily) to `"30 20 * * 5"` (Fridays 20:30 UTC / Saturdays 02:00 IST, once a week); step order changed to `fetch_prices` → `compute_technicals` → `fetch_fundamentals` → `fetch_financial_statements` → *(new, optional)* `weekly_news_refresh` → `compute_scores` (previously `compute_scores` ran immediately after `fetch_financial_statements`, before this milestone's new optional news step existed); `workflow_dispatch` extended with a new `run_news_refresh` boolean input (default `false`) that gates a new, schedule-exempt "Weekly market intelligence (news) refresh" step; workflow renamed from "Daily data refresh" to "Weekly data refresh".
+- `backend/backend/ingest/resilience.py` — new `PipelineFailureError` exception and `assert_healthy(summary, label, max_failure_rate=0.5)` function. Purely additive: does not change `retry()` or `ConcurrentRunner`'s existing per-item retry/continue-past-failures behavior at all.
+- `backend/backend/ingest/fetch_prices.py`, `ingest/fetch_fundamentals.py`, `ingest/fetch_financial_statements.py` — each now imports and calls `assert_healthy()` on its run summary at the end of `main()`, raising (non-zero exit) if the run's failure rate exceeds 50% or every attempted symbol failed. `fetch_fundamentals.py`'s check runs even on `--dry-run` (reflects fetch success, independent of DB writes).
+
+### Documentation — files modified
+- `HANDOFF.md` — new Milestone 9 entry in §3 (Milestone 7 moved to §3a, "previous milestone"; Milestone 5 moved to new §3b); new §14 "Weekly production refresh" with the full schedule/order/idempotency/failure-handling/manual-trigger/news-pipeline writeup; §5 debt summary updated (TD-009 partially resolved, TD-029/TD-030 newly logged).
+- `CURRENT_STATE.md` — §2 refresh-cadence table updated (weekly, new step order, new fail-loud behavior, news pipeline's new manual-opt-in status); §6 production-quality bullet updated.
+- `DATA_STRATEGY.md` — §1 source table, §3 cadence table, §5 news-pipeline-readiness section all updated for the weekly cadence and the news pipeline's new (still-manual-only) workflow status. Incidentally corrected a stale line in §1 that still said journal/pipeline/reviews had "no write API" (they've had one since Milestones 2–4) — noticed while updating the same table, not a separate audit.
+- `ARCHITECTURE.md` — §1 mermaid diagram and §5 deployment section updated for the weekly cadence, new step order, and the news pipeline's manual-opt-in status.
+- `TECHNICAL_DEBT.md` — TD-009 marked partially resolved (manual trigger now exists; automatic-schedule half stays blocked on TD-008, unchanged/still open); new TD-029 (weekly-cadence + `assert_healthy()` live-network verification gap) and TD-030 (found-but-not-fixed `.env`/missing-`.gitignore` secret-exposure risk) logged.
+- `PRODUCT_ROADMAP.md` — one stale "daily cron" reference annotated with a note pointing at the new weekly cadence and the still-open underlying verification ask (now TD-027/TD-029).
+- `CURRENT_MILESTONE.md` — new Milestone 9 section added (this milestone marked Complete; Milestone 7 retained below it, unedited).
+
+### Verification performed
+- A real local PostgreSQL 16 instance was stood up from a clean `schema.sql` load (no persistent DB in this sandbox by default, same as Milestone 7's approach).
+- The full pipeline (`fetch_prices` → `compute_technicals` → `fetch_fundamentals` → `fetch_financial_statements` → `compute_scores`, plus `services.weekly_market_intelligence.refresh_weekly_intelligence`) was run twice end-to-end against that database with `yfinance.download`/`yfinance.Ticker`/`feedparser.parse` monkeypatched to return realistic synthetic payloads (this sandbox has no route to Yahoo/NSE/RSS hosts, same limitation as every prior milestone's ingest work) — confirmed zero row-count growth on the second run across every touched table (`prices_daily`, `technical_snapshot`, `financials_quarterly`, `financial_statements`, `scores`, `news_articles`), and confirmed `journal_entries`/`pipeline_items` were untouched throughout.
+- `assert_healthy()`'s fail-loud behavior was separately verified: a simulated 83% per-symbol failure rate correctly raised `PipelineFailureError` (non-zero process exit) instead of the previous silent-success behavior; a normal all-success run was re-verified to complete cleanly with the new check in place.
+- `app.py` was imported directly and `app.openapi()` generated successfully — all pre-existing routes present and unchanged (this milestone touched no route/schema/service files).
+- Frontend: `npm install`, `npx tsc --noEmit` (only pre-existing errors, same class as `TECHNICAL_DEBT.md` TD-022 — stale mock fixtures and the TD-002 dead tree, none newly introduced), and `npm run build` (clean SSR build via the `cloudflare-module` preset) all run for real and passed/matched the pre-existing baseline.
+- `.github/workflows/ingest.yml` parsed successfully as YAML.
+
+### Honest limitations carried forward (see `TECHNICAL_DEBT.md` TD-029/TD-008/TD-009)
+- The weekly cadence and the new `assert_healthy()` check are verified against a real Postgres with synthetic upstream data, not against live `yfinance`/NSE at the new schedule — same network-restricted-sandbox root cause as TD-027.
+- `assert_healthy()`'s 50% failure-rate threshold is a reasonable default, not empirically tuned against real weekly failure rates — worth watching over the first few real scheduled runs.
+- The weekly news/market-intelligence refresh remains unverified against a live RSS feed (TD-008, unchanged by this milestone) and is therefore still not on the automatic schedule — only reachable via the new manual `workflow_dispatch` opt-in.
+
+### Found but not fixed (outside this milestone's approved scope — see `TECHNICAL_DEBT.md` TD-030)
+- `backend/backend/.env` (present in the uploaded project archive) contains a real-looking Supabase `DATABASE_URL` with an embedded password, and no `.gitignore` exists anywhere in the repository. Flagged, not edited/deleted/rotated unilaterally — see TD-030 for the recommended fix and why it wasn't done as part of this milestone.
+
+---
+
+### Addendum — pre-deploy production-safety review
+
+A founder-requested final review before enabling the schedule, covering the 50% failure threshold, per-company data freshness, the exact dependency chain, the weekly cron math, the `.env` secret exposure, the news-pipeline guard, and database write safety — all re-verified directly against the code (not assumed). One concrete production-safety issue was found and fixed as part of this review (permitted per the review's own instructions: fix concrete production-safety issues found, nothing broader):
+
+- **`backend/backend/ingest/compute_scores.py`** — `upsert_score()` previously hardcoded `scores.as_of_date = current_date` on every run, so a company whose price/technical refresh had been silently failing for weeks would still get a fresh-looking `as_of_date` every week. Now anchored to `technical_snapshot.as_of_date` (already honestly tracks the latest actual trading date in `prices_daily`, per `compute_technicals.py`), falling back to `current_date` only for a symbol with no technical snapshot yet. See `TECHNICAL_DEBT.md` TD-001's updated entry for the full writeup and verification performed (a real Postgres run with one company's technicals deliberately back-dated 21 days, confirming its score correctly carried that stale date through).
+
+No other code was changed as part of this review — the 50% `assert_healthy()` threshold, the weekly cron schedule, the news-refresh manual-only guard, and all upsert/write-safety behavior were inspected and confirmed correct as-implemented, not modified.
+
+---
+
 ## Milestone 7 — Financial Statements, Shareholding Pattern, Universe Expansion to ~500
 
 Feature milestone covering three founder-specified modules in one session: real Quarterly/Annual Financial Statement comparisons (previously always N/A — see `MODULE_7B_FINANCIAL_STATEMENTS_REPORT.md`), a full 7-category Shareholding Pattern breakdown (see `MODULE_7C_SHAREHOLDING_REPORT.md`), and expanding the tracked universe from ~100 to 498 companies plus hardening the ingestion pipelines for that scale (see `MODULE_8_UNIVERSE_EXPANSION_REPORT.md`). Each linked report has the full audit/architecture/verification detail; this entry is the dated "what changed, where" index, per this file's existing convention.

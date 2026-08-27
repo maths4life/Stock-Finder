@@ -1,10 +1,32 @@
-name: Daily data refresh
+name: Weekly data refresh
 
+# Milestone: changed from a daily weekday job to a weekly job (Product/
+# Engineering decision — see HANDOFF.md and DATA_STRATEGY.md §3). The
+# founder's own usage is weekly research, and prices/fundamentals/
+# financial statements don't need daily freshness for that; this also
+# roughly halves the total yfinance request volume against the tracked
+# ~498-company universe.
 on:
   schedule:
-    # 18:00 UTC = 11:30 PM IST, after NSE market close (15:30 IST)
-    - cron: "0 18 * * 1-5"
-  workflow_dispatch: {}   # lets you trigger it manually from the Actions tab
+    # 20:30 UTC every Friday = 02:00 IST Saturday — i.e. Saturday early
+    # morning IST, safely after Friday's NSE market close (15:30 IST) and
+    # after Friday's US/global market activity that Yahoo's data reflects.
+    # Day-of-week is pinned to Friday only (5), so this fires exactly once
+    # a week — do not widen the day-of-week field without re-checking this
+    # comment.
+    - cron: "30 20 * * 5"
+  workflow_dispatch:
+    inputs:
+      run_news_refresh:
+        description: >-
+          Also run the weekly Market Intelligence (news) refresh. Off by
+          default: this step is unverified against a live RSS feed in
+          production (TECHNICAL_DEBT.md TD-008/TD-009) — enable this only
+          for a deliberate manual test, not routine use, until TD-008 is
+          closed. Never runs on the scheduled trigger regardless of this
+          setting.
+        type: boolean
+        default: false
 
 jobs:
   refresh:
@@ -21,35 +43,47 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
+      # --- Dependency order matters below: prices -> technicals ->
+      # fundamentals -> financial statements -> (optional news) -> scores.
+      # Each step fails the job loudly (non-zero exit) if its own
+      # fetch/write run was mostly or entirely unsuccessful — see
+      # ingest/resilience.py's assert_healthy() and each script's own
+      # per-item retry/continue behavior, unchanged from before. A step
+      # failing here stops the workflow: GitHub Actions does not run
+      # later steps after a failed step by default, so a broken prices
+      # fetch can never silently feed stale data into technicals/scores.
+
       - name: Fetch prices
         run: python -m ingest.fetch_prices
 
       - name: Compute technical snapshot
         run: python -m ingest.compute_technicals
 
-      # Fundamentals don't actually change daily (Yahoo's own ratios move
-      # roughly on the underlying company's reporting cadence), but running
-      # it daily is cheap (~500 upserts as of Milestone 7's universe
-      # expansion, idempotent) and simpler than a second cron schedule.
-      # Revisit if API load/rate-limiting becomes a concern — see
-      # DATA_STRATEGY.md §3. Also writes the shareholding-pattern
-      # approximation (delegates to fetch_shareholding.py's shared logic —
-      # see MODULE_7C_SHAREHOLDING_REPORT.md) and company sector/industry
-      # metadata enrichment.
+      # Also writes the shareholding-pattern approximation (delegates to
+      # fetch_shareholding.py's shared logic) and company sector/industry
+      # metadata enrichment — unchanged from the previous daily job, see
+      # MODULE_7C_SHAREHOLDING_REPORT.md.
       - name: Fetch fundamentals
         run: python -m ingest.fetch_fundamentals
 
       # Real multi-period Quarterly/Annual financial statement history
-      # (Module 7, Milestone 7) — a separate step from "Fetch fundamentals"
-      # above because it hits yfinance's *statement* endpoints, not
-      # Ticker.info, and changes cadence is genuinely quarterly (a
-      # company's reported financials don't change between its own
-      # earnings releases) rather than needing a daily refresh for
-      # correctness — kept in the same daily job anyway for the same
-      # "cheap and idempotent, simpler than a second schedule" reasoning
-      # as fundamentals above.
+      # (Module 7) — hits yfinance's *statement* endpoints, not
+      # Ticker.info. Genuinely quarterly-cadence data, but refreshed
+      # every weekly run anyway: cheap and idempotent (upserts), and
+      # keeps a single schedule rather than a second one.
       - name: Fetch financial statements
         run: python -m ingest.fetch_financial_statements
 
+      # Weekly Market Intelligence (news) refresh — manual-trigger only,
+      # never on the scheduled run, until TD-008 (unverified against a
+      # live RSS feed) is closed. See DATA_STRATEGY.md §5 and
+      # TECHNICAL_DEBT.md TD-008/TD-009 for what "closed" requires.
+      - name: Weekly market intelligence (news) refresh [manual opt-in only]
+        if: github.event_name == 'workflow_dispatch' && inputs.run_news_refresh == true
+        run: python -m ingest.weekly_news_refresh
+
+      # Always last: scores are derived from the fundamentals, financial
+      # statements, prices, and technicals refreshed above, so recomputing
+      # them first would score against the previous week's data.
       - name: Compute scores
         run: python -m ingest.compute_scores

@@ -93,7 +93,7 @@ from ingest.db import get_engine
 from ingest.fetch_shareholding import UPSERT_SHAREHOLDING
 from ingest.fetch_shareholding import _from_yfinance as _shareholding_from_yfinance
 from ingest.fiscal import fiscal_quarter_label
-from ingest.resilience import ConcurrentRunner, retry
+from ingest.resilience import ConcurrentRunner, assert_healthy, retry
 from ingest.universe import UNIVERSE
 
 CR = 1e7  # 1 crore = 10,000,000 — Yahoo reports absolute INR, schema wants crores
@@ -393,6 +393,11 @@ def main():
         print(f"    {', '.join(summary.failed_keys)}")
     if args.dry_run:
         print("  (dry run -- nothing was written to the DB)")
+
+    # Weekly-refresh safety net -- see fetch_prices.py's identical check
+    # and HANDOFF.md's "failure handling" section. Checked even on
+    # --dry-run since it reflects fetch success, not DB writes.
+    assert_healthy(summary, "fetch_fundamentals")
 
 
 if __name__ == "__main__":

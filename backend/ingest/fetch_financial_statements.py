@@ -64,7 +64,7 @@ from sqlalchemy import text
 
 from ingest.db import get_engine
 from ingest.fiscal import fiscal_label as _fiscal_label
-from ingest.resilience import ConcurrentRunner, retry
+from ingest.resilience import ConcurrentRunner, assert_healthy, retry
 
 logger = logging.getLogger("ingest.fetch_financial_statements")
 
@@ -279,6 +279,10 @@ def main():
         logger.info("    %s", ", ".join(summary.failed_keys))
     if args.dry_run:
         logger.info("  (dry run -- nothing was written to the DB)")
+
+    # Weekly-refresh safety net -- see fetch_prices.py's identical check
+    # and HANDOFF.md's "failure handling" section.
+    assert_healthy(summary, "fetch_financial_statements")
 
 
 if __name__ == "__main__":

@@ -11,6 +11,8 @@ and persist the result.
 Usage:
     python -m ingest.compute_scores
 """
+import datetime
+
 from sqlalchemy import text
 
 from analysis.scoring_engine import compute_scores, verdict_for
@@ -49,7 +51,7 @@ def fetch_technicals(engine, symbol: str) -> dict | None:
         """
         select close, rsi_14, above_50dma, above_200dma, golden_cross,
                death_cross, change_pct, high_52w, low_52w,
-               avg_volume_20
+               avg_volume_20, as_of_date
         from technical_snapshot
         where symbol = :symbol
         """
@@ -169,7 +171,7 @@ def build_rationale(symbol: str, f: dict | None, t: dict | None) -> str:
     return f"{symbol}: " + "; ".join(parts) + "."
 
 
-def upsert_score(engine, symbol: str, fscore, tscore, overall, rationale):
+def upsert_score(engine, symbol: str, fscore, tscore, overall, rationale, as_of_date):
     if fscore is None and tscore is None:
         return
     with engine.begin() as conn:
@@ -177,9 +179,9 @@ def upsert_score(engine, symbol: str, fscore, tscore, overall, rationale):
             text(
                 """
                 insert into scores (symbol, as_of_date, fundamental_score, technical_score, overall_score, verdict, rationale)
-                values (:symbol, current_date, :fscore, :tscore, :overall, :verdict, :rationale)
+                values (:symbol, :as_of_date, :fscore, :tscore, :overall, :verdict, :rationale)
                 on conflict (symbol) do update set
-                    as_of_date = current_date,
+                    as_of_date = excluded.as_of_date,
                     fundamental_score = excluded.fundamental_score,
                     technical_score = excluded.technical_score,
                     overall_score = excluded.overall_score,
@@ -190,6 +192,7 @@ def upsert_score(engine, symbol: str, fscore, tscore, overall, rationale):
             ),
             {
                 "symbol": symbol,
+                "as_of_date": as_of_date,
                 "fscore": fscore,
                 "tscore": tscore,
                 "overall": round(overall, 1) if overall is not None else None,
@@ -216,8 +219,24 @@ def main():
         result = compute_scores(metrics)
         rationale = build_rationale(symbol, f, t)
 
-        upsert_score(engine, symbol, result["fundamentalScore"], result["technicalScore"], result["overallScore"], rationale)
-        print(f"{symbol}: fundamental={result['fundamentalScore']} technical={result['technicalScore']} overall={result['overallScore']} -> {rationale}")
+        # Freshness safety net (see HANDOFF.md's production-safety review):
+        # a score's as_of_date must reflect how current the data behind it
+        # actually is, not the date it happened to be recomputed. Anchored
+        # to technical_snapshot.as_of_date -- already the honest "latest
+        # trading date this symbol's prices actually reflect" (set by
+        # compute_technicals.py from the newest row in prices_daily, not
+        # from today's date) -- since price/technical staleness is the
+        # fastest-moving and most consequential freshness signal here. A
+        # company whose price fetch has been silently failing for weeks
+        # now surfaces that honestly instead of getting a fresh-looking
+        # as_of_date every run regardless of its underlying data's age.
+        # Falls back to today only when there's no technical snapshot at
+        # all yet (a brand-new company still building up price history) --
+        # no worse than the previous behavior for that narrow case.
+        as_of_date = (t or {}).get("as_of_date") or datetime.date.today()
+
+        upsert_score(engine, symbol, result["fundamentalScore"], result["technicalScore"], result["overallScore"], rationale, as_of_date)
+        print(f"{symbol}: fundamental={result['fundamentalScore']} technical={result['technicalScore']} overall={result['overallScore']} (as_of={as_of_date}) -> {rationale}")
 
 
 if __name__ == "__main__":

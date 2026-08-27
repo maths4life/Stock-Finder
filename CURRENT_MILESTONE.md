@@ -4,6 +4,33 @@
 
 ---
 
+## Milestone 9: Weekly Production Refresh
+
+**Status:** ✅ Complete.
+
+### Objective
+
+Change the scheduled ingestion cadence from daily-weekdays to once-weekly (per the founder's explicit brief), while preserving the existing architecture, upsert-based idempotency, and dependency ordering — and close any correctness gaps found along the way rather than just editing the cron expression. Full detail in `HANDOFF.md` §14 and `CHANGELOG.md`'s Milestone 9 entry.
+
+### Scope (all completed)
+
+- `.github/workflows/ingest.yml`: cron changed to once-weekly (Fridays 20:30 UTC / Saturdays 02:00 IST); `workflow_dispatch` preserved; step order changed to `fetch_prices` → `compute_technicals` → `fetch_fundamentals` → `fetch_financial_statements` → *(optional)* `weekly_news_refresh` → `compute_scores`, so scores are always computed last, from the same week's refreshed data.
+- New `workflow_dispatch` input (`run_news_refresh`, default off) makes `ingest/weekly_news_refresh.py` reachable as a manual, opt-in step — **not** added to the automatic schedule, since `TECHNICAL_DEBT.md` TD-008 (never verified against a live RSS feed) is still open and the project's own stated policy (`DATA_STRATEGY.md` §5) gates automatic scheduling on that verification happening first.
+- New `ingest/resilience.py` `assert_healthy()` check, called from `fetch_prices.py`/`fetch_fundamentals.py`/`fetch_financial_statements.py`'s `main()`: fails the GitHub Actions step loudly (non-zero exit) if a run's failure rate exceeds 50% or every attempted symbol failed — closing a real gap where a total upstream outage would previously have still reported success and let `compute_technicals`/`compute_scores` run against stale/missing data. Does not change the existing per-item retry/continue-past-failures behavior at all.
+- Documentation updated: `HANDOFF.md`, `CURRENT_STATE.md`, `DATA_STRATEGY.md`, `ARCHITECTURE.md`, `CHANGELOG.md`, `TECHNICAL_DEBT.md`, `PRODUCT_ROADMAP.md` — see `CHANGELOG.md`'s Milestone 9 entry for the exact file-by-file list.
+- Explicitly **not** touched, per the brief and per verification: routes, services, schemas, the scoring engine, the frontend, `db/schema.sql`, `reset_market_data.py`, and `journal_entries`/`journal_reviews`/`pipeline_items`.
+
+### Honest limitations carried forward (see `TECHNICAL_DEBT.md` TD-029)
+
+- The new weekly cadence and `assert_healthy()` check are verified against a real local Postgres with synthetic (monkeypatched) Yahoo/RSS payloads, twice (confirming idempotency) — not against a live `yfinance`/NSE connection at the new schedule. Same network-restricted-sandbox limitation as Milestone 7's TD-027, one milestone later.
+- `assert_healthy()`'s 50% failure-rate threshold is a sensible default, not derived from observed real-world weekly failure rates.
+
+### Found but not fixed (outside this milestone's scope — see `TECHNICAL_DEBT.md` TD-030)
+
+- `backend/backend/.env` contains a real-looking Supabase connection string with an embedded password, and the repository has no `.gitignore` anywhere to keep it out of version control. Flagged per this document's own process (§9/§12 in `HANDOFF.md`: report discovered issues, don't fix opportunistically) rather than edited, deleted, or rotated unilaterally.
+
+---
+
 ## Milestone 7: Financial Statements, Shareholding Pattern, Universe Expansion to 498
 
 **Status:** ✅ Complete.

@@ -39,7 +39,7 @@ import yfinance as yf
 from sqlalchemy import bindparam, text
 
 from ingest.db import get_engine
-from ingest.resilience import ConcurrentRunner, retry
+from ingest.resilience import ConcurrentRunner, assert_healthy, retry
 from ingest.universe import UNIVERSE
 
 HISTORY_PERIOD = "2y"   # enough for MA200 / 52w stats to be accurate — used
@@ -239,6 +239,14 @@ def main():
     print(f"  Failed:               {summary.n_failed}")
     if summary.failed_keys:
         print(f"    {', '.join(summary.failed_keys)}")
+
+    # Weekly-refresh safety net: a handful of per-symbol failures is
+    # normal (see resilience.py), but if most/all of the *attempted*
+    # symbols failed, this run isn't trustworthy -- fail loudly rather
+    # than let compute_technicals/compute_scores run on stale data while
+    # the workflow still reports success. See HANDOFF.md's "failure
+    # handling" section.
+    assert_healthy(summary, "fetch_prices")
 
 
 if __name__ == "__main__":
