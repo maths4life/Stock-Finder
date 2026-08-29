@@ -21,7 +21,7 @@ export function AIResearchReport({ analysis }: Props) {
         <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-accent" />
-            <span className="text-[11px] uppercase tracking-widest font-medium text-accent">AI Research Engine</span>
+            <span className="text-[11px] uppercase tracking-widest font-medium text-accent">Research Summary</span>
           </div>
           <div className="flex items-center gap-3">
             <RatingBadge rating={analysis.rating} />

@@ -22,10 +22,20 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav className="sticky top-0 z-40 bg-paper/85 backdrop-blur-md hairline-b">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-10">
-            <Link to="/" className="flex items-center gap-1.5 font-semibold text-[15px] tracking-tight leading-none text-ink">
-              <span className="size-6 rounded-md bg-accent text-accent-foreground grid place-items-center text-[11px] font-bold">
-                Q
-              </span>
+            <Link to="/" className="flex items-center gap-2 font-semibold text-[15px] tracking-tight leading-none text-ink">
+              <svg viewBox="0 0 24 24" className="size-6 shrink-0" aria-hidden="true">
+                <rect width="24" height="24" rx="6" className="fill-accent" />
+                <path
+                  d="M6.5 15.5L10 10.5L13 13L17.5 7"
+                  stroke="currentColor"
+                  className="text-accent-foreground"
+                  strokeWidth="1.75"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  fill="none"
+                />
+                <circle cx="17.5" cy="7" r="1.4" className="fill-accent-foreground" />
+              </svg>
               Quant
             </Link>
             <div className="hidden md:flex items-center gap-1">

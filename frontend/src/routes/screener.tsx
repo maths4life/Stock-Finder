@@ -130,7 +130,7 @@ function Screener() {
     <AppShell>
       <div className="max-w-7xl mx-auto px-6 py-12 pb-24">
         <PageHeader
-          eyebrow="AI Stock Discovery"
+          eyebrow="Screener"
           title="Set your criteria. See only what qualifies."
           description="No lists of hundreds. High-conviction names, ranked by a transparent score — not a black box."
           className="mb-10"

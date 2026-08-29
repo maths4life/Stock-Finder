@@ -18,15 +18,15 @@ export const Route = createFileRoute("/")({
     context.queryClient.ensureQueryData({ queryKey: queryKeys.discoverGroups, queryFn: fetchDiscoverGroups }),
   head: () => ({
     meta: [
-      { title: "Morning Intelligence — Quant" },
+      { title: "The Briefing — Quant" },
       {
         name: "description",
-        content: "Today's most researchable Indian companies, grouped by why they matter.",
+        content: "The Indian companies worth your time today, grouped by why they matter.",
       },
-      { property: "og:title", content: "Morning Intelligence — Quant" },
+      { property: "og:title", content: "The Briefing — Quant" },
       {
         property: "og:description",
-        content: "A calm briefing on the Indian companies worth your attention today.",
+        content: "A daily shortlist of Indian equities worth a second look, and why.",
       },
     ],
   }),
@@ -49,11 +49,11 @@ function Discover() {
         <header className="mb-14 animate-fade-up">
           <p className="text-eyebrow text-accent mb-2">{formatToday()}</p>
           <h1 className="text-display md:text-display-lg text-balance max-w-[22ch]">
-            Which companies deserve your attention today?
+            Today's shortlist, before the market gets loud.
           </h1>
           <p className="mt-5 text-base text-ink-muted max-w-xl leading-relaxed">
-            A shortlist surfaced across four narratives. Take twenty minutes.
-            Add one to your pipeline, or move on.
+            Twenty minutes, four reasons to care. Add one to your pipeline,
+            or move on with a clear conscience.
           </p>
         </header>
 

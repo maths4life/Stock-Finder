@@ -126,6 +126,30 @@ function ResearchDetail() {
 
             {/* Sections */}
             <div className="mt-14 space-y-14">
+              <Section label="Support & Resistance">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                  <StatMetric label="Support 1" value={fmtRupee(c.supportResistance.support1)} tone="negative" />
+                  <StatMetric label="Support 2" value={fmtRupee(c.supportResistance.support2)} tone="negative" />
+                  <StatMetric label="Pivot" value={fmtRupee(c.supportResistance.pivot)} />
+                  <StatMetric label="Resistance 1" value={fmtRupee(c.supportResistance.resistance1)} tone="positive" />
+                  <StatMetric label="Resistance 2" value={fmtRupee(c.supportResistance.resistance2)} tone="positive" />
+                  <StatMetric label="VWAP" value={fmtRupee(c.supportResistance.vwap)} />
+                  <StatMetric label="52 Week High" value={fmtRupee(c.supportResistance.high52w)} tone="positive" />
+                  <StatMetric label="52 Week Low" value={fmtRupee(c.supportResistance.low52w)} tone="negative" />
+                </div>
+              </Section>
+
+              <Section label="Technicals">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                  <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
+                  <StatMetric label="Above 50 DMA" value={c.aboveEma50 ? "Yes" : "No"} tone={c.aboveEma50 ? "positive" : "negative"} />
+                  <StatMetric label="Above 200 DMA" value={c.aboveEma200 ? "Yes" : "No"} tone={c.aboveEma200 ? "positive" : "negative"} />
+                  <StatMetric label="Golden Cross" value={c.goldenCross ? "Yes" : "No"} tone={c.goldenCross ? "positive" : "neutral"} />
+                  <StatMetric label="Volume Breakout" value={c.volumeBreakout ? "Yes" : "No"} tone={c.volumeBreakout ? "positive" : "neutral"} />
+                  <StatMetric label="Trend" value={c.trend} tone={c.trend === "Uptrend" ? "positive" : c.trend === "Downtrend" ? "negative" : "neutral"} />
+                </div>
+              </Section>
+
               <Section label="Valuation">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
                   <StatMetric label="Market Cap" value={c.valuation.marketCap ?? "N/A"} />
@@ -151,19 +175,6 @@ function ResearchDetail() {
                 <FinancialComparisonTable data={c.annualComparison} />
               </Section>
 
-              <Section label="Support & Resistance">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
-                  <StatMetric label="Support 1" value={fmtRupee(c.supportResistance.support1)} tone="negative" />
-                  <StatMetric label="Support 2" value={fmtRupee(c.supportResistance.support2)} tone="negative" />
-                  <StatMetric label="Pivot" value={fmtRupee(c.supportResistance.pivot)} />
-                  <StatMetric label="Resistance 1" value={fmtRupee(c.supportResistance.resistance1)} tone="positive" />
-                  <StatMetric label="Resistance 2" value={fmtRupee(c.supportResistance.resistance2)} tone="positive" />
-                  <StatMetric label="VWAP" value={fmtRupee(c.supportResistance.vwap)} />
-                  <StatMetric label="52 Week High" value={fmtRupee(c.supportResistance.high52w)} tone="positive" />
-                  <StatMetric label="52 Week Low" value={fmtRupee(c.supportResistance.low52w)} tone="negative" />
-                </div>
-              </Section>
-
               <Section label="Fundamentals">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
                   <StatMetric label="P/B" value={c.pb.toFixed(2) + "x"} />
@@ -173,32 +184,6 @@ function ResearchDetail() {
                   <StatMetric label="Revenue Growth" value={c.salesGrowthPct.toFixed(1) + "%"} tone={c.salesGrowthPct >= 0 ? "positive" : "negative"} />
                   <StatMetric label="Profit Growth" value={c.profitGrowthPct.toFixed(1) + "%"} tone={c.profitGrowthPct >= 0 ? "positive" : "negative"} />
                   <StatMetric label="Promoter Holding" value={c.promoterHoldingPct.toFixed(1) + "%"} />
-                </div>
-              </Section>
-
-              <Section label="Technicals">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
-                  <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
-                  <StatMetric label="Above 50 DMA" value={c.aboveEma50 ? "Yes" : "No"} tone={c.aboveEma50 ? "positive" : "negative"} />
-                  <StatMetric label="Above 200 DMA" value={c.aboveEma200 ? "Yes" : "No"} tone={c.aboveEma200 ? "positive" : "negative"} />
-                  <StatMetric label="Golden Cross" value={c.goldenCross ? "Yes" : "No"} tone={c.goldenCross ? "positive" : "neutral"} />
-                  <StatMetric label="Volume Breakout" value={c.volumeBreakout ? "Yes" : "No"} tone={c.volumeBreakout ? "positive" : "neutral"} />
-                  <StatMetric label="Trend" value={c.trend} tone={c.trend === "Uptrend" ? "positive" : c.trend === "Downtrend" ? "negative" : "neutral"} />
-                </div>
-              </Section>
-
-              <Section label="Quarterly Financials">
-                <div className="grid grid-cols-3 gap-6 hairline-t pt-6">
-                  {c.quarterlyFinancials.map((q) => (
-                    <div key={q.quarter}>
-                      <p className="text-[11px] uppercase tracking-widest text-ink-subtle">{q.quarter}</p>
-                      <p className="text-heading-lg mt-1 tabular-nums">₹{q.revenueCr.toLocaleString("en-IN")}cr</p>
-                      <p className="text-[11px] text-ink-muted mt-0.5">
-                        Revenue · Net Profit ₹{q.netProfitCr.toLocaleString("en-IN")}cr
-                        {q.ebitdaMarginPct > 0 && ` · EBITDA ${q.ebitdaMarginPct.toFixed(1)}%`}
-                      </p>
-                    </div>
-                  ))}
                 </div>
               </Section>
 
