@@ -2,7 +2,6 @@ import { useState } from "react";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "@/shared/components/layout/AppShell";
 import { PageHeader } from "@/shared/components/common/PageHeader";
-import { Sparkline } from "@/shared/components/common/Sparkline";
 import { ErrorState } from "@/shared/components/common/ErrorState";
 import { EmptyState } from "@/shared/components/common/EmptyState";
 import { Skeleton } from "@/shared/components/ui/skeleton";
@@ -31,17 +30,24 @@ import { usePipeline } from "@/features/market/hooks/useDiscover";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
 import { fetchPipeline } from "@/features/market/api/market";
 import { PipelineItemForm } from "@/features/pipeline/components/PipelineItemForm";
-import { useDeletePipelineItem, useMovePipelineItemStage } from "@/features/pipeline/hooks/usePipelineItems";
+import {
+  useDeletePipelineItem,
+  useMovePipelineItemStage,
+} from "@/features/pipeline/hooks/usePipelineItems";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { PipelineColumn, PipelineItem, PipelineStage } from "@/shared/api/types";
 import { Inbox, MoreVertical, NotebookPen } from "lucide-react";
 
 export const Route = createFileRoute("/ideas")({
-  loader: ({ context }) => context.queryClient.ensureQueryData({ queryKey: queryKeys.pipeline, queryFn: fetchPipeline }),
+  loader: ({ context }) =>
+    context.queryClient.ensureQueryData({ queryKey: queryKeys.pipeline, queryFn: fetchPipeline }),
   head: () => ({
     meta: [
       { title: "Ideas — Stock Finder" },
-      { name: "description", content: "Watching, researching, conviction. Every idea in one board." },
+      {
+        name: "description",
+        content: "Watching, researching, conviction. Every idea in one board.",
+      },
     ],
   }),
   component: Ideas,
@@ -109,7 +115,9 @@ function Ideas() {
           </div>
         )}
 
-        {isError && <ErrorState description="Couldn't load your pipeline." onRetry={() => refetch()} />}
+        {isError && (
+          <ErrorState description="Couldn't load your pipeline." onRetry={() => refetch()} />
+        )}
 
         {!isPending && !isError && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
@@ -135,7 +143,10 @@ function Ideas() {
         stage={editingItem ? editingItemStage : createStage}
       />
 
-      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Remove this from your pipeline?</AlertDialogTitle>
@@ -224,7 +235,10 @@ function PipelineColumnView({
                       </DropdownMenuSubContent>
                     </DropdownMenuSub>
                     <DropdownMenuSeparator />
-                    <DropdownMenuItem className="text-negative focus:text-negative" onClick={() => onDelete(item)}>
+                    <DropdownMenuItem
+                      className="text-negative focus:text-negative"
+                      onClick={() => onDelete(item)}
+                    >
                       Remove
                     </DropdownMenuItem>
                   </DropdownMenuContent>
@@ -234,12 +248,13 @@ function PipelineColumnView({
               <Link to="/research/$symbol" params={{ symbol: item.symbol }} className="block">
                 <div className="flex items-start justify-between gap-3 mb-3 pr-8">
                   <div>
-                    <p className="text-heading-md group-hover:text-accent transition-colors">{c.name}</p>
+                    <p className="text-heading-md group-hover:text-accent transition-colors">
+                      {c.name}
+                    </p>
                     <p className="font-mono text-[10px] text-ink-subtle mt-1">
                       {c.exchange}:{c.symbol}
                     </p>
                   </div>
-                  <Sparkline data={c.spark} tone={positive ? "positive" : "negative"} width={60} height={24} />
                 </div>
 
                 <div className="flex items-center gap-3 mb-3 font-mono text-[11px] tabular-nums">
@@ -249,12 +264,15 @@ function PipelineColumnView({
                   </span>
                   <span className="text-ink-subtle">·</span>
                   <span className="text-ink-subtle">
-                    Score <span className="text-ink font-semibold">{c.overallScore.toFixed(0)}</span>
+                    Score{" "}
+                    <span className="text-ink font-semibold">{c.overallScore.toFixed(0)}</span>
                   </span>
                   <span className="text-ink-subtle">{c.riskLevel} risk</span>
                 </div>
 
-                <p className="text-xs text-ink-muted leading-snug mb-3 line-clamp-2">"{item.note}"</p>
+                <p className="text-xs text-ink-muted leading-snug mb-3 line-clamp-2">
+                  "{item.note}"
+                </p>
               </Link>
               <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-ink-subtle">
                 <span>Updated {item.ago}</span>

@@ -247,9 +247,16 @@ export type CompanyQueryParams = {
   riskLevel?: RiskLevel | "Any";
   horizon?: "Any" | "short" | "medium" | "long";
   minRoe?: number;
+  maxRoe?: number;
   minRoce?: number;
+  maxRoce?: number;
+  /** Proxies profit growth server-side (no dedicated EPS-growth column —
+   * see backend/services/company_service.py's "Known approximations"). */
   minEpsGrowth?: number;
+  maxEpsGrowth?: number;
   minSalesGrowth?: number;
+  maxSalesGrowth?: number;
+  minPe?: number;
   maxPe?: number;
   maxDebtToEquity?: number;
   minPromoterHolding?: number;

@@ -73,9 +73,14 @@ def _matches(
     risk_level: Optional[str],
     horizon: Optional[str],
     min_roe: Optional[float],
+    max_roe: Optional[float],
     min_roce: Optional[float],
+    max_roce: Optional[float],
     min_eps_growth: Optional[float],
+    max_eps_growth: Optional[float],
     min_sales_growth: Optional[float],
+    max_sales_growth: Optional[float],
+    min_pe: Optional[float],
     max_pe: Optional[float],
     max_debt_to_equity: Optional[float],
     min_promoter_holding: Optional[float],
@@ -91,11 +96,21 @@ def _matches(
         return False
     if min_roe is not None and c["roe"] < min_roe:
         return False
+    if max_roe is not None and c["roe"] > max_roe:
+        return False
     if min_roce is not None and c["roce"] < min_roce:
+        return False
+    if max_roce is not None and c["roce"] > max_roce:
         return False
     if min_eps_growth is not None and c["epsGrowthPct"] < min_eps_growth:
         return False
+    if max_eps_growth is not None and c["epsGrowthPct"] > max_eps_growth:
+        return False
     if min_sales_growth is not None and c["salesGrowthPct"] < min_sales_growth:
+        return False
+    if max_sales_growth is not None and c["salesGrowthPct"] > max_sales_growth:
+        return False
+    if min_pe is not None and c["pe"] < min_pe:
         return False
     if max_pe is not None and c["pe"] > max_pe:
         return False
@@ -118,9 +133,14 @@ def screen_companies(
     risk_level: Optional[str] = None,
     horizon: Optional[str] = None,
     min_roe: Optional[float] = None,
+    max_roe: Optional[float] = None,
     min_roce: Optional[float] = None,
+    max_roce: Optional[float] = None,
     min_eps_growth: Optional[float] = None,
+    max_eps_growth: Optional[float] = None,
     min_sales_growth: Optional[float] = None,
+    max_sales_growth: Optional[float] = None,
+    min_pe: Optional[float] = None,
     max_pe: Optional[float] = None,
     max_debt_to_equity: Optional[float] = None,
     min_promoter_holding: Optional[float] = None,
@@ -134,7 +154,14 @@ def screen_companies(
 ) -> Dict:
     """GET /companies' full implementation once filters/sort/page are
     present. Returns a `Paginated<CompanyListItem>`-shaped dict — see
-    frontend/src/shared/api/types.ts's `Paginated<T>`."""
+    frontend/src/shared/api/types.ts's `Paginated<T>`.
+
+    max_roe / max_roce / max_eps_growth / max_sales_growth / min_pe are the
+    upper/lower counterparts of the pre-existing min/max bounds below —
+    added so the Screener UI can offer real Min–Max range inputs instead of
+    one-sided sliders. They read the same already-computed fields as their
+    counterparts; no new metric, no scoring change.
+    """
     universe = get_all_companies(search=search, limit=SCREENER_UNIVERSE_LIMIT)
 
     filtered = [
@@ -146,9 +173,14 @@ def screen_companies(
             risk_level=risk_level,
             horizon=horizon,
             min_roe=min_roe,
+            max_roe=max_roe,
             min_roce=min_roce,
+            max_roce=max_roce,
             min_eps_growth=min_eps_growth,
+            max_eps_growth=max_eps_growth,
             min_sales_growth=min_sales_growth,
+            max_sales_growth=max_sales_growth,
+            min_pe=min_pe,
             max_pe=max_pe,
             max_debt_to_equity=max_debt_to_equity,
             min_promoter_holding=min_promoter_holding,

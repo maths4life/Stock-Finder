@@ -17,9 +17,14 @@ def companies(
     riskLevel: Optional[str] = Query(None, description="Low|Moderate|High|Any"),  # noqa: N803 — matches querystring/CompanyQueryParams casing
     horizon: Optional[str] = Query(None, description="short|medium|long|Any"),
     minRoe: Optional[float] = Query(None),  # noqa: N803
+    maxRoe: Optional[float] = Query(None),  # noqa: N803
     minRoce: Optional[float] = Query(None),  # noqa: N803
+    maxRoce: Optional[float] = Query(None),  # noqa: N803
     minEpsGrowth: Optional[float] = Query(None),  # noqa: N803
+    maxEpsGrowth: Optional[float] = Query(None),  # noqa: N803
     minSalesGrowth: Optional[float] = Query(None),  # noqa: N803
+    maxSalesGrowth: Optional[float] = Query(None),  # noqa: N803
+    minPe: Optional[float] = Query(None),  # noqa: N803
     maxPe: Optional[float] = Query(None),  # noqa: N803
     maxDebtToEquity: Optional[float] = Query(None),  # noqa: N803
     minPromoterHolding: Optional[float] = Query(None),  # noqa: N803
@@ -37,9 +42,14 @@ def companies(
         risk_level=riskLevel,
         horizon=horizon,
         min_roe=minRoe,
+        max_roe=maxRoe,
         min_roce=minRoce,
+        max_roce=maxRoce,
         min_eps_growth=minEpsGrowth,
+        max_eps_growth=maxEpsGrowth,
         min_sales_growth=minSalesGrowth,
+        max_sales_growth=maxSalesGrowth,
+        min_pe=minPe,
         max_pe=maxPe,
         max_debt_to_equity=maxDebtToEquity,
         min_promoter_holding=minPromoterHolding,

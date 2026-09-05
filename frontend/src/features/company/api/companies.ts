@@ -1,8 +1,13 @@
 import { ApiError } from "@/shared/api/client";
-import type { Company, CompanyQueryParams, Paginated, PriceBar, PriceRange } from "@/shared/api/types";
+import type {
+  Company,
+  CompanyQueryParams,
+  Paginated,
+  PriceBar,
+  PriceRange,
+} from "@/shared/api/types";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 /**
  * GET /companies (Module 4 — Screener)
  * Backend owns filtering, sorting, ranking, and pagination — this just
@@ -16,9 +21,14 @@ export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<P
   if (params.riskLevel && params.riskLevel !== "Any") qs.set("riskLevel", params.riskLevel);
   if (params.horizon && params.horizon !== "Any") qs.set("horizon", params.horizon);
   if (params.minRoe) qs.set("minRoe", String(params.minRoe));
+  if (params.maxRoe !== undefined) qs.set("maxRoe", String(params.maxRoe));
   if (params.minRoce) qs.set("minRoce", String(params.minRoce));
+  if (params.maxRoce !== undefined) qs.set("maxRoce", String(params.maxRoce));
   if (params.minEpsGrowth) qs.set("minEpsGrowth", String(params.minEpsGrowth));
+  if (params.maxEpsGrowth !== undefined) qs.set("maxEpsGrowth", String(params.maxEpsGrowth));
   if (params.minSalesGrowth) qs.set("minSalesGrowth", String(params.minSalesGrowth));
+  if (params.maxSalesGrowth !== undefined) qs.set("maxSalesGrowth", String(params.maxSalesGrowth));
+  if (params.minPe !== undefined) qs.set("minPe", String(params.minPe));
   if (params.maxPe !== undefined) qs.set("maxPe", String(params.maxPe));
   if (params.maxDebtToEquity !== undefined)
     qs.set("maxDebtToEquity", String(params.maxDebtToEquity));

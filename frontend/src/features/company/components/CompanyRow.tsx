@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { TrendingDown, TrendingUp } from "lucide-react";
 import type { Company } from "@/shared/api/types";
-import { Sparkline } from "@/shared/components/common/Sparkline";
 import { AddToIdeasButton } from "@/shared/components/common/AddToIdeasButton";
 import { cn } from "@/shared/utils/utils";
 
@@ -24,8 +23,14 @@ export function CompanyRow({ company: c, description, className, showScores = tr
         className,
       )}
     >
-      <Link to="/research/$symbol" params={{ symbol: c.symbol }} className="col-span-12 sm:col-span-3 min-w-0">
-        <p className="font-semibold text-[15px] text-ink group-hover:text-accent transition-colors truncate">{c.name}</p>
+      <Link
+        to="/research/$symbol"
+        params={{ symbol: c.symbol }}
+        className="col-span-12 sm:col-span-3 min-w-0"
+      >
+        <p className="font-semibold text-[15px] text-ink group-hover:text-accent transition-colors truncate">
+          {c.name}
+        </p>
         <p className="font-mono text-[11px] text-ink-subtle mt-0.5">
           {c.exchange}:{c.symbol}
         </p>
@@ -61,14 +66,22 @@ export function CompanyRow({ company: c, description, className, showScores = tr
         )}
       >
         <div className="flex items-center gap-1.5">
-          {positive ? <TrendingUp className="size-3 text-positive" /> : <TrendingDown className="size-3 text-negative" />}
-          <span className={cn("text-sm font-medium tabular-nums", positive ? "text-positive" : "text-negative")}>
+          {positive ? (
+            <TrendingUp className="size-3 text-positive" />
+          ) : (
+            <TrendingDown className="size-3 text-negative" />
+          )}
+          <span
+            className={cn(
+              "text-sm font-medium tabular-nums",
+              positive ? "text-positive" : "text-negative",
+            )}
+          >
             {positive ? "+" : ""}
             {c.changePct.toFixed(2)}%
           </span>
         </div>
-        <Sparkline data={c.spark} tone={positive ? "positive" : "negative"} width={90} height={24} className="hidden sm:block my-1" />
-        <p className="text-[11px] text-ink-subtle">{c.marketCap}</p>
+        <p className="text-[11px] text-ink-subtle sm:my-1">{c.marketCap}</p>
       </Link>
       {showScores && (
         <div className="col-span-12 sm:col-span-1 flex sm:justify-end">

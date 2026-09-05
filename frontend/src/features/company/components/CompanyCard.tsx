@@ -1,7 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import type { Company } from "@/shared/api/types";
-import { Sparkline } from "@/shared/components/common/Sparkline";
 import { VerdictBadge } from "@/shared/components/common/Badge";
 import { AddToIdeasButton } from "@/shared/components/common/AddToIdeasButton";
 import { cn } from "@/shared/utils/utils";
@@ -47,17 +46,23 @@ export function CompanyCard({ company: c, footer, note, className, showScores = 
         </div>
 
         {note ?? (
-          <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">{c.rationale}</p>
+          <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">
+            {c.rationale}
+          </p>
         )}
 
-        <div className="flex items-end justify-between">
-          <Sparkline data={c.spark} tone={positive ? "positive" : "negative"} fill width={140} height={36} />
-          <div className="text-right">
-            <div className="font-mono text-sm tabular-nums">₹{c.price.toLocaleString("en-IN")}</div>
-            <div className={cn("text-[11px] font-mono tabular-nums", positive ? "text-positive" : "text-negative")}>
-              {positive ? "+" : ""}
-              {c.changePct.toFixed(2)}%
-            </div>
+        <div className="flex items-baseline justify-between">
+          <div className="font-mono text-lg font-semibold tabular-nums">
+            ₹{c.price.toLocaleString("en-IN")}
+          </div>
+          <div
+            className={cn(
+              "text-[13px] font-mono font-medium tabular-nums",
+              positive ? "text-positive" : "text-negative",
+            )}
+          >
+            {positive ? "+" : ""}
+            {c.changePct.toFixed(2)}%
           </div>
         </div>
 

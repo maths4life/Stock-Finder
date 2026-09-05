@@ -2,7 +2,6 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AlertTriangle, ArrowLeft, Check, NotebookPen } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/AppShell";
-import { Sparkline } from "@/shared/components/common/Sparkline";
 import { StatMetric } from "@/shared/components/common/StatMetric";
 import { ErrorState } from "@/shared/components/common/ErrorState";
 import { Skeleton } from "@/shared/components/ui/skeleton";
@@ -12,7 +11,10 @@ import { fetchCompany, fetchCompanyPrices } from "@/features/company/api/compani
 import { PriceChart } from "@/features/company/components/PriceChart";
 import { FinancialComparisonTable } from "@/features/company/components/FinancialComparisonTable";
 import { ScoreBreakdownPanel } from "@/features/company/components/ScoreBreakdown";
-import { StickyCompanyHeader, useStickySentinel } from "@/features/company/components/StickyCompanyHeader";
+import {
+  StickyCompanyHeader,
+  useStickySentinel,
+} from "@/features/company/components/StickyCompanyHeader";
 import { useJournalEntries } from "@/features/journal/hooks/useJournalEntries";
 import { JournalEntryForm } from "@/features/journal/components/JournalEntryForm";
 import { queryKeys } from "@/shared/hooks/queryKeys";
@@ -79,7 +81,10 @@ function ResearchDetail() {
                 <p className="mt-2 text-ink-muted">Try searching with ⌘K.</p>
               </div>
             ) : (
-              <ErrorState description="Couldn't load this company's research." onRetry={() => refetch()} />
+              <ErrorState
+                description="Couldn't load this company's research."
+                onRetry={() => refetch()}
+              />
             )}
           </div>
         )}
@@ -89,12 +94,16 @@ function ResearchDetail() {
             {/* Hero — Company header, full width */}
             <header className="animate-fade-up">
               <div className="flex items-center gap-2.5 mb-3 text-[13px] text-ink-subtle">
-                <span className="font-medium">{c.exchange}:{c.symbol}</span>
+                <span className="font-medium">
+                  {c.exchange}:{c.symbol}
+                </span>
                 <span>·</span>
                 <span>{c.sector}</span>
               </div>
               <h1 className="text-company-title text-balance">{c.name}</h1>
-              <p className="mt-4 text-base text-ink-muted leading-relaxed max-w-[70ch] text-pretty">{c.rationale}</p>
+              <p className="mt-4 text-base text-ink-muted leading-relaxed max-w-[70ch] text-pretty">
+                {c.rationale}
+              </p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <AddToIdeasButton symbol={c.symbol} size="md" />
@@ -140,9 +149,23 @@ function ResearchDetail() {
               </div>
 
               <div className="grid grid-cols-3 gap-y-6 gap-x-4 py-7 hairline-b">
-                <StatMetric label="Overall Score" value={c.overallScore.toFixed(0) + "/100"} tone="positive" size="lg" highlight />
-                <StatMetric label="Fundamental Score" value={c.fundamentalScore.toFixed(0) + "/100"} size="lg" />
-                <StatMetric label="Technical Score" value={c.technicalScore.toFixed(0) + "/100"} size="lg" />
+                <StatMetric
+                  label="Overall Score"
+                  value={c.overallScore.toFixed(0) + "/100"}
+                  tone="positive"
+                  size="lg"
+                  highlight
+                />
+                <StatMetric
+                  label="Fundamental Score"
+                  value={c.fundamentalScore.toFixed(0) + "/100"}
+                  size="lg"
+                />
+                <StatMetric
+                  label="Technical Score"
+                  value={c.technicalScore.toFixed(0) + "/100"}
+                  size="lg"
+                />
               </div>
 
               <div ref={sentinelRef} />
@@ -170,9 +193,20 @@ function ResearchDetail() {
                   <StatMetric label="ROCE" value={c.roce.toFixed(1) + "%"} />
                   <StatMetric label="Debt/Equity" value={c.debtToEquity.toFixed(2)} />
                   <StatMetric label="EPS" value={"₹" + c.eps.toFixed(2)} />
-                  <StatMetric label="Revenue Growth" value={c.salesGrowthPct.toFixed(1) + "%"} tone={c.salesGrowthPct >= 0 ? "positive" : "negative"} />
-                  <StatMetric label="Profit Growth" value={c.profitGrowthPct.toFixed(1) + "%"} tone={c.profitGrowthPct >= 0 ? "positive" : "negative"} />
-                  <StatMetric label="Promoter Holding" value={c.promoterHoldingPct.toFixed(1) + "%"} />
+                  <StatMetric
+                    label="Revenue Growth"
+                    value={c.salesGrowthPct.toFixed(1) + "%"}
+                    tone={c.salesGrowthPct >= 0 ? "positive" : "negative"}
+                  />
+                  <StatMetric
+                    label="Profit Growth"
+                    value={c.profitGrowthPct.toFixed(1) + "%"}
+                    tone={c.profitGrowthPct >= 0 ? "positive" : "negative"}
+                  />
+                  <StatMetric
+                    label="Promoter Holding"
+                    value={c.promoterHoldingPct.toFixed(1) + "%"}
+                  />
                 </div>
               </Section>
 
@@ -184,11 +218,37 @@ function ResearchDetail() {
               <Section label="Technicals">
                 <div className="grid grid-cols-2 gap-y-6 gap-x-4">
                   <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
-                  <StatMetric label="Above 50 DMA" value={c.aboveEma50 ? "Yes" : "No"} tone={c.aboveEma50 ? "positive" : "negative"} />
-                  <StatMetric label="Above 200 DMA" value={c.aboveEma200 ? "Yes" : "No"} tone={c.aboveEma200 ? "positive" : "negative"} />
-                  <StatMetric label="Golden Cross" value={c.goldenCross ? "Yes" : "No"} tone={c.goldenCross ? "positive" : "neutral"} />
-                  <StatMetric label="Volume Breakout" value={c.volumeBreakout ? "Yes" : "No"} tone={c.volumeBreakout ? "positive" : "neutral"} />
-                  <StatMetric label="Trend" value={c.trend} tone={c.trend === "Uptrend" ? "positive" : c.trend === "Downtrend" ? "negative" : "neutral"} />
+                  <StatMetric
+                    label="Above 50 DMA"
+                    value={c.aboveEma50 ? "Yes" : "No"}
+                    tone={c.aboveEma50 ? "positive" : "negative"}
+                  />
+                  <StatMetric
+                    label="Above 200 DMA"
+                    value={c.aboveEma200 ? "Yes" : "No"}
+                    tone={c.aboveEma200 ? "positive" : "negative"}
+                  />
+                  <StatMetric
+                    label="Golden Cross"
+                    value={c.goldenCross ? "Yes" : "No"}
+                    tone={c.goldenCross ? "positive" : "neutral"}
+                  />
+                  <StatMetric
+                    label="Volume Breakout"
+                    value={c.volumeBreakout ? "Yes" : "No"}
+                    tone={c.volumeBreakout ? "positive" : "neutral"}
+                  />
+                  <StatMetric
+                    label="Trend"
+                    value={c.trend}
+                    tone={
+                      c.trend === "Uptrend"
+                        ? "positive"
+                        : c.trend === "Downtrend"
+                          ? "negative"
+                          : "neutral"
+                    }
+                  />
                 </div>
               </Section>
 
@@ -201,21 +261,48 @@ function ResearchDetail() {
             <div className="mt-16 space-y-16">
               <Section label="Support & Resistance">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
-                  <StatMetric label="Support 1" value={fmtRupee(c.supportResistance.support1)} tone="negative" />
-                  <StatMetric label="Support 2" value={fmtRupee(c.supportResistance.support2)} tone="negative" />
+                  <StatMetric
+                    label="Support 1"
+                    value={fmtRupee(c.supportResistance.support1)}
+                    tone="negative"
+                  />
+                  <StatMetric
+                    label="Support 2"
+                    value={fmtRupee(c.supportResistance.support2)}
+                    tone="negative"
+                  />
                   <StatMetric label="Pivot" value={fmtRupee(c.supportResistance.pivot)} />
-                  <StatMetric label="Resistance 1" value={fmtRupee(c.supportResistance.resistance1)} tone="positive" />
-                  <StatMetric label="Resistance 2" value={fmtRupee(c.supportResistance.resistance2)} tone="positive" />
+                  <StatMetric
+                    label="Resistance 1"
+                    value={fmtRupee(c.supportResistance.resistance1)}
+                    tone="positive"
+                  />
+                  <StatMetric
+                    label="Resistance 2"
+                    value={fmtRupee(c.supportResistance.resistance2)}
+                    tone="positive"
+                  />
                   <StatMetric label="VWAP" value={fmtRupee(c.supportResistance.vwap)} />
-                  <StatMetric label="52 Week High" value={fmtRupee(c.supportResistance.high52w)} tone="positive" />
-                  <StatMetric label="52 Week Low" value={fmtRupee(c.supportResistance.low52w)} tone="negative" />
+                  <StatMetric
+                    label="52 Week High"
+                    value={fmtRupee(c.supportResistance.high52w)}
+                    tone="positive"
+                  />
+                  <StatMetric
+                    label="52 Week Low"
+                    value={fmtRupee(c.supportResistance.low52w)}
+                    tone="negative"
+                  />
                 </div>
               </Section>
 
               <Section label="Valuation">
                 <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
                   <StatMetric label="Market Cap" value={c.valuation.marketCap ?? "N/A"} />
-                  <StatMetric label="Enterprise Value" value={fmtCr(c.valuation.enterpriseValueCr)} />
+                  <StatMetric
+                    label="Enterprise Value"
+                    value={fmtCr(c.valuation.enterpriseValueCr)}
+                  />
                   <StatMetric label="P/E Ratio" value={fmtX(c.valuation.pe)} />
                   <StatMetric label="Forward P/E" value={fmtX(c.valuation.forwardPe)} />
                   <StatMetric label="PEG Ratio" value={fmtNum(c.valuation.peg)} />
@@ -223,9 +310,15 @@ function ResearchDetail() {
                   <StatMetric label="EV/EBITDA" value={fmtX(c.valuation.evEbitda)} />
                   <StatMetric label="Dividend Yield" value={fmtPct(c.valuation.divYield)} />
                   <StatMetric label="Beta" value={fmtNum(c.valuation.beta)} />
-                  <StatMetric label="Shares Outstanding" value={fmtShares(c.valuation.sharesOutstanding)} />
+                  <StatMetric
+                    label="Shares Outstanding"
+                    value={fmtShares(c.valuation.sharesOutstanding)}
+                  />
                   <StatMetric label="Free Float" value={fmtPct(c.valuation.freeFloatPct)} />
-                  <StatMetric label="Book Value / Share" value={fmtRupee(c.valuation.bookValuePerShare)} />
+                  <StatMetric
+                    label="Book Value / Share"
+                    value={fmtRupee(c.valuation.bookValuePerShare)}
+                  />
                 </div>
               </Section>
 
@@ -241,35 +334,63 @@ function ResearchDetail() {
                 {c.shareholdingSummary.latestQuarter && (
                   <p className="text-[13px] text-ink-subtle mb-3">
                     {c.shareholdingSummary.latestQuarter}
-                    {c.shareholdingSummary.previousQuarter && ` vs ${c.shareholdingSummary.previousQuarter}`}
-                    {c.shareholdingSummary.source === "yfinance_approx" && " · approximate (see note)"}
+                    {c.shareholdingSummary.previousQuarter &&
+                      ` vs ${c.shareholdingSummary.previousQuarter}`}
+                    {c.shareholdingSummary.source === "yfinance_approx" &&
+                      " · approximate (see note)"}
                   </p>
                 )}
                 <div className="w-full rounded-lg ring-1 ring-hairline overflow-hidden overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-secondary/50">
-                        <th className="text-left font-medium text-metric-label px-5 py-3 whitespace-nowrap">Quarter</th>
-                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Promoter</th>
-                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">FII</th>
-                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">DII</th>
-                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Mutual Funds</th>
-                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Public</th>
-                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Govt</th>
-                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Others</th>
+                        <th className="text-left font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          Quarter
+                        </th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          Promoter
+                        </th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          FII
+                        </th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          DII
+                        </th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          Mutual Funds
+                        </th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          Public
+                        </th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          Govt
+                        </th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">
+                          Others
+                        </th>
                       </tr>
                     </thead>
                     <tbody>
                       {c.shareholdingTrend.map((row) => (
                         <tr key={row.quarter} className="hairline-t">
-                          <td className="text-left text-table-label text-ink-muted px-5 py-3.5 whitespace-nowrap">{row.quarter}</td>
-                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.promoter.toFixed(1)}%</td>
-                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.fii.toFixed(1)}%</td>
-                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.dii.toFixed(1)}%</td>
+                          <td className="text-left text-table-label text-ink-muted px-5 py-3.5 whitespace-nowrap">
+                            {row.quarter}
+                          </td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">
+                            {row.promoter.toFixed(1)}%
+                          </td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">
+                            {row.fii.toFixed(1)}%
+                          </td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">
+                            {row.dii.toFixed(1)}%
+                          </td>
                           <td className="text-right text-table-value tabular-nums px-5 py-3.5">
                             {row.mutualFunds !== null ? `${row.mutualFunds.toFixed(1)}%` : "N/A"}
                           </td>
-                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.public.toFixed(1)}%</td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">
+                            {row.public.toFixed(1)}%
+                          </td>
                           <td className="text-right text-table-value tabular-nums px-5 py-3.5">
                             {row.government !== null ? `${row.government.toFixed(1)}%` : "N/A"}
                           </td>
@@ -302,12 +423,13 @@ function ResearchDetail() {
                       >
                         {item.done ? <Check className="size-2.5" strokeWidth={3} /> : null}
                       </div>
-                      <span className={"text-sm " + (item.done ? "text-ink" : "text-ink-muted")}>{item.label}</span>
+                      <span className={"text-sm " + (item.done ? "text-ink" : "text-ink-muted")}>
+                        {item.label}
+                      </span>
                     </div>
                   ))}
                 </div>
               </Section>
-
             </div>
 
             <div className="mt-14 flex items-center gap-3">
@@ -374,7 +496,11 @@ function RisksList({ company: c }: { company: Company }) {
   const risks = allMetrics.filter((m) => !m.passed && m.maxScore > 0);
 
   if (risks.length === 0) {
-    return <p className="text-sm text-ink-subtle">No flagged risks — every scored metric passed its threshold.</p>;
+    return (
+      <p className="text-sm text-ink-subtle">
+        No flagged risks — every scored metric passed its threshold.
+      </p>
+    );
   }
 
   return (
@@ -407,7 +533,9 @@ function fmtRupee(value: number | null): string {
 }
 
 function fmtCr(value: number | null): string {
-  return value === null ? "N/A" : `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}cr`;
+  return value === null
+    ? "N/A"
+    : `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}cr`;
 }
 
 function fmtX(value: number | null): string {
@@ -423,7 +551,9 @@ function fmtNum(value: number | null): string {
 }
 
 function fmtShares(value: number | null): string {
-  return value === null ? "N/A" : `${(value / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 2 })} Cr`;
+  return value === null
+    ? "N/A"
+    : `${(value / 1e7).toLocaleString("en-IN", { maximumFractionDigits: 2 })} Cr`;
 }
 
 function ResearchDetailSkeleton() {
