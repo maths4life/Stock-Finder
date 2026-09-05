@@ -39,9 +39,9 @@ const formSchema = z.object({
 
 type FormValues = z.infer<typeof formSchema>;
 
-function entryToFormValues(entry?: JournalEntry): FormValues {
+function entryToFormValues(entry?: JournalEntry, defaultSymbol?: string): FormValues {
   return {
-    symbol: entry?.symbol ?? "",
+    symbol: entry?.symbol ?? defaultSymbol ?? "",
     title: entry?.title ?? "",
     thesis: entry?.thesis ?? "",
     fundamentalReasons: entry?.fundamentalReasons ?? "",
@@ -83,9 +83,13 @@ interface JournalEntryFormProps {
   onOpenChange: (open: boolean) => void;
   /** Present when editing an existing entry; absent when creating. */
   entry?: JournalEntry;
+  /** When creating (no `entry`), pre-selects this symbol — used by the
+   * "Write Thesis" CTA on the company research page so the flow starts
+   * with the company already picked instead of an empty dropdown. */
+  defaultSymbol?: string;
 }
 
-export function JournalEntryForm({ open, onOpenChange, entry }: JournalEntryFormProps) {
+export function JournalEntryForm({ open, onOpenChange, entry, defaultSymbol }: JournalEntryFormProps) {
   const { data: companies = [] } = useAllCompanies();
   const createMutation = useCreateJournalEntry();
   const updateMutation = useUpdateJournalEntry();
@@ -94,15 +98,15 @@ export function JournalEntryForm({ open, onOpenChange, entry }: JournalEntryForm
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
-    defaultValues: entryToFormValues(entry),
+    defaultValues: entryToFormValues(entry, defaultSymbol),
   });
 
   useEffect(() => {
     if (open) {
-      form.reset(entryToFormValues(entry));
+      form.reset(entryToFormValues(entry, defaultSymbol));
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, entry?.id]);
+  }, [open, entry?.id, defaultSymbol]);
 
   function onSubmit(values: FormValues) {
     const input = {

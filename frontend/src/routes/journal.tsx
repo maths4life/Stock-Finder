@@ -36,7 +36,7 @@ export const Route = createFileRoute("/journal")({
     ]),
   head: () => ({
     meta: [
-      { title: "Journal — Quant" },
+      { title: "Journal — Stock Finder" },
       { name: "description", content: "Record every thesis. Review, learn, compound." },
     ],
   }),
@@ -45,6 +45,10 @@ export const Route = createFileRoute("/journal")({
 
 function formatDate(iso: string) {
   return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+}
+
+function daysAgo(iso: string): number {
+  return Math.max(0, Math.floor((Date.now() - new Date(iso).getTime()) / (1000 * 60 * 60 * 24)));
 }
 
 function Journal() {
@@ -57,6 +61,8 @@ function Journal() {
     reviewsByEntryId.set(r.entryId, [...(reviewsByEntryId.get(r.entryId) ?? []), r]);
   }
   const deleteMutation = useDeleteJournalEntry();
+  const now = Date.now();
+  const dueEntries = entries.filter((e) => e.reviewDueAt && new Date(e.reviewDueAt).getTime() <= now);
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | undefined>(undefined);
@@ -89,6 +95,37 @@ function Journal() {
           className="mb-14"
         />
 
+        {!isPending && !isError && dueEntries.length > 0 && (
+          <div className="mb-14 rounded-xl ring-1 ring-hairline bg-secondary/40 p-6 animate-fade-up">
+            <p className="text-eyebrow text-accent mb-4">
+              {dueEntries.length} {dueEntries.length === 1 ? "review" : "reviews"} due
+            </p>
+            <div className="space-y-3">
+              {dueEntries.map((e) => {
+                const c = companyBySymbol.get(e.symbol);
+                return (
+                  <a
+                    key={e.id}
+                    href={`#entry-${e.id}`}
+                    className="flex items-center justify-between gap-4 py-2.5 hairline-b last:border-b-0 group"
+                  >
+                    <div className="min-w-0">
+                      <p className="font-semibold text-sm text-ink truncate">{c ? c.name : e.symbol}</p>
+                      <p className="text-[11.5px] text-ink-subtle mt-0.5">
+                        Thesis written {daysAgo(e.createdAt)} days ago
+                        {e.reviewDueAt ? ` · Review due ${formatDate(e.reviewDueAt)}` : ""}
+                      </p>
+                    </div>
+                    <span className="shrink-0 text-[12.5px] font-medium text-accent group-hover:underline underline-offset-2">
+                      Review Thesis →
+                    </span>
+                  </a>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {isPending && (
           <div className="space-y-10">
             {Array.from({ length: 2 }).map((_, i) => (
@@ -112,7 +149,7 @@ function Journal() {
             {entries.map((e) => {
               const c = companyBySymbol.get(e.symbol);
               return (
-                <article key={e.id} className="hairline-b pb-14 last:border-b-0 animate-fade-up">
+                <article key={e.id} id={`entry-${e.id}`} className="hairline-b pb-14 last:border-b-0 animate-fade-up scroll-mt-24">
                   <div className="flex items-baseline justify-between mb-3">
                     <Link
                       to="/research/$symbol"

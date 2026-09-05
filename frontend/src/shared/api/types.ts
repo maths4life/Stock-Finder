@@ -327,6 +327,15 @@ export type MarketIndicator = {
   tone: Signal;
 };
 
+/** Mirrors backend/schemas/discover.py's DataFreshness — the real
+ * timestamp of the newest computed score/technical row. `updatedAt` is
+ * null only when scoring hasn't run yet on a fresh database. */
+export type DataFreshness = {
+  updatedAt: string | null; // ISO datetime, UTC
+  status: "fresh" | "stale" | "unknown";
+  staleAfterHours: number;
+};
+
 /**
  * Mirrors backend/schemas/journal.py's JournalEntry exactly — camelCase,
  * fields lifted directly from the `journal_entries` table in

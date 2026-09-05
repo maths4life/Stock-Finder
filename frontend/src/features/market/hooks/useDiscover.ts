@@ -1,5 +1,11 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchDiscoverGroups, fetchMarketIndicators, fetchPipeline, fetchSectorPulse } from "@/features/market/api/market";
+import {
+  fetchDataFreshness,
+  fetchDiscoverGroups,
+  fetchMarketIndicators,
+  fetchPipeline,
+  fetchSectorPulse,
+} from "@/features/market/api/market";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 
 export function useDiscoverGroups() {
@@ -16,4 +22,8 @@ export function useSectorPulse() {
 
 export function useMarketIndicators() {
   return useQuery({ queryKey: queryKeys.marketIndicators, queryFn: fetchMarketIndicators });
+}
+
+export function useDataFreshness() {
+  return useQuery({ queryKey: queryKeys.dataFreshness, queryFn: fetchDataFreshness });
 }

@@ -5,12 +5,14 @@ import { CompanyRow } from "@/features/company/components/CompanyRow";
 import { SentimentBadge } from "@/shared/components/common/Badge";
 import { ErrorState } from "@/shared/components/common/ErrorState";
 import { CompanyCardGridSkeleton } from "@/shared/components/common/Skeletons";
+import { DataFreshness } from "@/shared/components/common/DataFreshness";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
+import { qualifyingReasons } from "@/features/company/utils/qualifyingReasons";
 import { useDiscoverGroups, useMarketIndicators, usePipeline, useSectorPulse } from "@/features/market/hooks/useDiscover";
 import { fetchDiscoverGroups } from "@/features/market/api/market";
 import { queryKeys } from "@/shared/hooks/queryKeys";
-import type { DiscoverGroup } from "@/shared/api/types";
+import type { Company, DiscoverGroup } from "@/shared/api/types";
 import { ArrowUpRight } from "lucide-react";
 
 export const Route = createFileRoute("/")({
@@ -18,12 +20,12 @@ export const Route = createFileRoute("/")({
     context.queryClient.ensureQueryData({ queryKey: queryKeys.discoverGroups, queryFn: fetchDiscoverGroups }),
   head: () => ({
     meta: [
-      { title: "The Briefing — Quant" },
+      { title: "Today's Shortlist — Stock Finder" },
       {
         name: "description",
         content: "The Indian companies worth your time today, grouped by why they matter.",
       },
-      { property: "og:title", content: "The Briefing — Quant" },
+      { property: "og:title", content: "Today's Shortlist — Stock Finder" },
       {
         property: "og:description",
         content: "A daily shortlist of Indian equities worth a second look, and why.",
@@ -52,9 +54,10 @@ function Discover() {
             Today's shortlist, before the market gets loud.
           </h1>
           <p className="mt-5 text-base text-ink-muted max-w-xl leading-relaxed">
-            Twenty minutes, four reasons to care. Add one to your pipeline,
-            or move on with a clear conscience.
+            A few companies worth investigating based on fundamentals, technicals and current signals.
+            Add one to your pipeline, or move on with a clear conscience.
           </p>
+          <DataFreshness className="mt-4" />
         </header>
 
         <div className="grid grid-cols-12 gap-x-12 gap-y-16">
@@ -102,18 +105,45 @@ function DiscoverGroupSection({ group, index }: { group: DiscoverGroup; index: n
       ) : group.layout === "grid" ? (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {companies.map((c) => (
-            <CompanyCard key={c.symbol} company={c} />
+            <CompanyCard key={c.symbol} company={c} note={<WhyThisStock company={c} />} />
           ))}
         </div>
       ) : (
         <div>
           {companies.map((c) => (
-            <CompanyRow key={c.symbol} company={c} />
+            <CompanyRow key={c.symbol} company={c} description={rowDescription(c)} />
           ))}
         </div>
       )}
     </section>
   );
+}
+
+/** Compact "✓ reason" list for the grid-layout Discover cards — the
+ * qualification bullets requirement (Section 3). Purely formatting over
+ * fields the backend already computed; see qualifyingReasons.ts. */
+function WhyThisStock({ company: c }: { company: Company }) {
+  const reasons = qualifyingReasons(c).slice(0, 3);
+  if (reasons.length === 0) {
+    return <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">{c.rationale}</p>;
+  }
+  return (
+    <ul className="mb-4 space-y-1">
+      {reasons.map((r) => (
+        <li key={r} className="text-[12.5px] text-ink-muted flex items-start gap-1.5 leading-snug">
+          <span className="text-positive shrink-0">✓</span>
+          {r}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+/** For the list-layout rows, fold the top qualifying reason into the
+ * description line so the "why" stays visible without a taller row. */
+function rowDescription(c: Company): string {
+  const reasons = qualifyingReasons(c);
+  return reasons.length > 0 ? reasons[0] : c.rationale;
 }
 
 function PipelinePreview() {

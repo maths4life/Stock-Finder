@@ -1,6 +1,12 @@
 from fastapi import APIRouter
 
-from services.discover_service import get_discover_groups, get_market_indicators, get_pipeline, get_sector_pulse
+from services.discover_service import (
+    get_data_freshness,
+    get_discover_groups,
+    get_market_indicators,
+    get_pipeline,
+    get_sector_pulse,
+)
 
 router = APIRouter()
 
@@ -8,6 +14,11 @@ router = APIRouter()
 @router.get("/discover/groups")
 def discover_groups():
     return get_discover_groups()
+
+
+@router.get("/meta/freshness")
+def data_freshness():
+    return get_data_freshness()
 
 
 @router.get("/pipeline")

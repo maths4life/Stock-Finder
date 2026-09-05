@@ -1,5 +1,5 @@
 import { ApiError } from "@/shared/api/client";
-import type { DiscoverGroup, MarketIndicator, PipelineColumn, SectorPulse } from "@/shared/api/types";
+import type { DataFreshness, DiscoverGroup, MarketIndicator, PipelineColumn, SectorPulse } from "@/shared/api/types";
 
 import { API_URL } from "@/shared/api/config";
 /** GET /discover/groups */
@@ -41,6 +41,17 @@ export async function fetchMarketIndicators(): Promise<MarketIndicator[]> {
 
   if (!response.ok) {
     throw new ApiError("Failed to fetch market indicators", response.status);
+  }
+
+  return response.json();
+}
+
+/** GET /meta/freshness */
+export async function fetchDataFreshness(): Promise<DataFreshness> {
+  const response = await fetch(`${API_URL}/meta/freshness`);
+
+  if (!response.ok) {
+    throw new ApiError("Failed to fetch data freshness", response.status);
   }
 
   return response.json();

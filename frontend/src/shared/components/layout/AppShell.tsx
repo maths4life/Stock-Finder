@@ -36,7 +36,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 />
                 <circle cx="17.5" cy="7" r="1.4" className="fill-accent-foreground" />
               </svg>
-              Quant
+              Stock Finder
             </Link>
             <div className="hidden md:flex items-center gap-1">
               {nav.map((n) => (

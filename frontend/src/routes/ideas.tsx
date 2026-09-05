@@ -34,13 +34,13 @@ import { PipelineItemForm } from "@/features/pipeline/components/PipelineItemFor
 import { useDeletePipelineItem, useMovePipelineItemStage } from "@/features/pipeline/hooks/usePipelineItems";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { PipelineColumn, PipelineItem, PipelineStage } from "@/shared/api/types";
-import { Inbox, MoreVertical } from "lucide-react";
+import { Inbox, MoreVertical, NotebookPen } from "lucide-react";
 
 export const Route = createFileRoute("/ideas")({
   loader: ({ context }) => context.queryClient.ensureQueryData({ queryKey: queryKeys.pipeline, queryFn: fetchPipeline }),
   head: () => ({
     meta: [
-      { title: "Ideas Pipeline — Quant" },
+      { title: "Ideas — Stock Finder" },
       { name: "description", content: "Watching, researching, conviction. Every idea in one board." },
     ],
   }),
@@ -241,14 +241,32 @@ function PipelineColumnView({
                   </div>
                   <Sparkline data={c.spark} tone={positive ? "positive" : "negative"} width={60} height={24} />
                 </div>
-                <p className="text-xs text-ink-muted leading-snug mb-3">"{item.note}"</p>
-                <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-ink-subtle">
-                  <span>{item.ago}</span>
+
+                <div className="flex items-center gap-3 mb-3 font-mono text-[11px] tabular-nums">
+                  <span className="text-ink">₹{c.price.toLocaleString("en-IN")}</span>
                   <span className={positive ? "text-positive" : "text-negative"}>
                     {positive ? "▲" : "▼"} {Math.abs(c.changePct).toFixed(2)}%
                   </span>
+                  <span className="text-ink-subtle">·</span>
+                  <span className="text-ink-subtle">
+                    Score <span className="text-ink font-semibold">{c.overallScore.toFixed(0)}</span>
+                  </span>
+                  <span className="text-ink-subtle">{c.riskLevel} risk</span>
                 </div>
+
+                <p className="text-xs text-ink-muted leading-snug mb-3 line-clamp-2">"{item.note}"</p>
               </Link>
+              <div className="flex items-center justify-between text-[10px] uppercase tracking-widest text-ink-subtle">
+                <span>Updated {item.ago}</span>
+                <Link
+                  to="/journal"
+                  className="flex items-center gap-1 normal-case tracking-normal text-[11px] text-ink-subtle hover:text-accent transition-colors"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <NotebookPen className="size-3" />
+                  Thesis
+                </Link>
+              </div>
             </div>
           );
         })}

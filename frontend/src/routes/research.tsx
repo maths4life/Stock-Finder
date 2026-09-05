@@ -14,10 +14,21 @@ import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { fetchCompanies } from "@/features/company/api/companies";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import { SearchX } from "lucide-react";
-import type { CompanySort } from "@/shared/api/types";
+import type { CompanyQueryParams, CompanySort } from "@/shared/api/types";
 
 const PAGE_SIZE = 8;
 const DEFAULT_PARAMS = { sort: "overallScore" as CompanySort, sortDirection: "desc" as const, page: 1, pageSize: PAGE_SIZE };
+
+/** Quick filters (Section 7) — thin presets over the same
+ * `CompanyQueryParams` the Screener's full filter panel uses, so "High
+ * Score" etc. aren't a second filtering system, just a shortcut into it. */
+const QUICK_FILTERS: { id: string; label: string; params: Partial<CompanyQueryParams> }[] = [
+  { id: "all", label: "All", params: {} },
+  { id: "high-score", label: "High Score", params: {} },
+  { id: "low-risk", label: "Low Risk", params: { riskLevel: "Low" } },
+  { id: "momentum", label: "Momentum", params: { aboveEma200: true, aboveEma50: true } },
+  { id: "value", label: "Value", params: { maxPe: 20 } },
+];
 
 export const Route = createFileRoute("/research")({
   loader: ({ context }) =>
@@ -27,7 +38,7 @@ export const Route = createFileRoute("/research")({
     }),
   head: () => ({
     meta: [
-      { title: "Research — Quant" },
+      { title: "Research — Stock Finder" },
       { name: "description", content: "Deep, calm research briefings on Indian companies." },
     ],
   }),
@@ -44,7 +55,10 @@ function ResearchIndex() {
   const [search, setSearch] = useState("");
   const [sort, setSort] = useState<CompanySort>("overallScore");
   const [page, setPage] = useState(1);
+  const [quickFilter, setQuickFilter] = useState("all");
   const debouncedSearch = useDebouncedValue(search, 250);
+
+  const activeQuickFilter = QUICK_FILTERS.find((f) => f.id === quickFilter) ?? QUICK_FILTERS[0];
 
   const query = useCompanies({
     search: debouncedSearch,
@@ -52,8 +66,15 @@ function ResearchIndex() {
     sortDirection: sort === "name" ? "asc" : "desc",
     page,
     pageSize: PAGE_SIZE,
+    ...activeQuickFilter.params,
   });
   const results = query.data?.items ?? [];
+
+  function selectQuickFilter(id: string) {
+    setQuickFilter(id);
+    setPage(1);
+    if (id === "high-score") setSort("overallScore");
+  }
 
   return (
     <AppShell>
@@ -63,6 +84,23 @@ function ResearchIndex() {
           title="Every company, one clean page."
           className="mb-10"
         />
+
+        <div className="flex flex-wrap items-center gap-2 mb-6">
+          {QUICK_FILTERS.map((f) => (
+            <button
+              key={f.id}
+              onClick={() => selectQuickFilter(f.id)}
+              className={
+                "px-3.5 py-1.5 rounded-full text-[12.5px] font-medium ring-1 transition-colors " +
+                (quickFilter === f.id
+                  ? "bg-accent text-accent-foreground ring-accent"
+                  : "ring-hairline text-ink-muted hover:bg-secondary hover:text-ink")
+              }
+            >
+              {f.label}
+            </button>
+          ))}
+        </div>
 
         <div className="flex flex-col sm:flex-row gap-3 mb-8">
           <SearchInput

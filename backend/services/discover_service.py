@@ -353,3 +353,48 @@ def get_market_indicators() -> List[dict]:
         ),
     ]
     return [ind.model_dump() for ind in indicators]
+
+
+# ---------------------------------------------------------------------------
+# Data Freshness
+# ---------------------------------------------------------------------------
+
+# How old the newest score/technical row can be before the frontend should
+# call it "Stale" instead of "Fresh". Ingestion is expected to run daily,
+# so a generous 36h window absorbs a normal one-day gap without flapping.
+_STALE_AFTER_HOURS = 36
+
+_FRESHNESS_QUERY = text(
+    """
+    select greatest(
+        (select max(updated_at) from scores),
+        (select max(updated_at) from technical_snapshot)
+    ) as newest
+    """
+)
+
+
+def get_data_freshness() -> dict:
+    """GET /meta/freshness — the real timestamp of the most recently
+    computed score/technical row, so the frontend can show a genuine
+    "Updated ... · Fresh/Stale" indicator instead of inventing one. Single
+    aggregate query over tables that already exist; no new table, no
+    change to ingestion or scoring logic."""
+    with engine.connect() as conn:
+        row = conn.execute(_FRESHNESS_QUERY).mappings().first()
+
+    newest = row["newest"] if row else None
+    if newest is None:
+        return {"updatedAt": None, "status": "unknown", "staleAfterHours": _STALE_AFTER_HOURS}
+
+    if newest.tzinfo is None:
+        newest = newest.replace(tzinfo=timezone.utc)
+
+    age_hours = (datetime.now(timezone.utc) - newest).total_seconds() / 3600
+    status = "fresh" if age_hours <= _STALE_AFTER_HOURS else "stale"
+
+    return {
+        "updatedAt": newest.isoformat(),
+        "status": status,
+        "staleAfterHours": _STALE_AFTER_HOURS,
+    }

@@ -1,18 +1,22 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
-import { ArrowLeft, Check } from "lucide-react";
+import { AlertTriangle, ArrowLeft, Check, NotebookPen } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/AppShell";
 import { Sparkline } from "@/shared/components/common/Sparkline";
 import { StatMetric } from "@/shared/components/common/StatMetric";
 import { ErrorState } from "@/shared/components/common/ErrorState";
 import { Skeleton } from "@/shared/components/ui/skeleton";
+import { AddToIdeasButton } from "@/shared/components/common/AddToIdeasButton";
 import { useCompany, useCompanyPrices } from "@/features/company/hooks/useCompanies";
 import { fetchCompany, fetchCompanyPrices } from "@/features/company/api/companies";
 import { PriceChart } from "@/features/company/components/PriceChart";
 import { FinancialComparisonTable } from "@/features/company/components/FinancialComparisonTable";
 import { ScoreBreakdownPanel } from "@/features/company/components/ScoreBreakdown";
+import { StickyCompanyHeader, useStickySentinel } from "@/features/company/components/StickyCompanyHeader";
+import { useJournalEntries } from "@/features/journal/hooks/useJournalEntries";
+import { JournalEntryForm } from "@/features/journal/components/JournalEntryForm";
 import { queryKeys } from "@/shared/hooks/queryKeys";
-import type { PriceRange } from "@/shared/api/types";
+import type { Company, PriceRange } from "@/shared/api/types";
 
 const DEFAULT_PRICE_RANGE: PriceRange = "6M";
 
@@ -38,7 +42,7 @@ export const Route = createFileRoute("/research/$symbol")({
       .catch(() => undefined);
   },
   head: ({ params }) => ({
-    meta: [{ title: `${params.symbol} — Research | Quant` }],
+    meta: [{ title: `${params.symbol} — Research | Stock Finder` }],
   }),
   component: ResearchDetail,
 });
@@ -48,6 +52,10 @@ function ResearchDetail() {
   const { data: c, isPending, isError, error, refetch } = useCompany(symbol);
   const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   const { data: prices, isPending: pricesPending } = useCompanyPrices(symbol, priceRange);
+  const { data: journalEntries = [] } = useJournalEntries();
+  const existingThesis = journalEntries.find((e) => e.symbol === symbol);
+  const [thesisFormOpen, setThesisFormOpen] = useState(false);
+  const { sentinelRef, stuck } = useStickySentinel();
 
   return (
     <AppShell>
@@ -58,6 +66,8 @@ function ResearchDetail() {
         >
           <ArrowLeft className="size-3" /> Back to Discover
         </Link>
+
+        {c && <StickyCompanyHeader company={c} visible={stuck} />}
 
         {isPending && <ResearchDetailSkeleton />}
 
@@ -88,6 +98,33 @@ function ResearchDetail() {
               <h1 className="text-display md:text-display-lg text-balance">{c.name}</h1>
               <p className="mt-5 text-lg text-ink-muted leading-snug max-w-[52ch] text-pretty">{c.rationale}</p>
 
+              <div className="mt-8 flex flex-wrap items-center gap-3">
+                <AddToIdeasButton symbol={c.symbol} size="md" />
+                <button
+                  type="button"
+                  onClick={() => setThesisFormOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md ring-1 ring-hairline text-sm font-medium hover:bg-secondary transition-colors"
+                >
+                  <NotebookPen className="size-3.5" />
+                  {existingThesis ? "Edit Thesis" : "Write Thesis"}
+                </button>
+              </div>
+
+              {existingThesis && (
+                <div className="mt-6 p-5 rounded-xl ring-1 ring-hairline bg-secondary/40">
+                  <p className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle mb-2">Your thesis</p>
+                  <p className="text-sm text-ink leading-relaxed line-clamp-3">
+                    {existingThesis.title || existingThesis.thesis}
+                  </p>
+                  <Link
+                    to="/journal"
+                    className="mt-3 inline-flex items-center gap-1 text-[12px] text-accent hover:underline underline-offset-2"
+                  >
+                    Open Journal →
+                  </Link>
+                </div>
+              )}
+
               <div className="mt-10 grid grid-cols-2 md:grid-cols-6 gap-y-6 hairline-t hairline-b py-6">
                 <StatMetric
                   label="Price"
@@ -109,7 +146,9 @@ function ResearchDetail() {
                 <StatMetric label="Technical Score" value={c.technicalScore.toFixed(0) + "/100"} size="lg" />
               </div>
 
+              <WhyThisScore company={c} />
               <ScoreBreakdownPanel company={c} />
+              <div ref={sentinelRef} />
             </header>
 
             {/* Price chart — the dominant visual on the page, so it breaks out of the
@@ -251,17 +290,73 @@ function ResearchDetail() {
             </div>
 
             <div className="mt-14 flex items-center gap-3">
-              <Link to="/ideas" className="px-4 py-2 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:brightness-110">
-                Add to Pipeline
-              </Link>
-              <Link to="/journal" className="px-4 py-2 rounded-md ring-1 ring-hairline text-sm font-medium hover:bg-secondary">
-                Start Thesis
-              </Link>
+              <AddToIdeasButton symbol={c.symbol} size="md" />
+              <button
+                type="button"
+                onClick={() => setThesisFormOpen(true)}
+                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md ring-1 ring-hairline text-sm font-medium hover:bg-secondary transition-colors"
+              >
+                <NotebookPen className="size-3.5" />
+                {existingThesis ? "Edit Thesis" : "Write Thesis"}
+              </button>
             </div>
           </>
         )}
       </div>
+
+      {c && (
+        <JournalEntryForm
+          open={thesisFormOpen}
+          onOpenChange={setThesisFormOpen}
+          entry={existingThesis}
+          defaultSymbol={c.symbol}
+        />
+      )}
     </AppShell>
+  );
+}
+
+/** Quick-scan "Strengths / Risks" summary (Section 11) — folded from the
+ * same real `scoreBreakdown` the full "Why this score?" panel below
+ * renders, so nothing here is a second source of truth: a metric is a
+ * strength when it passed, a risk when it didn't and has real data. */
+function WhyThisScore({ company: c }: { company: Company }) {
+  if (!c.scoreBreakdown) return null;
+  const allMetrics = [...c.scoreBreakdown.fundamental, ...c.scoreBreakdown.technical];
+  const strengths = allMetrics.filter((m) => m.passed && m.maxScore > 0).slice(0, 4);
+  const risks = allMetrics.filter((m) => !m.passed && m.maxScore > 0).slice(0, 4);
+
+  if (strengths.length === 0 && risks.length === 0) return null;
+
+  return (
+    <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
+      {strengths.length > 0 && (
+        <div>
+          <p className="text-[11px] font-mono uppercase tracking-widest text-ink-subtle mb-2">Strengths</p>
+          <ul className="space-y-1.5">
+            {strengths.map((m) => (
+              <li key={m.metric} className="text-sm text-ink flex items-start gap-2">
+                <Check className="size-3.5 mt-0.5 shrink-0 text-positive" />
+                {m.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+      {risks.length > 0 && (
+        <div>
+          <p className="text-[11px] font-mono uppercase tracking-widest text-ink-subtle mb-2">Risks</p>
+          <ul className="space-y-1.5">
+            {risks.map((m) => (
+              <li key={m.metric} className="text-sm text-ink-muted flex items-start gap-2">
+                <AlertTriangle className="size-3.5 mt-0.5 shrink-0 text-negative" />
+                {m.reason}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   );
 }
 

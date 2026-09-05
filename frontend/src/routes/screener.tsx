@@ -19,6 +19,7 @@ import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { Company, CompanyQueryParams, RiskLevel } from "@/shared/api/types";
 import { Link } from "@tanstack/react-router";
 import { SearchX } from "lucide-react";
+import { AddToIdeasButton } from "@/shared/components/common/AddToIdeasButton";
 
 const PAGE_SIZE = 6;
 
@@ -54,6 +55,14 @@ const DEFAULT_FILTERS: FilterState = {
   horizon: "Any",
 };
 
+const PRESETS: { id: string; label: string; filters: Partial<FilterState> }[] = [
+  { id: "quality", label: "Quality", filters: { minRoe: 20, minRoce: 15, maxDebtToEquity: 0.5 } },
+  { id: "growth", label: "Growth", filters: { minEpsGrowth: 20, minSalesGrowth: 15 } },
+  { id: "value", label: "Value", filters: { maxPe: 20 } },
+  { id: "momentum", label: "Momentum", filters: { aboveEma200: true, aboveEma50: true, volumeBreakout: true } },
+  { id: "low-risk", label: "Low Risk", filters: { riskLevel: "Low" } },
+];
+
 function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
   return {
     sector: filters.sector,
@@ -84,7 +93,7 @@ export const Route = createFileRoute("/screener")({
     }),
   head: () => ({
     meta: [
-      { title: "Screener — Quant" },
+      { title: "Screener — Stock Finder" },
       { name: "description", content: "Filter on fundamentals and technicals. See only what qualifies." },
     ],
   }),
@@ -105,6 +114,7 @@ function Screener() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [applied, setApplied] = useState<FilterState>(DEFAULT_FILTERS);
   const [page, setPage] = useState(1);
+  const [activePreset, setActivePreset] = useState<string | null>(null);
 
   const { data: allCompanies = [] } = useAllCompanies();
   const sectors = useMemo(() => ["All", ...new Set(allCompanies.map((c) => c.sector))], [allCompanies]);
@@ -112,8 +122,10 @@ function Screener() {
   const query = useCompanies(toQueryParams(applied, page));
   const results = query.data?.items ?? [];
 
-  const update = <K extends keyof FilterState>(key: K, value: FilterState[K]) =>
+  const update = <K extends keyof FilterState>(key: K, value: FilterState[K]) => {
+    setActivePreset(null);
     setFilters((prev) => ({ ...prev, [key]: value }));
+  };
 
   const applyFilters = () => {
     setApplied(filters);
@@ -121,8 +133,17 @@ function Screener() {
   };
 
   const reset = () => {
+    setActivePreset(null);
     setFilters(DEFAULT_FILTERS);
     setApplied(DEFAULT_FILTERS);
+    setPage(1);
+  };
+
+  const applyPreset = (preset: (typeof PRESETS)[number]) => {
+    const merged = { ...DEFAULT_FILTERS, ...preset.filters };
+    setActivePreset(preset.id);
+    setFilters(merged);
+    setApplied(merged);
     setPage(1);
   };
 
@@ -133,8 +154,25 @@ function Screener() {
           eyebrow="Screener"
           title="Set your criteria. See only what qualifies."
           description="No lists of hundreds. High-conviction names, ranked by a transparent score — not a black box."
-          className="mb-10"
+          className="mb-8"
         />
+
+        <div className="flex flex-wrap items-center gap-2 mb-10">
+          {PRESETS.map((preset) => (
+            <button
+              key={preset.id}
+              onClick={() => applyPreset(preset)}
+              className={
+                "px-3.5 py-1.5 rounded-full text-[12.5px] font-medium ring-1 transition-colors " +
+                (activePreset === preset.id
+                  ? "bg-accent text-accent-foreground ring-accent"
+                  : "ring-hairline text-ink-muted hover:bg-secondary hover:text-ink")
+              }
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
 
         <div className="grid grid-cols-12 gap-10">
           {/* Filter panel */}
@@ -310,13 +348,16 @@ function ResultCard({ company: c }: { company: Company }) {
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-3 sm:grid-cols-6 gap-4 hairline-t pt-4">
-        <StatMetric label="Overall" value={c.overallScore.toFixed(0)} highlight />
-        <StatMetric label="Fundamental" value={c.fundamentalScore.toFixed(0)} />
-        <StatMetric label="Technical" value={c.technicalScore.toFixed(0)} />
-        <StatMetric label="Risk" value={c.riskLevel} size="sm" />
-        <StatMetric label="Expected Return" value={`${c.expectedReturnPct}%`} size="sm" />
-        <StatMetric label="Horizon" value={`${c.investmentHorizonMonths}mo`} size="sm" />
+      <div className="mt-5 flex items-end justify-between gap-4 hairline-t pt-4">
+        <div className="grid grid-cols-3 sm:grid-cols-6 gap-4 flex-1">
+          <StatMetric label="Overall" value={c.overallScore.toFixed(0)} highlight />
+          <StatMetric label="Fundamental" value={c.fundamentalScore.toFixed(0)} />
+          <StatMetric label="Technical" value={c.technicalScore.toFixed(0)} />
+          <StatMetric label="Risk" value={c.riskLevel} size="sm" />
+          <StatMetric label="Expected Return" value={`${c.expectedReturnPct}%`} size="sm" />
+          <StatMetric label="Horizon" value={`${c.investmentHorizonMonths}mo`} size="sm" />
+        </div>
+        <AddToIdeasButton symbol={c.symbol} className="shrink-0" />
       </div>
     </Link>
   );

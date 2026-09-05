@@ -68,14 +68,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
     meta: [
       { charSet: "utf-8" },
       { name: "viewport", content: "width=device-width, initial-scale=1" },
-      { title: "Quant — Equity Research for India" },
+      { title: "Stock Finder — Equity Research for India" },
       {
         name: "description",
         content:
           "A calm, editorial research desk for Indian equities. Find companies worth studying, build conviction, and keep a record of every thesis.",
       },
-      { name: "author", content: "Quant" },
-      { property: "og:title", content: "Quant — Equity Research for India" },
+      { name: "author", content: "Stock Finder" },
+      { property: "og:title", content: "Stock Finder — Equity Research for India" },
       {
         property: "og:description",
         content: "Discover, research, and hold high-conviction Indian equities for the next 6–12 months.",

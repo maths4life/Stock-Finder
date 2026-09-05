@@ -18,6 +18,7 @@ export const queryKeys = {
   pipelineItems: ["pipeline-items"] as const,
   sectorPulse: ["sector-pulse"] as const,
   marketIndicators: ["market-indicators"] as const,
+  dataFreshness: ["data-freshness"] as const,
   journalEntries: ["journal-entries"] as const,
   journalReviews: ["journal-reviews"] as const,
 };
