@@ -47,7 +47,7 @@ function Discover() {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto px-6 py-12 pb-24">
+      <div className="page-container py-12 pb-24">
         <header className="mb-14 animate-fade-up">
           <p className="text-eyebrow text-accent mb-2">{formatToday()}</p>
           <h1 className="text-display md:text-display-lg text-balance max-w-[22ch]">

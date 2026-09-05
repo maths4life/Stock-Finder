@@ -59,7 +59,7 @@ function ResearchDetail() {
 
   return (
     <AppShell>
-      <div className="max-w-4xl mx-auto px-6 py-10 pb-24">
+      <div className="page-container py-10 pb-24">
         <Link
           to="/"
           className="inline-flex items-center gap-1.5 text-[11px] uppercase tracking-widest text-ink-subtle hover:text-ink transition-colors mb-10"
@@ -86,17 +86,15 @@ function ResearchDetail() {
 
         {c && (
           <>
-            {/* Hero */}
+            {/* Hero — Company header, full width */}
             <header className="animate-fade-up">
-              <div className="flex items-center gap-3 mb-4">
-                <span className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle">
-                  {c.exchange}:{c.symbol}
-                </span>
-                <span className="text-ink-subtle">·</span>
-                <span className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle">{c.sector}</span>
+              <div className="flex items-center gap-2.5 mb-3 text-[13px] text-ink-subtle">
+                <span className="font-medium">{c.exchange}:{c.symbol}</span>
+                <span>·</span>
+                <span>{c.sector}</span>
               </div>
-              <h1 className="text-display md:text-display-lg text-balance">{c.name}</h1>
-              <p className="mt-5 text-lg text-ink-muted leading-snug max-w-[52ch] text-pretty">{c.rationale}</p>
+              <h1 className="text-company-title text-balance">{c.name}</h1>
+              <p className="mt-4 text-base text-ink-muted leading-relaxed max-w-[70ch] text-pretty">{c.rationale}</p>
 
               <div className="mt-8 flex flex-wrap items-center gap-3">
                 <AddToIdeasButton symbol={c.symbol} size="md" />
@@ -112,7 +110,7 @@ function ResearchDetail() {
 
               {existingThesis && (
                 <div className="mt-6 p-5 rounded-xl ring-1 ring-hairline bg-secondary/40">
-                  <p className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle mb-2">Your thesis</p>
+                  <p className="text-metric-label mb-2">Your thesis</p>
                   <p className="text-sm text-ink leading-relaxed line-clamp-3">
                     {existingThesis.title || existingThesis.thesis}
                   </p>
@@ -125,7 +123,8 @@ function ResearchDetail() {
                 </div>
               )}
 
-              <div className="mt-10 grid grid-cols-2 md:grid-cols-6 gap-y-6 hairline-t hairline-b py-6">
+              {/* Score summary, full width */}
+              <div className="mt-10 grid grid-cols-2 md:grid-cols-6 gap-y-7 gap-x-4 hairline-t hairline-b py-7">
                 <StatMetric
                   label="Price"
                   value={`₹${c.price.toLocaleString("en-IN")}`}
@@ -140,14 +139,12 @@ function ResearchDetail() {
                 <StatMetric label="Risk Level" value={c.riskLevel} size="lg" />
               </div>
 
-              <div className="grid grid-cols-3 gap-y-6 py-6 hairline-b">
+              <div className="grid grid-cols-3 gap-y-6 gap-x-4 py-7 hairline-b">
                 <StatMetric label="Overall Score" value={c.overallScore.toFixed(0) + "/100"} tone="positive" size="lg" highlight />
                 <StatMetric label="Fundamental Score" value={c.fundamentalScore.toFixed(0) + "/100"} size="lg" />
                 <StatMetric label="Technical Score" value={c.technicalScore.toFixed(0) + "/100"} size="lg" />
               </div>
 
-              <WhyThisScore company={c} />
-              <ScoreBreakdownPanel company={c} />
               <div ref={sentinelRef} />
             </header>
 
@@ -163,10 +160,47 @@ function ResearchDetail() {
               />
             </div>
 
-            {/* Sections */}
-            <div className="mt-14 space-y-14">
+            {/* Two-column research grid — Fundamentals paired with the
+                score explanation, Technicals paired with Risks, per the
+                desktop layout spec. Stacks to one column below lg. */}
+            <div className="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-14">
+              <Section label="Fundamentals">
+                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                  <StatMetric label="P/B" value={c.pb.toFixed(2) + "x"} />
+                  <StatMetric label="ROCE" value={c.roce.toFixed(1) + "%"} />
+                  <StatMetric label="Debt/Equity" value={c.debtToEquity.toFixed(2)} />
+                  <StatMetric label="EPS" value={"₹" + c.eps.toFixed(2)} />
+                  <StatMetric label="Revenue Growth" value={c.salesGrowthPct.toFixed(1) + "%"} tone={c.salesGrowthPct >= 0 ? "positive" : "negative"} />
+                  <StatMetric label="Profit Growth" value={c.profitGrowthPct.toFixed(1) + "%"} tone={c.profitGrowthPct >= 0 ? "positive" : "negative"} />
+                  <StatMetric label="Promoter Holding" value={c.promoterHoldingPct.toFixed(1) + "%"} />
+                </div>
+              </Section>
+
+              <Section label="Why This Score">
+                <StrengthsList company={c} />
+                <ScoreBreakdownPanel company={c} />
+              </Section>
+
+              <Section label="Technicals">
+                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                  <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
+                  <StatMetric label="Above 50 DMA" value={c.aboveEma50 ? "Yes" : "No"} tone={c.aboveEma50 ? "positive" : "negative"} />
+                  <StatMetric label="Above 200 DMA" value={c.aboveEma200 ? "Yes" : "No"} tone={c.aboveEma200 ? "positive" : "negative"} />
+                  <StatMetric label="Golden Cross" value={c.goldenCross ? "Yes" : "No"} tone={c.goldenCross ? "positive" : "neutral"} />
+                  <StatMetric label="Volume Breakout" value={c.volumeBreakout ? "Yes" : "No"} tone={c.volumeBreakout ? "positive" : "neutral"} />
+                  <StatMetric label="Trend" value={c.trend} tone={c.trend === "Uptrend" ? "positive" : c.trend === "Downtrend" ? "negative" : "neutral"} />
+                </div>
+              </Section>
+
+              <Section label="Risks">
+                <RisksList company={c} />
+              </Section>
+            </div>
+
+            {/* Full-width sections and tables */}
+            <div className="mt-16 space-y-16">
               <Section label="Support & Resistance">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
                   <StatMetric label="Support 1" value={fmtRupee(c.supportResistance.support1)} tone="negative" />
                   <StatMetric label="Support 2" value={fmtRupee(c.supportResistance.support2)} tone="negative" />
                   <StatMetric label="Pivot" value={fmtRupee(c.supportResistance.pivot)} />
@@ -178,19 +212,8 @@ function ResearchDetail() {
                 </div>
               </Section>
 
-              <Section label="Technicals">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
-                  <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
-                  <StatMetric label="Above 50 DMA" value={c.aboveEma50 ? "Yes" : "No"} tone={c.aboveEma50 ? "positive" : "negative"} />
-                  <StatMetric label="Above 200 DMA" value={c.aboveEma200 ? "Yes" : "No"} tone={c.aboveEma200 ? "positive" : "negative"} />
-                  <StatMetric label="Golden Cross" value={c.goldenCross ? "Yes" : "No"} tone={c.goldenCross ? "positive" : "neutral"} />
-                  <StatMetric label="Volume Breakout" value={c.volumeBreakout ? "Yes" : "No"} tone={c.volumeBreakout ? "positive" : "neutral"} />
-                  <StatMetric label="Trend" value={c.trend} tone={c.trend === "Uptrend" ? "positive" : c.trend === "Downtrend" ? "negative" : "neutral"} />
-                </div>
-              </Section>
-
               <Section label="Valuation">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
                   <StatMetric label="Market Cap" value={c.valuation.marketCap ?? "N/A"} />
                   <StatMetric label="Enterprise Value" value={fmtCr(c.valuation.enterpriseValueCr)} />
                   <StatMetric label="P/E Ratio" value={fmtX(c.valuation.pe)} />
@@ -214,58 +237,56 @@ function ResearchDetail() {
                 <FinancialComparisonTable data={c.annualComparison} />
               </Section>
 
-              <Section label="Fundamentals">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 hairline-t pt-6">
-                  <StatMetric label="P/B" value={c.pb.toFixed(2) + "x"} />
-                  <StatMetric label="ROCE" value={c.roce.toFixed(1) + "%"} />
-                  <StatMetric label="Debt/Equity" value={c.debtToEquity.toFixed(2)} />
-                  <StatMetric label="EPS" value={"₹" + c.eps.toFixed(2)} />
-                  <StatMetric label="Revenue Growth" value={c.salesGrowthPct.toFixed(1) + "%"} tone={c.salesGrowthPct >= 0 ? "positive" : "negative"} />
-                  <StatMetric label="Profit Growth" value={c.profitGrowthPct.toFixed(1) + "%"} tone={c.profitGrowthPct >= 0 ? "positive" : "negative"} />
-                  <StatMetric label="Promoter Holding" value={c.promoterHoldingPct.toFixed(1) + "%"} />
-                </div>
-              </Section>
-
               <Section label="Shareholding">
                 {c.shareholdingSummary.latestQuarter && (
-                  <p className="text-[11px] text-ink-subtle mb-2.5">
+                  <p className="text-[13px] text-ink-subtle mb-3">
                     {c.shareholdingSummary.latestQuarter}
                     {c.shareholdingSummary.previousQuarter && ` vs ${c.shareholdingSummary.previousQuarter}`}
                     {c.shareholdingSummary.source === "yfinance_approx" && " · approximate (see note)"}
                   </p>
                 )}
-                <div className="rounded-xl ring-1 ring-hairline overflow-hidden overflow-x-auto">
-                  <div className="grid grid-cols-8 min-w-[640px] px-5 py-2.5 bg-secondary/50 text-[10px] uppercase tracking-widest text-ink-subtle">
-                    <span>Quarter</span>
-                    <span className="text-right">Promoter</span>
-                    <span className="text-right">FII</span>
-                    <span className="text-right">DII</span>
-                    <span className="text-right">Mutual Funds</span>
-                    <span className="text-right">Public</span>
-                    <span className="text-right">Govt</span>
-                    <span className="text-right">Others</span>
-                  </div>
-                  {c.shareholdingTrend.map((row) => (
-                    <div key={row.quarter} className="grid grid-cols-8 min-w-[640px] px-5 py-3 text-sm hairline-t">
-                      <span className="text-ink-muted">{row.quarter}</span>
-                      <span className="text-right font-mono tabular-nums">{row.promoter.toFixed(1)}%</span>
-                      <span className="text-right font-mono tabular-nums">{row.fii.toFixed(1)}%</span>
-                      <span className="text-right font-mono tabular-nums">{row.dii.toFixed(1)}%</span>
-                      <span className="text-right font-mono tabular-nums">
-                        {row.mutualFunds !== null ? `${row.mutualFunds.toFixed(1)}%` : "N/A"}
-                      </span>
-                      <span className="text-right font-mono tabular-nums">{row.public.toFixed(1)}%</span>
-                      <span className="text-right font-mono tabular-nums">
-                        {row.government !== null ? `${row.government.toFixed(1)}%` : "N/A"}
-                      </span>
-                      <span className="text-right font-mono tabular-nums">
-                        {row.others !== null ? `${row.others.toFixed(1)}%` : "N/A"}
-                      </span>
-                    </div>
-                  ))}
-                  {c.shareholdingTrend.length === 0 && (
-                    <div className="px-5 py-3 text-sm text-ink-subtle">No shareholding data available yet.</div>
-                  )}
+                <div className="w-full rounded-lg ring-1 ring-hairline overflow-hidden overflow-x-auto">
+                  <table className="w-full border-collapse">
+                    <thead>
+                      <tr className="bg-secondary/50">
+                        <th className="text-left font-medium text-metric-label px-5 py-3 whitespace-nowrap">Quarter</th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Promoter</th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">FII</th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">DII</th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Mutual Funds</th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Public</th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Govt</th>
+                        <th className="text-right font-medium text-metric-label px-5 py-3 whitespace-nowrap">Others</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {c.shareholdingTrend.map((row) => (
+                        <tr key={row.quarter} className="hairline-t">
+                          <td className="text-left text-table-label text-ink-muted px-5 py-3.5 whitespace-nowrap">{row.quarter}</td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.promoter.toFixed(1)}%</td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.fii.toFixed(1)}%</td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.dii.toFixed(1)}%</td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">
+                            {row.mutualFunds !== null ? `${row.mutualFunds.toFixed(1)}%` : "N/A"}
+                          </td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">{row.public.toFixed(1)}%</td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">
+                            {row.government !== null ? `${row.government.toFixed(1)}%` : "N/A"}
+                          </td>
+                          <td className="text-right text-table-value tabular-nums px-5 py-3.5">
+                            {row.others !== null ? `${row.others.toFixed(1)}%` : "N/A"}
+                          </td>
+                        </tr>
+                      ))}
+                      {c.shareholdingTrend.length === 0 && (
+                        <tr>
+                          <td colSpan={8} className="px-5 py-3.5 text-sm text-ink-subtle">
+                            No shareholding data available yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </Section>
 
@@ -316,55 +337,63 @@ function ResearchDetail() {
   );
 }
 
-/** Quick-scan "Strengths / Risks" summary (Section 11) — folded from the
- * same real `scoreBreakdown` the full "Why this score?" panel below
- * renders, so nothing here is a second source of truth: a metric is a
- * strength when it passed, a risk when it didn't and has real data. */
-function WhyThisScore({ company: c }: { company: Company }) {
+/** Quick-scan strengths list, folded from the same real `scoreBreakdown`
+ * the full "Why this score?" panel renders, so nothing here is a second
+ * source of truth: a metric is a strength when it passed and has real
+ * data. Paired with the Fundamentals column. */
+function StrengthsList({ company: c }: { company: Company }) {
   if (!c.scoreBreakdown) return null;
   const allMetrics = [...c.scoreBreakdown.fundamental, ...c.scoreBreakdown.technical];
-  const strengths = allMetrics.filter((m) => m.passed && m.maxScore > 0).slice(0, 4);
-  const risks = allMetrics.filter((m) => !m.passed && m.maxScore > 0).slice(0, 4);
-
-  if (strengths.length === 0 && risks.length === 0) return null;
+  const strengths = allMetrics.filter((m) => m.passed && m.maxScore > 0).slice(0, 5);
+  if (strengths.length === 0) return null;
 
   return (
-    <div className="mt-8 grid grid-cols-1 sm:grid-cols-2 gap-6">
-      {strengths.length > 0 && (
-        <div>
-          <p className="text-[11px] font-mono uppercase tracking-widest text-ink-subtle mb-2">Strengths</p>
-          <ul className="space-y-1.5">
-            {strengths.map((m) => (
-              <li key={m.metric} className="text-sm text-ink flex items-start gap-2">
-                <Check className="size-3.5 mt-0.5 shrink-0 text-positive" />
-                {m.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-      {risks.length > 0 && (
-        <div>
-          <p className="text-[11px] font-mono uppercase tracking-widest text-ink-subtle mb-2">Risks</p>
-          <ul className="space-y-1.5">
-            {risks.map((m) => (
-              <li key={m.metric} className="text-sm text-ink-muted flex items-start gap-2">
-                <AlertTriangle className="size-3.5 mt-0.5 shrink-0 text-negative" />
-                {m.reason}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
+    <div className="mb-6">
+      <p className="text-metric-label mb-2.5">Strengths</p>
+      <ul className="space-y-2">
+        {strengths.map((m) => (
+          <li key={m.metric} className="text-sm text-ink flex items-start gap-2.5">
+            <Check className="size-4 mt-0.5 shrink-0 text-positive" />
+            {m.reason}
+          </li>
+        ))}
+      </ul>
     </div>
+  );
+}
+
+/** Same `scoreBreakdown` data, the failed side — a metric is a risk
+ * when it didn't pass and has real data. Paired with the Technicals
+ * column so the two-column desktop layout reads as "what's working /
+ * what to watch" side by side. */
+function RisksList({ company: c }: { company: Company }) {
+  if (!c.scoreBreakdown) {
+    return <p className="text-sm text-ink-subtle">No score breakdown available yet.</p>;
+  }
+  const allMetrics = [...c.scoreBreakdown.fundamental, ...c.scoreBreakdown.technical];
+  const risks = allMetrics.filter((m) => !m.passed && m.maxScore > 0);
+
+  if (risks.length === 0) {
+    return <p className="text-sm text-ink-subtle">No flagged risks — every scored metric passed its threshold.</p>;
+  }
+
+  return (
+    <ul className="space-y-2.5">
+      {risks.map((m) => (
+        <li key={m.metric} className="text-sm text-ink-muted flex items-start gap-2.5">
+          <AlertTriangle className="size-4 mt-0.5 shrink-0 text-negative" />
+          <span>{m.reason}</span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
 function Section({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <section className="grid grid-cols-1 sm:grid-cols-[140px_1fr] gap-3 sm:gap-10">
-      <div className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-2">{label}</div>
-      <div>{children}</div>
+    <section>
+      <h2 className="text-section-heading mb-5">{label}</h2>
+      {children}
     </section>
   );
 }

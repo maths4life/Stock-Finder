@@ -10,10 +10,13 @@ type Props = {
   className?: string;
 };
 
+// Value size scale: sm/md are used for dense metric grids (Valuation,
+// Technicals, Support & Resistance), lg is reserved for the handful of
+// headline numbers called out in the spec (price, market cap, scores).
 const sizeClasses: Record<NonNullable<Props["size"]>, string> = {
-  sm: "text-sm",
+  sm: "text-[15px]",
   md: "text-lg",
-  lg: "text-2xl",
+  lg: "text-metric-value-lg",
 };
 
 const toneClasses: Record<NonNullable<Props["tone"]>, string> = {
@@ -26,17 +29,17 @@ const toneClasses: Record<NonNullable<Props["tone"]>, string> = {
 export function StatMetric({ label, value, sub, tone, size = "md", highlight, className }: Props) {
   return (
     <div className={className}>
-      <p className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle">{label}</p>
+      <p className="text-metric-label">{label}</p>
       <p
         className={cn(
-          "mt-1 font-semibold tabular-nums leading-none",
+          "mt-1 font-semibold tabular-nums leading-tight",
           sizeClasses[size],
           highlight ? "text-accent" : "text-ink",
         )}
       >
         {value}
       </p>
-      {sub && <p className={cn("mt-1 text-[11px] font-mono", tone ? toneClasses[tone] : "text-ink-muted")}>{sub}</p>}
+      {sub && <p className={cn("mt-1 text-[13px] font-medium tabular-nums", tone ? toneClasses[tone] : "text-ink-muted")}>{sub}</p>}
     </div>
   );
 }

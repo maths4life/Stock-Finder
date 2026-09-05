@@ -20,7 +20,7 @@ export function AppShell({ children }: { children: ReactNode }) {
   return (
     <div className="min-h-screen bg-paper text-ink selection:bg-accent/15 selection:text-accent">
       <nav className="sticky top-0 z-40 bg-paper/85 backdrop-blur-md hairline-b">
-        <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
+        <div className="page-container h-14 flex items-center justify-between">
           <div className="flex items-center gap-10">
             <Link to="/" className="flex items-center gap-2 font-semibold text-[15px] tracking-tight leading-none text-ink">
               <svg viewBox="0 0 24 24" className="size-6 shrink-0" aria-hidden="true">

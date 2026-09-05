@@ -61,7 +61,7 @@ function MetricRow({ item }: { item: ScoreMetric }) {
           <p className="text-sm font-mono tabular-nums text-ink">
             {noData ? "—" : `${item.score} / ${item.maxScore}`}
           </p>
-          <p className="text-[10px] font-mono uppercase tracking-widest text-ink-subtle">
+          <p className="text-[12px] text-ink-subtle">
             {formatValue(item.value)}
           </p>
         </div>
@@ -83,7 +83,7 @@ function ScoreSection({ title, score, items }: { title: string; score: number; i
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1">
-        <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-subtle">{title}</p>
+        <p className="text-[13px] font-medium text-ink-muted">{title}</p>
         <p className="text-sm font-mono tabular-nums text-ink">{score.toFixed(0)} / 100</p>
       </div>
       <div className="divide-y divide-hairline">

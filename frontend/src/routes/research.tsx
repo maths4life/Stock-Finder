@@ -78,7 +78,7 @@ function ResearchIndex() {
 
   return (
     <AppShell>
-      <div className="max-w-7xl mx-auto px-6 py-12 pb-24">
+      <div className="page-container py-12 pb-24">
         <PageHeader
           eyebrow="Research library"
           title="Every company, one clean page."

@@ -31,11 +31,11 @@ export function StickyCompanyHeader({ company: c, visible }: { company: Company;
   return (
     <div
       className={cn(
-        "sticky top-14 z-30 -mx-6 px-6 py-2.5 bg-paper/95 backdrop-blur-md hairline-b transition-all duration-150",
+        "sticky top-14 z-30 py-2.5 bg-paper/95 backdrop-blur-md hairline-b transition-all duration-150",
         visible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-2 pointer-events-none",
       )}
     >
-      <div className="max-w-4xl mx-auto flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <div className="flex items-center gap-3 min-w-0">
           <p className="font-semibold text-sm text-ink truncate">{c.name}</p>
           <span className="font-mono text-[11px] text-ink-subtle shrink-0">{c.symbol}</span>

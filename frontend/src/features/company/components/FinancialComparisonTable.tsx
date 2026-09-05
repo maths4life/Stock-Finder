@@ -43,31 +43,41 @@ function formatGrowth(growthPct: number | null): string {
 
 export function FinancialComparisonTable({ data }: { data: ComparisonTable }) {
   return (
-    <div className="rounded-xl ring-1 ring-hairline overflow-hidden">
-      <div className="grid grid-cols-5 px-5 py-2.5 bg-secondary/50 text-[10px] uppercase tracking-widest text-ink-subtle">
-        <span>Metric</span>
-        <span className="text-right">{data.currentLabel ?? "Current"}</span>
-        <span className="text-right">{data.previousLabel ?? "Previous"}</span>
-        <span className="text-right">Difference</span>
-        <span className="text-right">Growth %</span>
-      </div>
-      {data.rows.map((row) => {
-        const tone =
-          row.diff === null ? "text-ink-muted" : row.diff >= 0 ? "text-positive" : "text-negative";
-        return (
-          <div key={row.metric} className="grid grid-cols-5 px-5 py-3 text-sm hairline-t">
-            <span className="text-ink-muted">{row.metric}</span>
-            <span className="text-right font-mono tabular-nums text-ink">
-              {formatMetricValue(row.metric, row.current)}
-            </span>
-            <span className="text-right font-mono tabular-nums text-ink-muted">
-              {formatMetricValue(row.metric, row.previous)}
-            </span>
-            <span className={cn("text-right font-mono tabular-nums", tone)}>{formatDiff(row.metric, row.diff)}</span>
-            <span className={cn("text-right font-mono tabular-nums", tone)}>{formatGrowth(row.growthPct)}</span>
-          </div>
-        );
-      })}
+    <div className="w-full rounded-lg ring-1 ring-hairline overflow-hidden">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr className="bg-secondary/50">
+            <th className="text-left font-medium text-metric-label px-5 py-3">Metric</th>
+            <th className="text-right font-medium text-metric-label px-5 py-3">{data.currentLabel ?? "Current"}</th>
+            <th className="text-right font-medium text-metric-label px-5 py-3">{data.previousLabel ?? "Previous"}</th>
+            <th className="text-right font-medium text-metric-label px-5 py-3">Difference</th>
+            <th className="text-right font-medium text-metric-label px-5 py-3">Growth %</th>
+          </tr>
+        </thead>
+        <tbody>
+          {data.rows.map((row) => {
+            const tone =
+              row.diff === null ? "text-ink-muted" : row.diff >= 0 ? "text-positive" : "text-negative";
+            return (
+              <tr key={row.metric} className="hairline-t">
+                <td className="text-left text-table-label text-ink-muted px-5 py-3.5">{row.metric}</td>
+                <td className="text-right text-table-value font-medium tabular-nums text-ink px-5 py-3.5">
+                  {formatMetricValue(row.metric, row.current)}
+                </td>
+                <td className="text-right text-table-value tabular-nums text-ink-muted px-5 py-3.5">
+                  {formatMetricValue(row.metric, row.previous)}
+                </td>
+                <td className={cn("text-right text-table-value font-medium tabular-nums px-5 py-3.5", tone)}>
+                  {formatDiff(row.metric, row.diff)}
+                </td>
+                <td className={cn("text-right text-table-value font-medium tabular-nums px-5 py-3.5", tone)}>
+                  {formatGrowth(row.growthPct)}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
