@@ -23,9 +23,9 @@ export function AddToIdeasButton({
   const { data: columns } = usePipeline();
   const createMutation = useCreatePipelineItem();
 
-  const existingStage = columns
-    ?.find((col) => col.items.some((item) => item.symbol === symbol))
-    ?.stage;
+  const existingStage = columns?.find((col) =>
+    col.items.some((item) => item.symbol === symbol),
+  )?.stage;
 
   function handleAdd(e: React.MouseEvent) {
     e.preventDefault();

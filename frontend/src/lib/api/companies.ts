@@ -1,16 +1,13 @@
 import { ApiError } from "./client";
 import type { Company, CompanyQueryParams, Paginated } from "./types";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 /**
  * GET /companies
  * Currently the backend returns the full list.
  * We'll move filtering, sorting and pagination to the backend later.
  */
-export async function fetchCompanies(
-  params: CompanyQueryParams = {}
-): Promise<Paginated<Company>> {
+export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<Paginated<Company>> {
   const response = await fetch(`${API_URL}/companies`);
 
   if (!response.ok) {
@@ -56,10 +53,7 @@ export async function fetchCompany(symbol: string): Promise<Company> {
  * Used by search bar.
  * Temporarily searches the downloaded company list.
  */
-export async function searchCompanies(
-  query: string,
-  limit = 8
-): Promise<Company[]> {
+export async function searchCompanies(query: string, limit = 8): Promise<Company[]> {
   const response = await fetch(`${API_URL}/companies`);
 
   if (!response.ok) {
@@ -71,11 +65,7 @@ export async function searchCompanies(
   const q = query.trim().toLowerCase();
 
   return companies
-    .filter(
-      (c) =>
-        c.name.toLowerCase().includes(q) ||
-        c.symbol.toLowerCase().includes(q)
-    )
+    .filter((c) => c.name.toLowerCase().includes(q) || c.symbol.toLowerCase().includes(q))
     .slice(0, limit);
 }
 
@@ -95,12 +85,8 @@ export async function fetchAllCompanies(): Promise<Company[]> {
 /**
  * Used by watchlist/portfolio.
  */
-export async function fetchCompaniesBySymbols(
-  symbols: string[]
-): Promise<Company[]> {
+export async function fetchCompaniesBySymbols(symbols: string[]): Promise<Company[]> {
   const companies = await fetchAllCompanies();
 
-  return companies.filter((c) =>
-    symbols.includes(c.symbol.toUpperCase())
-  );
+  return companies.filter((c) => symbols.includes(c.symbol.toUpperCase()));
 }

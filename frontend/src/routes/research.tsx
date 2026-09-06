@@ -8,7 +8,13 @@ import { EmptyState } from "@/shared/components/common/EmptyState";
 import { ErrorState } from "@/shared/components/common/ErrorState";
 import { CompanyRowListSkeleton } from "@/shared/components/common/Skeletons";
 import { Pagination } from "@/shared/components/common/Pagination";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { useCompanies } from "@/features/company/hooks/useCompanies";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 import { fetchCompanies } from "@/features/company/api/companies";
@@ -17,7 +23,12 @@ import { SearchX } from "lucide-react";
 import type { CompanyQueryParams, CompanySort } from "@/shared/api/types";
 
 const PAGE_SIZE = 8;
-const DEFAULT_PARAMS = { sort: "overallScore" as CompanySort, sortDirection: "desc" as const, page: 1, pageSize: PAGE_SIZE };
+const DEFAULT_PARAMS = {
+  sort: "overallScore" as CompanySort,
+  sortDirection: "desc" as const,
+  page: 1,
+  pageSize: PAGE_SIZE,
+};
 
 /** Quick filters (Section 7) — thin presets over the same
  * `CompanyQueryParams` the Screener's full filter panel uses, so "High
@@ -128,10 +139,19 @@ function ResearchIndex() {
 
         {query.isPending && <CompanyRowListSkeleton count={PAGE_SIZE} />}
 
-        {query.isError && <ErrorState description="Couldn't load the research library." onRetry={() => query.refetch()} />}
+        {query.isError && (
+          <ErrorState
+            description="Couldn't load the research library."
+            onRetry={() => query.refetch()}
+          />
+        )}
 
         {query.isSuccess && results.length === 0 && (
-          <EmptyState icon={SearchX} title="No companies match" description="Try a different name or ticker." />
+          <EmptyState
+            icon={SearchX}
+            title="No companies match"
+            description="Try a different name or ticker."
+          />
         )}
 
         {query.isSuccess && results.length > 0 && (

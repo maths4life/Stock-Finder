@@ -1,5 +1,10 @@
 import { useQuery } from "@tanstack/react-query";
-import { fetchDiscoverGroups, fetchMarketIndicators, fetchPipeline, fetchSectorPulse } from "@/lib/api/market";
+import {
+  fetchDiscoverGroups,
+  fetchMarketIndicators,
+  fetchPipeline,
+  fetchSectorPulse,
+} from "@/lib/api/market";
 import { queryKeys } from "./queryKeys";
 
 export function useDiscoverGroups() {

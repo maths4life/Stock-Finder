@@ -26,7 +26,13 @@ export function useStickySentinel() {
   return { sentinelRef, stuck };
 }
 
-export function StickyCompanyHeader({ company: c, visible }: { company: Company; visible: boolean }) {
+export function StickyCompanyHeader({
+  company: c,
+  visible,
+}: {
+  company: Company;
+  visible: boolean;
+}) {
   const positive = c.changePct >= 0;
   return (
     <div
@@ -39,15 +45,22 @@ export function StickyCompanyHeader({ company: c, visible }: { company: Company;
         <div className="flex items-center gap-3 min-w-0">
           <p className="font-semibold text-sm text-ink truncate">{c.name}</p>
           <span className="font-mono text-[11px] text-ink-subtle shrink-0">{c.symbol}</span>
-          <span className="font-mono text-sm tabular-nums shrink-0">₹{c.price.toLocaleString("en-IN")}</span>
+          <span className="font-mono text-sm tabular-nums shrink-0">
+            ₹{c.price.toLocaleString("en-IN")}
+          </span>
           <span
-            className={cn("text-[11px] font-mono tabular-nums shrink-0", positive ? "text-positive" : "text-negative")}
+            className={cn(
+              "text-[11px] font-mono tabular-nums shrink-0",
+              positive ? "text-positive" : "text-negative",
+            )}
           >
             {positive ? "+" : ""}
             {c.changePct.toFixed(2)}%
           </span>
           <span className="hidden sm:flex items-center gap-1 shrink-0">
-            <span className="font-mono text-sm font-semibold text-ink">{c.overallScore.toFixed(0)}</span>
+            <span className="font-mono text-sm font-semibold text-ink">
+              {c.overallScore.toFixed(0)}
+            </span>
             <span className="text-[10px] uppercase tracking-widest text-ink-subtle">score</span>
           </span>
         </div>

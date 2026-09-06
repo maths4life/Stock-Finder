@@ -42,7 +42,8 @@ export function WeeklyMarketIntelligence({ data }: Props) {
 
       {!data.hasCoverage && (
         <p className="text-sm text-ink-subtle">
-          This is a placeholder read — the weekly refresh hasn't generated intelligence for this sector yet.
+          This is a placeholder read — the weekly refresh hasn't generated intelligence for this
+          sector yet.
         </p>
       )}
 
@@ -60,18 +61,24 @@ export function WeeklyMarketIntelligence({ data }: Props) {
                   {event.headline}
                 </a>
                 <p className="mt-2 text-[13.5px] text-ink-muted leading-relaxed">
-                  <span className="text-ink-subtle uppercase tracking-widest text-[10px] mr-1.5">Why it matters</span>
+                  <span className="text-ink-subtle uppercase tracking-widest text-[10px] mr-1.5">
+                    Why it matters
+                  </span>
                   {event.whyItMatters}
                 </p>
                 <p className="mt-1 text-[13.5px] text-ink-muted leading-relaxed">
-                  <span className="text-ink-subtle uppercase tracking-widest text-[10px] mr-1.5">Expected impact</span>
+                  <span className="text-ink-subtle uppercase tracking-widest text-[10px] mr-1.5">
+                    Expected impact
+                  </span>
                   {event.expectedImpact}
                 </p>
               </li>
             ))}
           </ul>
         ) : (
-          <p className="text-sm text-ink-subtle">No notable events found in this sector for the current week.</p>
+          <p className="text-sm text-ink-subtle">
+            No notable events found in this sector for the current week.
+          </p>
         )}
       </ReportSubsection>
 
@@ -101,7 +108,9 @@ export function WeeklyMarketIntelligence({ data }: Props) {
 function ReportSubsection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-3">{title}</p>
+      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-3">
+        {title}
+      </p>
       {children}
     </div>
   );

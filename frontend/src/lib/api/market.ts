@@ -1,5 +1,10 @@
 import { resolveMock } from "./client";
-import { discoverGroupRecords, marketIndicatorRecords, pipelineRecords, sectorPulseRecords } from "./mock/market.data";
+import {
+  discoverGroupRecords,
+  marketIndicatorRecords,
+  pipelineRecords,
+  sectorPulseRecords,
+} from "./mock/market.data";
 import type { DiscoverGroup, MarketIndicator, PipelineColumn, SectorPulse } from "./types";
 
 /** GET /discover/groups */

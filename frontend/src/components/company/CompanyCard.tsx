@@ -44,14 +44,27 @@ export function CompanyCard({ company: c, footer, note, className }: Props) {
       </div>
 
       {note ?? (
-        <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">{c.rationale}</p>
+        <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">
+          {c.rationale}
+        </p>
       )}
 
       <div className="flex items-end justify-between">
-        <Sparkline data={c.spark} tone={positive ? "positive" : "negative"} fill width={140} height={36} />
+        <Sparkline
+          data={c.spark}
+          tone={positive ? "positive" : "negative"}
+          fill
+          width={140}
+          height={36}
+        />
         <div className="text-right">
           <div className="font-mono text-sm tabular-nums">₹{c.price.toLocaleString("en-IN")}</div>
-          <div className={cn("text-[11px] font-mono tabular-nums", positive ? "text-positive" : "text-negative")}>
+          <div
+            className={cn(
+              "text-[11px] font-mono tabular-nums",
+              positive ? "text-positive" : "text-negative",
+            )}
+          >
             {positive ? "+" : ""}
             {c.changePct.toFixed(2)}%
           </div>

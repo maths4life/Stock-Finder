@@ -39,7 +39,16 @@ export function StatMetric({ label, value, sub, tone, size = "md", highlight, cl
       >
         {value}
       </p>
-      {sub && <p className={cn("mt-1 text-[13px] font-medium tabular-nums", tone ? toneClasses[tone] : "text-ink-muted")}>{sub}</p>}
+      {sub && (
+        <p
+          className={cn(
+            "mt-1 text-[13px] font-medium tabular-nums",
+            tone ? toneClasses[tone] : "text-ink-muted",
+          )}
+        >
+          {sub}
+        </p>
+      )}
     </div>
   );
 }

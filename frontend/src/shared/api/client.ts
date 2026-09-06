@@ -30,7 +30,10 @@ export class ApiError extends Error {
  * Set `NEXT_PUBLIC_MOCK_FAILURE_RATE`-style behaviour via `failureRate` when
  * a screen needs to be tested against error states.
  */
-export function resolveMock<T>(compute: () => T, opts?: { latencyMs?: number; failureRate?: number }): Promise<T> {
+export function resolveMock<T>(
+  compute: () => T,
+  opts?: { latencyMs?: number; failureRate?: number },
+): Promise<T> {
   const latency = opts?.latencyMs ?? SIMULATED_LATENCY_MS;
   const failureRate = opts?.failureRate ?? 0;
   return new Promise((resolve, reject) => {

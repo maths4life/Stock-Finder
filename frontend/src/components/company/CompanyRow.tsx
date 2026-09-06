@@ -24,7 +24,9 @@ export function CompanyRow({ company: c, description, className }: Props) {
       )}
     >
       <div className="col-span-12 sm:col-span-3">
-        <p className="font-semibold text-[15px] text-ink group-hover:text-accent transition-colors">{c.name}</p>
+        <p className="font-semibold text-[15px] text-ink group-hover:text-accent transition-colors">
+          {c.name}
+        </p>
         <p className="font-mono text-[11px] text-ink-subtle mt-0.5">
           {c.exchange}:{c.symbol}
         </p>
@@ -37,13 +39,28 @@ export function CompanyRow({ company: c, description, className }: Props) {
       </div>
       <div className="col-span-12 sm:col-span-3 flex sm:flex-col items-center sm:items-end justify-between">
         <div className="flex items-center gap-1.5">
-          {positive ? <TrendingUp className="size-3 text-positive" /> : <TrendingDown className="size-3 text-negative" />}
-          <span className={cn("text-sm font-medium tabular-nums", positive ? "text-positive" : "text-negative")}>
+          {positive ? (
+            <TrendingUp className="size-3 text-positive" />
+          ) : (
+            <TrendingDown className="size-3 text-negative" />
+          )}
+          <span
+            className={cn(
+              "text-sm font-medium tabular-nums",
+              positive ? "text-positive" : "text-negative",
+            )}
+          >
             {positive ? "+" : ""}
             {c.changePct.toFixed(2)}%
           </span>
         </div>
-        <Sparkline data={c.spark} tone={positive ? "positive" : "negative"} width={90} height={24} className="hidden sm:block my-1" />
+        <Sparkline
+          data={c.spark}
+          tone={positive ? "positive" : "negative"}
+          width={90}
+          height={24}
+          className="hidden sm:block my-1"
+        />
         <p className="text-[11px] text-ink-subtle">{c.marketCap}</p>
       </div>
     </Link>

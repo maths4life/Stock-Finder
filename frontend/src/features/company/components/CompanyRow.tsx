@@ -16,7 +16,13 @@ type Props = {
 };
 
 /** Dense, single-line-ish row presentation used in list-style sections (Discover feed, Research library). */
-export function CompanyRow({ company: c, description, className, showScores = true, showAddToIdeas = true }: Props) {
+export function CompanyRow({
+  company: c,
+  description,
+  className,
+  showScores = true,
+  showAddToIdeas = true,
+}: Props) {
   const positive = c.changePct >= 0;
   return (
     <div

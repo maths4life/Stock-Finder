@@ -30,7 +30,8 @@ export function useCreateJournalEntry() {
 export function useUpdateJournalEntry() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: JournalEntryInput }) => updateJournalEntry(id, input),
+    mutationFn: ({ id, input }: { id: string; input: JournalEntryInput }) =>
+      updateJournalEntry(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.journalEntries });
       toast.success("Entry updated.");

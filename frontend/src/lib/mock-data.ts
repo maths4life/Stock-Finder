@@ -50,8 +50,19 @@ export type Company = {
   // Deep research extras
   pros: string[];
   cons: string[];
-  shareholdingTrend: { quarter: string; promoter: number; fii: number; dii: number; public: number }[];
-  quarterlyFinancials: { quarter: string; revenueCr: number; netProfitCr: number; ebitdaMarginPct: number }[];
+  shareholdingTrend: {
+    quarter: string;
+    promoter: number;
+    fii: number;
+    dii: number;
+    public: number;
+  }[];
+  quarterlyFinancials: {
+    quarter: string;
+    revenueCr: number;
+    netProfitCr: number;
+    ebitdaMarginPct: number;
+  }[];
 };
 
 export const companies: Record<string, Company> = {
@@ -553,9 +564,7 @@ export const pipeline = [
   {
     stage: "Researching",
     color: "amber" as const,
-    items: [
-      { symbol: "POLYCAB", note: "Building thesis on FMEG scale", ago: "2h ago" },
-    ],
+    items: [{ symbol: "POLYCAB", note: "Building thesis on FMEG scale", ago: "2h ago" }],
   },
   {
     stage: "Conviction",

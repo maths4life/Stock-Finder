@@ -24,7 +24,8 @@ const PERCENT_METRICS = new Set(["EBITDA Margin", "Operating Margin", "ROE", "RO
 
 function formatMetricValue(metric: string, value: number | null): string {
   if (value === null) return "N/A";
-  if (CRORE_METRICS.has(metric)) return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}cr`;
+  if (CRORE_METRICS.has(metric))
+    return `₹${value.toLocaleString("en-IN", { maximumFractionDigits: 0 })}cr`;
   if (PERCENT_METRICS.has(metric)) return `${value.toFixed(1)}%`;
   if (metric === "EPS") return `₹${value.toFixed(2)}`;
   return value.toFixed(2);
@@ -48,8 +49,12 @@ export function FinancialComparisonTable({ data }: { data: ComparisonTable }) {
         <thead>
           <tr className="bg-secondary/50">
             <th className="text-left font-medium text-metric-label px-5 py-3">Metric</th>
-            <th className="text-right font-medium text-metric-label px-5 py-3">{data.currentLabel ?? "Current"}</th>
-            <th className="text-right font-medium text-metric-label px-5 py-3">{data.previousLabel ?? "Previous"}</th>
+            <th className="text-right font-medium text-metric-label px-5 py-3">
+              {data.currentLabel ?? "Current"}
+            </th>
+            <th className="text-right font-medium text-metric-label px-5 py-3">
+              {data.previousLabel ?? "Previous"}
+            </th>
             <th className="text-right font-medium text-metric-label px-5 py-3">Difference</th>
             <th className="text-right font-medium text-metric-label px-5 py-3">Growth %</th>
           </tr>
@@ -57,20 +62,36 @@ export function FinancialComparisonTable({ data }: { data: ComparisonTable }) {
         <tbody>
           {data.rows.map((row) => {
             const tone =
-              row.diff === null ? "text-ink-muted" : row.diff >= 0 ? "text-positive" : "text-negative";
+              row.diff === null
+                ? "text-ink-muted"
+                : row.diff >= 0
+                  ? "text-positive"
+                  : "text-negative";
             return (
               <tr key={row.metric} className="hairline-t">
-                <td className="text-left text-table-label text-ink-muted px-5 py-3.5">{row.metric}</td>
+                <td className="text-left text-table-label text-ink-muted px-5 py-3.5">
+                  {row.metric}
+                </td>
                 <td className="text-right text-table-value font-medium tabular-nums text-ink px-5 py-3.5">
                   {formatMetricValue(row.metric, row.current)}
                 </td>
                 <td className="text-right text-table-value tabular-nums text-ink-muted px-5 py-3.5">
                   {formatMetricValue(row.metric, row.previous)}
                 </td>
-                <td className={cn("text-right text-table-value font-medium tabular-nums px-5 py-3.5", tone)}>
+                <td
+                  className={cn(
+                    "text-right text-table-value font-medium tabular-nums px-5 py-3.5",
+                    tone,
+                  )}
+                >
                   {formatDiff(row.metric, row.diff)}
                 </td>
-                <td className={cn("text-right text-table-value font-medium tabular-nums px-5 py-3.5", tone)}>
+                <td
+                  className={cn(
+                    "text-right text-table-value font-medium tabular-nums px-5 py-3.5",
+                    tone,
+                  )}
+                >
                   {formatGrowth(row.growthPct)}
                 </td>
               </tr>

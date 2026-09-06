@@ -26,7 +26,14 @@ type Props = {
  * results). Purely presentational — all data comes in via props so it can
  * be fed straight from a `Company` API response.
  */
-export function CompanyCard({ company: c, footer, note, className, showScores = true, showAddToIdeas = true }: Props) {
+export function CompanyCard({
+  company: c,
+  footer,
+  note,
+  className,
+  showScores = true,
+  showAddToIdeas = true,
+}: Props) {
   const positive = c.changePct >= 0;
   return (
     <div

@@ -1,7 +1,11 @@
 import { useState } from "react";
 import { ChevronDown, Check, X, AlertTriangle } from "lucide-react";
 import { cn } from "@/shared/utils/utils";
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/shared/components/ui/collapsible";
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from "@/shared/components/ui/collapsible";
 import type { Company, ScoreMetric } from "@/shared/api/types";
 
 /** Amber, matching the existing "warning" tone used by
@@ -61,9 +65,7 @@ function MetricRow({ item }: { item: ScoreMetric }) {
           <p className="text-sm font-mono tabular-nums text-ink">
             {noData ? "—" : `${item.score} / ${item.maxScore}`}
           </p>
-          <p className="text-[12px] text-ink-subtle">
-            {formatValue(item.value)}
-          </p>
+          <p className="text-[12px] text-ink-subtle">{formatValue(item.value)}</p>
         </div>
       </div>
       <p className="mt-1.5 text-[13px] text-ink-muted leading-snug">{item.reason}</p>
@@ -79,7 +81,15 @@ function MetricRow({ item }: { item: ScoreMetric }) {
   );
 }
 
-function ScoreSection({ title, score, items }: { title: string; score: number; items: ScoreMetric[] }) {
+function ScoreSection({
+  title,
+  score,
+  items,
+}: {
+  title: string;
+  score: number;
+  items: ScoreMetric[];
+}) {
   return (
     <div>
       <div className="flex items-baseline justify-between mb-1">
@@ -115,7 +125,10 @@ export function ScoreBreakdownPanel({ company: c }: { company: Company }) {
           Why this score?
         </span>
         <ChevronDown
-          className={cn("size-4 text-ink-subtle transition-transform duration-200", open && "rotate-180")}
+          className={cn(
+            "size-4 text-ink-subtle transition-transform duration-200",
+            open && "rotate-180",
+          )}
         />
       </CollapsibleTrigger>
       <CollapsibleContent className="pb-8">
@@ -134,13 +147,21 @@ export function ScoreBreakdownPanel({ company: c }: { company: Company }) {
         </div>
 
         <div className="space-y-8">
-          <ScoreSection title="Fundamental Breakdown" score={c.fundamentalScore} items={c.scoreBreakdown.fundamental} />
-          <ScoreSection title="Technical Breakdown" score={c.technicalScore} items={c.scoreBreakdown.technical} />
+          <ScoreSection
+            title="Fundamental Breakdown"
+            score={c.fundamentalScore}
+            items={c.scoreBreakdown.fundamental}
+          />
+          <ScoreSection
+            title="Technical Breakdown"
+            score={c.technicalScore}
+            items={c.scoreBreakdown.technical}
+          />
         </div>
 
         <p className="mt-6 text-[11px] text-ink-subtle leading-snug">
-          A metric shows "—" when the platform doesn't have that data point for this company yet — it's excluded
-          from the score entirely rather than guessed at.
+          A metric shows "—" when the platform doesn't have that data point for this company yet —
+          it's excluded from the score entirely rather than guessed at.
         </p>
       </CollapsibleContent>
     </Collapsible>

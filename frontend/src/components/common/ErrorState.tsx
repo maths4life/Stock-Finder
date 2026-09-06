@@ -15,7 +15,11 @@ export function ErrorState({
   className,
 }: Props) {
   return (
-    <div className={"flex flex-col items-center justify-center text-center py-16 px-6 " + (className ?? "")}>
+    <div
+      className={
+        "flex flex-col items-center justify-center text-center py-16 px-6 " + (className ?? "")
+      }
+    >
       <div className="size-10 rounded-full bg-negative-soft grid place-items-center mb-4">
         <AlertTriangle className="size-4.5 text-negative" />
       </div>

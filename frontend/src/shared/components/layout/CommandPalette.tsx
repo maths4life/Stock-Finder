@@ -1,6 +1,15 @@
 import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "@tanstack/react-router";
-import { ArrowRight, Loader2, Search, Compass, LineChart, SlidersHorizontal, Layers, NotebookPen } from "lucide-react";
+import {
+  ArrowRight,
+  Loader2,
+  Search,
+  Compass,
+  LineChart,
+  SlidersHorizontal,
+  Layers,
+  NotebookPen,
+} from "lucide-react";
 import { useCompanySearch } from "@/features/company/hooks/useCompanies";
 import { useDebouncedValue } from "@/shared/hooks/useDebouncedValue";
 
@@ -13,11 +22,41 @@ type NavCommand = {
 };
 
 const NAV_COMMANDS: NavCommand[] = [
-  { id: "discover", label: "Go to Discover", to: "/", icon: Compass, keywords: "discover home shortlist" },
-  { id: "research", label: "Go to Research", to: "/research", icon: LineChart, keywords: "research library companies" },
-  { id: "screener", label: "Go to Screener", to: "/screener", icon: SlidersHorizontal, keywords: "screener filters" },
-  { id: "ideas", label: "Go to Ideas", to: "/ideas", icon: Layers, keywords: "ideas pipeline watchlist" },
-  { id: "journal", label: "Go to Journal", to: "/journal", icon: NotebookPen, keywords: "journal thesis review" },
+  {
+    id: "discover",
+    label: "Go to Discover",
+    to: "/",
+    icon: Compass,
+    keywords: "discover home shortlist",
+  },
+  {
+    id: "research",
+    label: "Go to Research",
+    to: "/research",
+    icon: LineChart,
+    keywords: "research library companies",
+  },
+  {
+    id: "screener",
+    label: "Go to Screener",
+    to: "/screener",
+    icon: SlidersHorizontal,
+    keywords: "screener filters",
+  },
+  {
+    id: "ideas",
+    label: "Go to Ideas",
+    to: "/ideas",
+    icon: Layers,
+    keywords: "ideas pipeline watchlist",
+  },
+  {
+    id: "journal",
+    label: "Go to Journal",
+    to: "/journal",
+    icon: NotebookPen,
+    keywords: "journal thesis review",
+  },
 ];
 
 export function CommandPalette() {
@@ -36,7 +75,9 @@ export function CommandPalette() {
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       const target = e.target as HTMLElement | null;
-      const typing = target && (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
+      const typing =
+        target &&
+        (target.tagName === "INPUT" || target.tagName === "TEXTAREA" || target.isContentEditable);
 
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
@@ -64,7 +105,13 @@ export function CommandPalette() {
       }
       const gAt = (window as unknown as { __gPressedAt?: number }).__gPressedAt;
       if (gAt && Date.now() - gAt < 800) {
-        const map: Record<string, string> = { d: "/", r: "/research", s: "/screener", i: "/ideas", j: "/journal" };
+        const map: Record<string, string> = {
+          d: "/",
+          r: "/research",
+          s: "/screener",
+          i: "/ideas",
+          j: "/journal",
+        };
         const to = map[e.key.toLowerCase()];
         if (to) {
           e.preventDefault();
@@ -104,14 +151,18 @@ export function CommandPalette() {
           {isFetching ? (
             <Loader2 className="size-3.5 text-ink-subtle animate-spin" />
           ) : (
-            <kbd className="text-[10px] font-mono text-ink-subtle bg-secondary px-1.5 py-0.5 rounded">ESC</kbd>
+            <kbd className="text-[10px] font-mono text-ink-subtle bg-secondary px-1.5 py-0.5 rounded">
+              ESC
+            </kbd>
           )}
         </div>
         <div className="max-h-[50vh] overflow-y-auto py-2">
           {matchedCommands.length > 0 && (
             <div className="mb-1">
               {q.trim().length === 0 && (
-                <p className="px-4 pt-1 pb-1.5 text-[10px] uppercase tracking-widest text-ink-subtle">Navigate</p>
+                <p className="px-4 pt-1 pb-1.5 text-[10px] uppercase tracking-widest text-ink-subtle">
+                  Navigate
+                </p>
               )}
               {matchedCommands.map((cmd) => (
                 <button
@@ -132,7 +183,9 @@ export function CommandPalette() {
           {q.trim().length > 0 && (
             <>
               {results.length > 0 && (
-                <p className="px-4 pt-2 pb-1.5 text-[10px] uppercase tracking-widest text-ink-subtle">Companies</p>
+                <p className="px-4 pt-2 pb-1.5 text-[10px] uppercase tracking-widest text-ink-subtle">
+                  Companies
+                </p>
               )}
               {results.length === 0 && matchedCommands.length === 0 && !isFetching && (
                 <div className="px-4 py-8 text-center text-sm text-ink-muted">No matches</div>
@@ -151,7 +204,9 @@ export function CommandPalette() {
                     <span className="text-sm text-ink-muted truncate">{c.name}</span>
                   </div>
                   <div className="flex items-center gap-3 shrink-0">
-                    <span className="hidden sm:inline text-[10px] uppercase tracking-widest text-ink-subtle">{c.sector}</span>
+                    <span className="hidden sm:inline text-[10px] uppercase tracking-widest text-ink-subtle">
+                      {c.sector}
+                    </span>
                     <ArrowRight className="size-3.5 text-ink-subtle opacity-0 group-hover:opacity-100 transition-opacity" />
                   </div>
                 </button>

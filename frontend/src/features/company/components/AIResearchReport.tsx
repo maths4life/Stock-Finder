@@ -21,18 +21,26 @@ export function AIResearchReport({ analysis }: Props) {
         <div className="flex items-center justify-between gap-4 flex-wrap mb-3">
           <div className="flex items-center gap-2">
             <Sparkles className="size-3.5 text-accent" />
-            <span className="text-[11px] uppercase tracking-widest font-medium text-accent">Research Summary</span>
+            <span className="text-[11px] uppercase tracking-widest font-medium text-accent">
+              Research Summary
+            </span>
           </div>
           <div className="flex items-center gap-3">
             <RatingBadge rating={analysis.rating} />
-            <span className="text-[11px] font-mono tabular-nums text-ink-subtle">{analysis.confidence}% confidence</span>
+            <span className="text-[11px] font-mono tabular-nums text-ink-subtle">
+              {analysis.confidence}% confidence
+            </span>
           </div>
         </div>
-        <p className="text-heading-lg leading-snug text-ink text-pretty">{analysis.investment_summary}</p>
+        <p className="text-heading-lg leading-snug text-ink text-pretty">
+          {analysis.investment_summary}
+        </p>
       </div>
 
       <ReportSubsection title="Business Summary">
-        <p className="text-[15px] leading-relaxed text-ink text-pretty">{analysis.business_summary}</p>
+        <p className="text-[15px] leading-relaxed text-ink text-pretty">
+          {analysis.business_summary}
+        </p>
       </ReportSubsection>
 
       <div className="grid md:grid-cols-2 gap-x-10 gap-y-10">
@@ -42,7 +50,10 @@ export function AIResearchReport({ analysis }: Props) {
             { label: "Profitability", items: analysis.fundamental_analysis.profitability },
             { label: "Growth", items: analysis.fundamental_analysis.growth },
             { label: "Valuation", items: analysis.fundamental_analysis.valuation },
-            { label: "Balance Sheet & Liquidity", items: analysis.fundamental_analysis.balance_sheet_and_liquidity },
+            {
+              label: "Balance Sheet & Liquidity",
+              items: analysis.fundamental_analysis.balance_sheet_and_liquidity,
+            },
           ]}
         />
         <AnalysisPanel
@@ -57,23 +68,44 @@ export function AIResearchReport({ analysis }: Props) {
       </div>
 
       <ReportSubsection title="Valuation Commentary">
-        <p className="text-[15px] leading-relaxed text-ink text-pretty">{analysis.valuation_summary}</p>
+        <p className="text-[15px] leading-relaxed text-ink text-pretty">
+          {analysis.valuation_summary}
+        </p>
       </ReportSubsection>
 
       <ReportSubsection title="6–12 Month Outlook">
-        <p className="text-[15px] leading-relaxed text-ink text-pretty">{analysis.outlook_6_12_month}</p>
+        <p className="text-[15px] leading-relaxed text-ink text-pretty">
+          {analysis.outlook_6_12_month}
+        </p>
       </ReportSubsection>
 
       <div className="grid md:grid-cols-3 gap-8">
-        <CatalystList title="Positive Catalysts" items={analysis.positive_catalysts} icon={TrendingUp} tone="positive" />
-        <CatalystList title="Negative Catalysts" items={analysis.negative_catalysts} icon={TrendingDown} tone="negative" />
-        <CatalystList title="Risk Factors" items={analysis.risk_factors} icon={TriangleAlert} tone="warning" />
+        <CatalystList
+          title="Positive Catalysts"
+          items={analysis.positive_catalysts}
+          icon={TrendingUp}
+          tone="positive"
+        />
+        <CatalystList
+          title="Negative Catalysts"
+          items={analysis.negative_catalysts}
+          icon={TrendingDown}
+          tone="negative"
+        />
+        <CatalystList
+          title="Risk Factors"
+          items={analysis.risk_factors}
+          icon={TriangleAlert}
+          tone="warning"
+        />
       </div>
 
       <ReportSubsection title="Overall Verdict">
         <div className="rounded-xl ring-1 ring-hairline bg-secondary/40 p-6 flex items-start gap-3">
           <Check className="size-4 text-accent mt-0.5 shrink-0" />
-          <p className="text-[15px] leading-relaxed text-ink text-pretty">{analysis.overall_verdict}</p>
+          <p className="text-[15px] leading-relaxed text-ink text-pretty">
+            {analysis.overall_verdict}
+          </p>
         </div>
       </ReportSubsection>
     </div>
@@ -83,16 +115,26 @@ export function AIResearchReport({ analysis }: Props) {
 function ReportSubsection({ title, children }: { title: string; children: ReactNode }) {
   return (
     <div>
-      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-3">{title}</p>
+      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-3">
+        {title}
+      </p>
       {children}
     </div>
   );
 }
 
-function AnalysisPanel({ title, groups }: { title: string; groups: { label: string; items: string[] }[] }) {
+function AnalysisPanel({
+  title,
+  groups,
+}: {
+  title: string;
+  groups: { label: string; items: string[] }[];
+}) {
   return (
     <div>
-      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-4">{title}</p>
+      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-4">
+        {title}
+      </p>
       <div className="space-y-5">
         {groups.map((group) => (
           <div key={group.label}>
@@ -106,7 +148,9 @@ function AnalysisPanel({ title, groups }: { title: string; groups: { label: stri
                 ))}
               </ul>
             ) : (
-              <p className="text-sm text-ink-subtle">No data-backed observations for this section.</p>
+              <p className="text-sm text-ink-subtle">
+                No data-backed observations for this section.
+              </p>
             )}
           </div>
         ))}
@@ -126,10 +170,17 @@ function CatalystList({
   icon: typeof TrendingUp;
   tone: "positive" | "negative" | "warning";
 }) {
-  const iconClass = tone === "positive" ? "text-positive" : tone === "negative" ? "text-negative" : "text-[oklch(0.6_0.15_60)]";
+  const iconClass =
+    tone === "positive"
+      ? "text-positive"
+      : tone === "negative"
+        ? "text-negative"
+        : "text-[oklch(0.6_0.15_60)]";
   return (
     <div>
-      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-3">{title}</p>
+      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-3">
+        {title}
+      </p>
       <ul className="space-y-3">
         {items.map((item) => (
           <li key={item} className="flex items-start gap-3 text-[13px] text-ink leading-snug">

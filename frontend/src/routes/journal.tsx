@@ -18,7 +18,10 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/shared/components/ui/alert-dialog";
-import { useJournalEntries, useDeleteJournalEntry } from "@/features/journal/hooks/useJournalEntries";
+import {
+  useJournalEntries,
+  useDeleteJournalEntry,
+} from "@/features/journal/hooks/useJournalEntries";
 import { useJournalReviews } from "@/features/journal/hooks/useJournalReviews";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
 import { fetchJournalEntries } from "@/features/journal/api/journal";
@@ -31,8 +34,14 @@ import type { JournalEntry } from "@/shared/api/types";
 export const Route = createFileRoute("/journal")({
   loader: ({ context }) =>
     Promise.all([
-      context.queryClient.ensureQueryData({ queryKey: queryKeys.journalEntries, queryFn: fetchJournalEntries }),
-      context.queryClient.ensureQueryData({ queryKey: queryKeys.journalReviews, queryFn: fetchJournalReviews }),
+      context.queryClient.ensureQueryData({
+        queryKey: queryKeys.journalEntries,
+        queryFn: fetchJournalEntries,
+      }),
+      context.queryClient.ensureQueryData({
+        queryKey: queryKeys.journalReviews,
+        queryFn: fetchJournalReviews,
+      }),
     ]),
   head: () => ({
     meta: [
@@ -44,7 +53,11 @@ export const Route = createFileRoute("/journal")({
 });
 
 function formatDate(iso: string) {
-  return new Date(iso).toLocaleDateString("en-IN", { day: "numeric", month: "short", year: "numeric" });
+  return new Date(iso).toLocaleDateString("en-IN", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
 }
 
 function daysAgo(iso: string): number {
@@ -62,7 +75,9 @@ function Journal() {
   }
   const deleteMutation = useDeleteJournalEntry();
   const now = Date.now();
-  const dueEntries = entries.filter((e) => e.reviewDueAt && new Date(e.reviewDueAt).getTime() <= now);
+  const dueEntries = entries.filter(
+    (e) => e.reviewDueAt && new Date(e.reviewDueAt).getTime() <= now,
+  );
 
   const [formOpen, setFormOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<JournalEntry | undefined>(undefined);
@@ -110,7 +125,9 @@ function Journal() {
                     className="flex items-center justify-between gap-4 py-2.5 hairline-b last:border-b-0 group"
                   >
                     <div className="min-w-0">
-                      <p className="font-semibold text-sm text-ink truncate">{c ? c.name : e.symbol}</p>
+                      <p className="font-semibold text-sm text-ink truncate">
+                        {c ? c.name : e.symbol}
+                      </p>
                       <p className="text-[11.5px] text-ink-subtle mt-0.5">
                         Thesis written {daysAgo(e.createdAt)} days ago
                         {e.reviewDueAt ? ` · Review due ${formatDate(e.reviewDueAt)}` : ""}
@@ -138,10 +155,16 @@ function Journal() {
           </div>
         )}
 
-        {isError && <ErrorState description="Couldn't load your journal." onRetry={() => refetch()} />}
+        {isError && (
+          <ErrorState description="Couldn't load your journal." onRetry={() => refetch()} />
+        )}
 
         {!isPending && !isError && entries.length === 0 && (
-          <EmptyState icon={NotebookPen} title="No entries yet" description="Start a thesis on any research page to see it here." />
+          <EmptyState
+            icon={NotebookPen}
+            title="No entries yet"
+            description="Start a thesis on any research page to see it here."
+          />
         )}
 
         {!isPending && !isError && entries.length > 0 && (
@@ -149,7 +172,11 @@ function Journal() {
             {entries.map((e) => {
               const c = companyBySymbol.get(e.symbol);
               return (
-                <article key={e.id} id={`entry-${e.id}`} className="hairline-b pb-14 last:border-b-0 animate-fade-up scroll-mt-24">
+                <article
+                  key={e.id}
+                  id={`entry-${e.id}`}
+                  className="hairline-b pb-14 last:border-b-0 animate-fade-up scroll-mt-24"
+                >
                   <div className="flex items-baseline justify-between mb-3">
                     <Link
                       to="/research/$symbol"
@@ -159,7 +186,9 @@ function Journal() {
                       {c ? `${c.name} · ${c.exchange}:${c.symbol}` : e.symbol}
                     </Link>
                     <div className="flex items-center gap-3">
-                      <span className="text-[11px] font-mono text-ink-subtle">{formatDate(e.createdAt)}</span>
+                      <span className="text-[11px] font-mono text-ink-subtle">
+                        {formatDate(e.createdAt)}
+                      </span>
                       <button
                         aria-label="Edit entry"
                         onClick={() => openEdit(e)}
@@ -179,26 +208,41 @@ function Journal() {
                   <h2 className="text-heading-xl text-balance">{e.title || e.symbol}</h2>
 
                   <div className="mt-6 grid grid-cols-2 sm:grid-cols-4 gap-6 hairline-b pb-6">
-                    <StatMetric label="Conviction" value={e.confidenceLevel != null ? `${e.confidenceLevel}/5` : "—"} />
+                    <StatMetric
+                      label="Conviction"
+                      value={e.confidenceLevel != null ? `${e.confidenceLevel}/5` : "—"}
+                    />
                     <StatMetric
                       label="Target Price"
-                      value={e.targetPrice != null ? `₹${e.targetPrice.toLocaleString("en-IN")}` : "—"}
+                      value={
+                        e.targetPrice != null ? `₹${e.targetPrice.toLocaleString("en-IN")}` : "—"
+                      }
                     />
                     <StatMetric
                       label="Expected Return"
                       value={e.expectedReturnPct != null ? `${e.expectedReturnPct}%` : "—"}
                     />
-                    <StatMetric label="Horizon" value={e.horizonMonths != null ? `${e.horizonMonths} months` : "—"} />
+                    <StatMetric
+                      label="Horizon"
+                      value={e.horizonMonths != null ? `${e.horizonMonths} months` : "—"}
+                    />
                   </div>
 
                   <div className="mt-8 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3 sm:gap-8">
-                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">Thesis</p>
+                    <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">
+                      Thesis
+                    </p>
                     <p className="text-[15px] leading-relaxed text-ink text-pretty">{e.thesis}</p>
                   </div>
 
-                  {(e.fundamentalReasons || e.technicalReasons || e.sectorReasons || e.macroReasons) && (
+                  {(e.fundamentalReasons ||
+                    e.technicalReasons ||
+                    e.sectorReasons ||
+                    e.macroReasons) && (
                     <div className="mt-6 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3 sm:gap-8">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">Reasons</p>
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">
+                        Reasons
+                      </p>
                       <ul className="space-y-1.5">
                         {e.fundamentalReasons && (
                           <li className="text-[15px] text-ink flex gap-3">
@@ -226,29 +270,45 @@ function Journal() {
 
                   {e.risksAccepted && (
                     <div className="mt-6 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3 sm:gap-8">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">Risks</p>
-                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">{e.risksAccepted}</p>
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">
+                        Risks
+                      </p>
+                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">
+                        {e.risksAccepted}
+                      </p>
                     </div>
                   )}
 
                   {e.assumptions && (
                     <div className="mt-6 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3 sm:gap-8">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">Assumptions</p>
-                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">{e.assumptions}</p>
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">
+                        Assumptions
+                      </p>
+                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">
+                        {e.assumptions}
+                      </p>
                     </div>
                   )}
 
                   {e.sellTrigger && (
                     <div className="mt-6 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3 sm:gap-8">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">What would make you sell</p>
-                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">{e.sellTrigger}</p>
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">
+                        What would make you sell
+                      </p>
+                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">
+                        {e.sellTrigger}
+                      </p>
                     </div>
                   )}
 
                   {e.personalNotes && (
                     <div className="mt-6 grid grid-cols-1 sm:grid-cols-[120px_1fr] gap-3 sm:gap-8">
-                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">Personal notes</p>
-                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">{e.personalNotes}</p>
+                      <p className="text-[10px] font-mono uppercase tracking-[0.18em] text-ink-subtle pt-1">
+                        Personal notes
+                      </p>
+                      <p className="text-[15px] text-ink-muted leading-relaxed text-pretty">
+                        {e.personalNotes}
+                      </p>
                     </div>
                   )}
 
@@ -281,7 +341,10 @@ function Journal() {
 
       <JournalEntryForm open={formOpen} onOpenChange={setFormOpen} entry={editingEntry} />
 
-      <AlertDialog open={pendingDeleteId !== null} onOpenChange={(open) => !open && setPendingDeleteId(null)}>
+      <AlertDialog
+        open={pendingDeleteId !== null}
+        onOpenChange={(open) => !open && setPendingDeleteId(null)}
+      >
         <AlertDialogContent>
           <AlertDialogHeader>
             <AlertDialogTitle>Delete this entry?</AlertDialogTitle>

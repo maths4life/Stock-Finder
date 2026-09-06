@@ -1,8 +1,7 @@
 import { ApiError } from "@/shared/api/client";
 import type { JournalEntry, JournalEntryInput } from "@/shared/api/types";
 
-const API_URL =
-  import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 /** GET /journal-entries */
 export async function fetchJournalEntries(): Promise<JournalEntry[]> {
   const response = await fetch(`${API_URL}/journal-entries`);
@@ -31,7 +30,10 @@ export async function createJournalEntry(input: JournalEntryInput): Promise<Jour
 }
 
 /** PUT /journal-entries/{id} */
-export async function updateJournalEntry(id: string, input: JournalEntryInput): Promise<JournalEntry> {
+export async function updateJournalEntry(
+  id: string,
+  input: JournalEntryInput,
+): Promise<JournalEntry> {
   const response = await fetch(`${API_URL}/journal-entries/${id}`, {
     method: "PUT",
     headers: { "Content-Type": "application/json" },

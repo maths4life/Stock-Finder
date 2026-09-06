@@ -8,11 +8,20 @@ const toneClasses: Record<BadgeTone, string> = {
   positive: "bg-positive-soft text-positive",
   negative: "bg-negative-soft text-negative",
   neutral: "bg-neutral-soft text-neutral",
-  warning: "bg-[oklch(0.96_0.03_75)] text-[oklch(0.45_0.11_65)] dark:bg-[oklch(0.3_0.05_75)] dark:text-[oklch(0.85_0.1_75)]",
+  warning:
+    "bg-[oklch(0.96_0.03_75)] text-[oklch(0.45_0.11_65)] dark:bg-[oklch(0.3_0.05_75)] dark:text-[oklch(0.85_0.1_75)]",
   muted: "bg-secondary text-ink-subtle",
 };
 
-export function Badge({ tone = "muted", children, className }: { tone?: BadgeTone; children: ReactNode; className?: string }) {
+export function Badge({
+  tone = "muted",
+  children,
+  className,
+}: {
+  tone?: BadgeTone;
+  children: ReactNode;
+  className?: string;
+}) {
   return (
     <span
       className={cn(
@@ -48,7 +57,13 @@ const SENTIMENT_TONE: Record<Sentiment, BadgeTone> = {
   Bearish: "negative",
 };
 
-export function SentimentBadge({ sentiment, className }: { sentiment: Sentiment; className?: string }) {
+export function SentimentBadge({
+  sentiment,
+  className,
+}: {
+  sentiment: Sentiment;
+  className?: string;
+}) {
   return (
     <Badge tone={SENTIMENT_TONE[sentiment] ?? "neutral"} className={className}>
       {sentiment}

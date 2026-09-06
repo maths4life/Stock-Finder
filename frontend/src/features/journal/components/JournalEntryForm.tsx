@@ -11,12 +11,28 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/components/ui/form";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/components/ui/form";
 import { Input } from "@/shared/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { useAllCompanies } from "@/features/company/hooks/useCompanies";
-import { useCreateJournalEntry, useUpdateJournalEntry } from "@/features/journal/hooks/useJournalEntries";
+import {
+  useCreateJournalEntry,
+  useUpdateJournalEntry,
+} from "@/features/journal/hooks/useJournalEntries";
 import type { JournalEntry } from "@/shared/api/types";
 
 const formSchema = z.object({
@@ -89,7 +105,12 @@ interface JournalEntryFormProps {
   defaultSymbol?: string;
 }
 
-export function JournalEntryForm({ open, onOpenChange, entry, defaultSymbol }: JournalEntryFormProps) {
+export function JournalEntryForm({
+  open,
+  onOpenChange,
+  entry,
+  defaultSymbol,
+}: JournalEntryFormProps) {
   const { data: companies = [] } = useAllCompanies();
   const createMutation = useCreateJournalEntry();
   const updateMutation = useUpdateJournalEntry();
@@ -373,7 +394,12 @@ export function JournalEntryForm({ open, onOpenChange, entry, defaultSymbol }: J
             </div>
 
             <DialogFooter>
-              <Button type="button" variant="outline" onClick={() => onOpenChange(false)} disabled={isSaving}>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() => onOpenChange(false)}
+                disabled={isSaving}
+              >
                 Cancel
               </Button>
               <Button type="submit" disabled={isSaving}>

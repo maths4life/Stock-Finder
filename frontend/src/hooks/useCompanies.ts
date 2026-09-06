@@ -1,5 +1,10 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { fetchAllCompanies, fetchCompanies, fetchCompany, searchCompanies } from "@/lib/api/companies";
+import {
+  fetchAllCompanies,
+  fetchCompanies,
+  fetchCompany,
+  searchCompanies,
+} from "@/lib/api/companies";
 import type { CompanyQueryParams } from "@/lib/api/types";
 import { queryKeys } from "./queryKeys";
 

@@ -18,8 +18,11 @@ export function Pagination({ page, totalPages, total, pageSize, onPageChange, cl
   return (
     <div className={"flex items-center justify-between gap-4 " + (className ?? "")}>
       <p className="text-xs text-ink-subtle">
-        Showing <span className="text-ink font-medium">{start}–{end}</span> of{" "}
-        <span className="text-ink font-medium">{total}</span>
+        Showing{" "}
+        <span className="text-ink font-medium">
+          {start}–{end}
+        </span>{" "}
+        of <span className="text-ink font-medium">{total}</span>
       </p>
       <div className="flex items-center gap-1">
         <button

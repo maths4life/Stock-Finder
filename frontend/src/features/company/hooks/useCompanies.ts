@@ -1,5 +1,11 @@
 import { keepPreviousData, useQuery } from "@tanstack/react-query";
-import { fetchAllCompanies, fetchCompanies, fetchCompany, fetchCompanyPrices, searchCompanies } from "@/features/company/api/companies";
+import {
+  fetchAllCompanies,
+  fetchCompanies,
+  fetchCompany,
+  fetchCompanyPrices,
+  searchCompanies,
+} from "@/features/company/api/companies";
 import type { CompanyQueryParams, PriceRange } from "@/shared/api/types";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 

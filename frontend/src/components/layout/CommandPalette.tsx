@@ -50,12 +50,16 @@ export function CommandPalette() {
           {isFetching ? (
             <Loader2 className="size-3.5 text-ink-subtle animate-spin" />
           ) : (
-            <kbd className="text-[10px] font-mono text-ink-subtle bg-secondary px-1.5 py-0.5 rounded">ESC</kbd>
+            <kbd className="text-[10px] font-mono text-ink-subtle bg-secondary px-1.5 py-0.5 rounded">
+              ESC
+            </kbd>
           )}
         </div>
         <div className="max-h-[50vh] overflow-y-auto py-2">
           {q.trim().length === 0 && (
-            <div className="px-4 py-8 text-center text-sm text-ink-muted">Start typing to search companies</div>
+            <div className="px-4 py-8 text-center text-sm text-ink-muted">
+              Start typing to search companies
+            </div>
           )}
           {q.trim().length > 0 && results.length === 0 && !isFetching && (
             <div className="px-4 py-8 text-center text-sm text-ink-muted">No matches</div>
@@ -74,7 +78,9 @@ export function CommandPalette() {
                 <span className="text-sm text-ink-muted truncate">{c.name}</span>
               </div>
               <div className="flex items-center gap-3 shrink-0">
-                <span className="hidden sm:inline text-[10px] uppercase tracking-widest text-ink-subtle">{c.sector}</span>
+                <span className="hidden sm:inline text-[10px] uppercase tracking-widest text-ink-subtle">
+                  {c.sector}
+                </span>
                 <ArrowRight className="size-3.5 text-ink-subtle opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </button>

@@ -41,7 +41,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+              onClick={() =>
+                window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))
+              }
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-md ring-1 ring-hairline bg-secondary/60 hover:bg-secondary transition-colors"
             >
               <kbd className="text-[10px] font-mono text-ink-subtle">⌘K</kbd>
@@ -57,9 +59,15 @@ export function AppShell({ children }: { children: ReactNode }) {
       <main>{children}</main>
 
       <footer className="fixed bottom-6 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1 p-1 bg-ink/95 rounded-full shadow-2xl ring-1 ring-white/10">
-        <FooterLink to="/" active={pathname === "/"}>Today</FooterLink>
-        <FooterLink to="/screener" active={pathname.startsWith("/screener")}>Screen</FooterLink>
-        <FooterLink to="/ideas" active={pathname.startsWith("/ideas")}>Ideas</FooterLink>
+        <FooterLink to="/" active={pathname === "/"}>
+          Today
+        </FooterLink>
+        <FooterLink to="/screener" active={pathname.startsWith("/screener")}>
+          Screen
+        </FooterLink>
+        <FooterLink to="/ideas" active={pathname.startsWith("/ideas")}>
+          Ideas
+        </FooterLink>
         <div className="w-px h-4 bg-white/10 mx-1" />
         <Link
           to="/journal"
@@ -77,7 +85,15 @@ export function AppShell({ children }: { children: ReactNode }) {
   );
 }
 
-function FooterLink({ to, active, children }: { to: string; active: boolean; children: ReactNode }) {
+function FooterLink({
+  to,
+  active,
+  children,
+}: {
+  to: string;
+  active: boolean;
+  children: ReactNode;
+}) {
   return (
     <Link
       to={to}

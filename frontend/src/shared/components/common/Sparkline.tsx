@@ -46,7 +46,14 @@ export function Sparkline({
       preserveAspectRatio="none"
     >
       {fill && <path d={areaPath} fill={color} opacity={0.08} />}
-      <path d={path} fill="none" stroke={color} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" />
+      <path
+        d={path}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
     </svg>
   );
 }

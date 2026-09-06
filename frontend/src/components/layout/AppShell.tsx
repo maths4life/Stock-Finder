@@ -22,7 +22,10 @@ export function AppShell({ children }: { children: ReactNode }) {
       <nav className="sticky top-0 z-40 bg-paper/85 backdrop-blur-md hairline-b">
         <div className="max-w-7xl mx-auto px-6 h-14 flex items-center justify-between">
           <div className="flex items-center gap-10">
-            <Link to="/" className="flex items-center gap-1.5 font-semibold text-[15px] tracking-tight leading-none text-ink">
+            <Link
+              to="/"
+              className="flex items-center gap-1.5 font-semibold text-[15px] tracking-tight leading-none text-ink"
+            >
               <span className="size-6 rounded-md bg-accent text-accent-foreground grid place-items-center text-[11px] font-bold">
                 Q
               </span>
@@ -35,7 +38,9 @@ export function AppShell({ children }: { children: ReactNode }) {
                   to={n.to}
                   className={cn(
                     "px-3 py-1.5 rounded-md text-sm font-medium transition-colors",
-                    isActive(n.to) ? "text-ink bg-secondary" : "text-ink-subtle hover:text-ink hover:bg-secondary/60",
+                    isActive(n.to)
+                      ? "text-ink bg-secondary"
+                      : "text-ink-subtle hover:text-ink hover:bg-secondary/60",
                   )}
                 >
                   {n.label}
@@ -45,7 +50,9 @@ export function AppShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex items-center gap-3">
             <button
-              onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+              onClick={() =>
+                window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))
+              }
               className="flex items-center gap-2 px-2.5 py-1.5 rounded-md ring-1 ring-hairline bg-secondary/60 hover:bg-secondary transition-colors"
             >
               <Search className="size-3.5 text-ink-subtle" />

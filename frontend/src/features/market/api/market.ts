@@ -1,5 +1,11 @@
 import { ApiError } from "@/shared/api/client";
-import type { DataFreshness, DiscoverGroup, MarketIndicator, PipelineColumn, SectorPulse } from "@/shared/api/types";
+import type {
+  DataFreshness,
+  DiscoverGroup,
+  MarketIndicator,
+  PipelineColumn,
+  SectorPulse,
+} from "@/shared/api/types";
 
 import { API_URL } from "@/shared/api/config";
 /** GET /discover/groups */

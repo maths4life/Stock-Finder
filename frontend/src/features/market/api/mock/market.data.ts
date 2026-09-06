@@ -1,4 +1,9 @@
-import type { DiscoverGroup, MarketIndicator, PipelineColumn, SectorPulse } from "@/shared/api/types";
+import type {
+  DiscoverGroup,
+  MarketIndicator,
+  PipelineColumn,
+  SectorPulse,
+} from "@/shared/api/types";
 
 export const discoverGroupRecords: DiscoverGroup[] = [
   {

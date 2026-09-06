@@ -35,7 +35,8 @@ export function useCreatePipelineItem() {
 export function useUpdatePipelineItem() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, input }: { id: string; input: PipelineItemInput }) => updatePipelineItem(id, input),
+    mutationFn: ({ id, input }: { id: string; input: PipelineItemInput }) =>
+      updatePipelineItem(id, input),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: queryKeys.pipeline });
       queryClient.invalidateQueries({ queryKey: queryKeys.pipelineItems });
@@ -55,7 +56,8 @@ export function useUpdatePipelineItem() {
 export function useMovePipelineItemStage() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: ({ id, stage }: { id: string; stage: PipelineStage }) => movePipelineItemStage(id, stage),
+    mutationFn: ({ id, stage }: { id: string; stage: PipelineStage }) =>
+      movePipelineItemStage(id, stage),
     onMutate: async ({ id, stage }) => {
       await queryClient.cancelQueries({ queryKey: queryKeys.pipeline });
       const previous = queryClient.getQueryData<PipelineColumn[]>(queryKeys.pipeline);
@@ -70,7 +72,7 @@ export function useMovePipelineItemStage() {
 
         const next = moving
           ? withoutItem.map((col) =>
-              col.stage === stage ? { ...col, items: [{ ...moving! }, ...col.items] } : col
+              col.stage === stage ? { ...col, items: [{ ...moving! }, ...col.items] } : col,
             )
           : withoutItem;
 

@@ -11,11 +11,27 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/shared/components/ui/dialog";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/shared/components/ui/form";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/shared/components/ui/select";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/shared/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/shared/components/ui/select";
 import { Textarea } from "@/shared/components/ui/textarea";
 import { useAllCompanies } from "@/features/company/hooks/useCompanies";
-import { useCreatePipelineItem, useUpdatePipelineItem } from "@/features/pipeline/hooks/usePipelineItems";
+import {
+  useCreatePipelineItem,
+  useUpdatePipelineItem,
+} from "@/features/pipeline/hooks/usePipelineItems";
 import type { PipelineItem, PipelineStage } from "@/shared/api/types";
 
 // Fixed to the three stages already used by pipeline_items.stage — see
@@ -57,7 +73,13 @@ interface PipelineItemFormProps {
   stage?: PipelineStage;
 }
 
-export function PipelineItemForm({ open, onOpenChange, item, itemId, stage }: PipelineItemFormProps) {
+export function PipelineItemForm({
+  open,
+  onOpenChange,
+  item,
+  itemId,
+  stage,
+}: PipelineItemFormProps) {
   const { data: companies = [] } = useAllCompanies();
   const createMutation = useCreatePipelineItem();
   const updateMutation = useUpdatePipelineItem();
@@ -100,7 +122,8 @@ export function PipelineItemForm({ open, onOpenChange, item, itemId, stage }: Pi
         <DialogHeader>
           <DialogTitle>{isEditing ? "Edit pipeline item" : "Add to pipeline"}</DialogTitle>
           <DialogDescription>
-            Track a company through your research workflow — watch it, build a thesis, or mark it high conviction.
+            Track a company through your research workflow — watch it, build a thesis, or mark it
+            high conviction.
           </DialogDescription>
         </DialogHeader>
 

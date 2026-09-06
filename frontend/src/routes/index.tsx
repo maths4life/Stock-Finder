@@ -9,14 +9,21 @@ import { DataFreshness } from "@/shared/components/common/DataFreshness";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
 import { qualifyingReasons } from "@/features/company/utils/qualifyingReasons";
-import { useDiscoverGroups, useMarketIndicators, useSectorPulse } from "@/features/market/hooks/useDiscover";
+import {
+  useDiscoverGroups,
+  useMarketIndicators,
+  useSectorPulse,
+} from "@/features/market/hooks/useDiscover";
 import { fetchDiscoverGroups } from "@/features/market/api/market";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { Company, DiscoverGroup } from "@/shared/api/types";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({ queryKey: queryKeys.discoverGroups, queryFn: fetchDiscoverGroups }),
+    context.queryClient.ensureQueryData({
+      queryKey: queryKeys.discoverGroups,
+      queryFn: fetchDiscoverGroups,
+    }),
   head: () => ({
     meta: [
       { title: "Today's Shortlist — Stock Finder" },
@@ -35,7 +42,20 @@ export const Route = createFileRoute("/")({
 });
 
 const WEEKDAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
+const MONTHS = [
+  "January",
+  "February",
+  "March",
+  "April",
+  "May",
+  "June",
+  "July",
+  "August",
+  "September",
+  "October",
+  "November",
+  "December",
+];
 function formatToday() {
   const d = new Date();
   return `${WEEKDAYS[d.getUTCDay()]}, ${d.getUTCDate()} ${MONTHS[d.getUTCMonth()]}`;
@@ -65,7 +85,10 @@ function Discover() {
           <div className="col-span-12 lg:col-span-8 space-y-16">
             {groupsQuery.isPending && <DiscoverFeedSkeleton />}
             {groupsQuery.isError && (
-              <ErrorState description="Couldn't load today's briefing." onRetry={() => groupsQuery.refetch()} />
+              <ErrorState
+                description="Couldn't load today's briefing."
+                onRetry={() => groupsQuery.refetch()}
+              />
             )}
             {groupsQuery.data?.map((group, gi) => (
               <DiscoverGroupSection key={group.id} group={group} index={gi} />
@@ -135,7 +158,11 @@ function DiscoverGroupSection({ group, index }: { group: DiscoverGroup; index: n
 function WhyThisStock({ company: c }: { company: Company }) {
   const reasons = qualifyingReasons(c).slice(0, 3);
   if (reasons.length === 0) {
-    return <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">{c.rationale}</p>;
+    return (
+      <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">
+        {c.rationale}
+      </p>
+    );
   }
   return (
     <ul className="mb-4 space-y-1">
@@ -174,7 +201,12 @@ function MarketContextList() {
               <span className="text-sm text-ink-muted">{m.label}</span>
               <div className="text-right">
                 <span className="font-mono text-sm text-ink tabular-nums">{m.value}</span>
-                <span className={"ml-2 text-[11px] font-mono " + (m.tone === "positive" ? "text-positive" : "text-ink-subtle")}>
+                <span
+                  className={
+                    "ml-2 text-[11px] font-mono " +
+                    (m.tone === "positive" ? "text-positive" : "text-ink-subtle")
+                  }
+                >
                   {m.change}
                 </span>
               </div>

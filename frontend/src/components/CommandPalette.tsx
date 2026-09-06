@@ -46,7 +46,9 @@ export function CommandPalette() {
             placeholder="Find a company, thesis, screen…"
             className="flex-1 bg-transparent outline-none text-sm placeholder:text-ink-subtle"
           />
-          <kbd className="text-[10px] font-mono text-ink-subtle bg-secondary px-1.5 py-0.5 rounded">ESC</kbd>
+          <kbd className="text-[10px] font-mono text-ink-subtle bg-secondary px-1.5 py-0.5 rounded">
+            ESC
+          </kbd>
         </div>
         <div className="max-h-[50vh] overflow-y-auto py-2">
           {results.length === 0 && (
@@ -66,7 +68,9 @@ export function CommandPalette() {
                 <span className="text-sm text-ink-muted">{c.name}</span>
               </div>
               <div className="flex items-center gap-3">
-                <span className="text-[10px] uppercase tracking-widest text-ink-subtle">{c.sector}</span>
+                <span className="text-[10px] uppercase tracking-widest text-ink-subtle">
+                  {c.sector}
+                </span>
                 <ArrowRight className="size-3.5 text-ink-subtle opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
             </button>

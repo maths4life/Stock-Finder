@@ -3,8 +3,16 @@ import { cn } from "@/shared/utils/utils";
 
 function formatUpdatedAt(iso: string): string {
   const d = new Date(iso);
-  const datePart = d.toLocaleDateString("en-IN", { weekday: "long", month: "short", day: "numeric" });
-  const timePart = d.toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" });
+  const datePart = d.toLocaleDateString("en-IN", {
+    weekday: "long",
+    month: "short",
+    day: "numeric",
+  });
+  const timePart = d.toLocaleTimeString("en-IN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: "Asia/Kolkata",
+  });
   return `${datePart} · ${timePart} IST`;
 }
 
