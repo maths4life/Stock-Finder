@@ -55,7 +55,7 @@ export function CompanyCard({
           <VerdictBadge verdict={c.verdict} className="shrink-0" />
         </div>
 
-        {note ?? (
+        {note !== undefined ? note : (
           <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">
             {c.rationale}
           </p>

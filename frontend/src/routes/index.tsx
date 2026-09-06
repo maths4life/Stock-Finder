@@ -1,3 +1,6 @@
+import { useState } from "react";
+import { Link } from "@tanstack/react-router";
+import { ChevronDown } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/shared/components/layout/AppShell";
 import { CompanyCard } from "@/features/company/components/CompanyCard";
@@ -8,7 +11,7 @@ import { CompanyCardGridSkeleton } from "@/shared/components/common/Skeletons";
 import { DataFreshness } from "@/shared/components/common/DataFreshness";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
-import { qualifyingReasons } from "@/features/company/utils/qualifyingReasons";
+import { cn } from "@/shared/utils/utils";
 import {
   useDiscoverGroups,
   useMarketIndicators,
@@ -17,7 +20,7 @@ import {
 } from "@/features/market/hooks/useDiscover";
 import { fetchDiscoverGroups } from "@/features/market/api/market";
 import { queryKeys } from "@/shared/hooks/queryKeys";
-import type { Company, DiscoverGroup } from "@/shared/api/types";
+import type { DiscoverGroup, SectorPulse } from "@/shared/api/types";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) =>
@@ -133,7 +136,8 @@ function DiscoverGroupSection({ group, index }: { group: DiscoverGroup; index: n
             <CompanyCard
               key={c.symbol}
               company={c}
-              note={<WhyThisStock company={c} />}
+              note={null}        // no rationale/bullets on Discover — just name, price, change
+              showScores={false} // scores live on the Research page
               showAddToIdeas={false}
             />
           ))}
@@ -144,7 +148,8 @@ function DiscoverGroupSection({ group, index }: { group: DiscoverGroup; index: n
             <CompanyRow
               key={c.symbol}
               company={c}
-              description={rowDescription(c)}
+              description={c.sector} // sector only — no conviction text on front page
+              showScores={false}
               showAddToIdeas={false}
             />
           ))}
@@ -154,36 +159,6 @@ function DiscoverGroupSection({ group, index }: { group: DiscoverGroup; index: n
   );
 }
 
-/** Compact "✓ reason" list for the grid-layout Discover cards — the
- * qualification bullets requirement (Section 3). Purely formatting over
- * fields the backend already computed; see qualifyingReasons.ts. */
-function WhyThisStock({ company: c }: { company: Company }) {
-  const reasons = qualifyingReasons(c).slice(0, 3);
-  if (reasons.length === 0) {
-    return (
-      <p className="text-sm text-ink-muted leading-relaxed text-pretty mb-4 line-clamp-2">
-        {c.rationale}
-      </p>
-    );
-  }
-  return (
-    <ul className="mb-4 space-y-1">
-      {reasons.map((r) => (
-        <li key={r} className="text-[12.5px] text-ink-muted flex items-start gap-1.5 leading-snug">
-          <span className="text-positive shrink-0">✓</span>
-          {r}
-        </li>
-      ))}
-    </ul>
-  );
-}
-
-/** For the list-layout rows, fold the top qualifying reason into the
- * description line so the "why" stays visible without a taller row. */
-function rowDescription(c: Company): string {
-  const reasons = qualifyingReasons(c);
-  return reasons.length > 0 ? reasons[0] : c.rationale;
-}
 
 function MarketContextList() {
   const { data: indicators = [], isPending } = useMarketIndicators();
@@ -222,26 +197,73 @@ function MarketContextList() {
 
 function SectorPulseList() {
   const { data: sectors = [], isPending } = useSectorPulse();
+  const [openSector, setOpenSector] = useState<string | null>(null);
+
+  function toggle(sector: string) {
+    setOpenSector((prev) => (prev === sector ? null : sector));
+  }
+
   return (
-    <div className="p-6 rounded-xl ring-1 ring-hairline bg-surface-raised">
-      <h3 className="text-eyebrow text-ink-subtle mb-4">Top Sectors</h3>
+    <div className="rounded-xl ring-1 ring-hairline bg-surface-raised overflow-hidden">
+      <div className="px-6 pt-6 pb-4">
+        <h3 className="text-eyebrow text-ink-subtle">Top Sectors</h3>
+      </div>
       {isPending ? (
-        <div className="space-y-4">
+        <div className="px-6 pb-6 space-y-4">
           {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
+            <Skeleton key={i} className="h-10 w-full" />
           ))}
         </div>
       ) : (
-        <div className="space-y-5">
-          {sectors.map((s) => (
-            <div key={s.sector}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-ink">{s.sector}</span>
-                <SentimentBadge sentiment={s.sentiment} />
+        <div className="divide-y divide-hairline">
+          {sectors.map((s: SectorPulse) => {
+            const isOpen = openSector === s.sector;
+            return (
+              <div key={s.sector}>
+                {/* Clickable header row */}
+                <button
+                  id={`sector-${s.sector.toLowerCase().replace(/\s+/g, "-")}`}
+                  onClick={() => toggle(s.sector)}
+                  className="w-full flex items-center justify-between px-6 py-3.5 hover:bg-secondary/40 transition-colors text-left"
+                  aria-expanded={isOpen}
+                >
+                  <span className="text-sm font-medium text-ink">{s.sector}</span>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <SentimentBadge sentiment={s.sentiment} />
+                    <ChevronDown
+                      className={cn(
+                        "size-3.5 text-ink-subtle transition-transform duration-200",
+                        isOpen && "rotate-180",
+                      )}
+                    />
+                  </div>
+                </button>
+
+                {/* Expandable detail */}
+                {isOpen && (
+                  <div className="px-6 pb-4 pt-1 bg-secondary/20 border-t border-hairline">
+                    <p className="text-[12.5px] text-ink-muted leading-relaxed text-pretty mb-3">
+                      {s.reason}
+                    </p>
+                    {s.topSymbols.length > 0 && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {s.topSymbols.map((sym) => (
+                          <Link
+                            key={sym}
+                            to="/research/$symbol"
+                            params={{ symbol: sym }}
+                            className="inline-flex items-center px-2 py-0.5 rounded text-[11px] font-mono font-medium bg-surface-raised ring-1 ring-hairline text-ink hover:text-accent hover:ring-accent/40 transition-colors"
+                          >
+                            {sym}
+                          </Link>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
               </div>
-              <p className="mt-1 text-[12px] text-ink-muted leading-snug text-pretty">{s.reason}</p>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
