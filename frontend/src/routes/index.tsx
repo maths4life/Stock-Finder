@@ -12,6 +12,7 @@ import { qualifyingReasons } from "@/features/company/utils/qualifyingReasons";
 import {
   useDiscoverGroups,
   useMarketIndicators,
+  useMarketNews,
   useSectorPulse,
 } from "@/features/market/hooks/useDiscover";
 import { fetchDiscoverGroups } from "@/features/market/api/market";
@@ -100,6 +101,7 @@ function Discover() {
           <aside className="col-span-12 lg:col-span-4 space-y-10">
             <MarketContextList />
             <SectorPulseList />
+            <MarketNewsList />
           </aside>
         </div>
       </div>
@@ -241,6 +243,69 @@ function SectorPulseList() {
             </div>
           ))}
         </div>
+      )}
+    </div>
+  );
+}
+
+function MarketNewsList() {
+  const { data: articles = [], isPending, isError, refetch } = useMarketNews(8);
+  return (
+    <div className="p-6 rounded-xl ring-1 ring-hairline bg-surface-raised">
+      <div className="flex items-center justify-between mb-4">
+        <h3 className="text-eyebrow text-ink-subtle">Market News</h3>
+        {!isPending && (
+          <span className="text-[10px] font-mono text-ink-subtle tracking-wide uppercase">Live</span>
+        )}
+      </div>
+      {isPending ? (
+        <div className="space-y-4">
+          {Array.from({ length: 5 }).map((_, i) => (
+            <div key={i} className="space-y-1.5">
+              <Skeleton className="h-3 w-full" />
+              <Skeleton className="h-3 w-3/4" />
+            </div>
+          ))}
+        </div>
+      ) : isError ? (
+        <div className="text-center py-4">
+          <p className="text-xs text-ink-muted mb-2">Couldn't load news.</p>
+          <button
+            onClick={() => refetch()}
+            className="text-xs text-accent hover:underline"
+          >
+            Retry
+          </button>
+        </div>
+      ) : articles.length === 0 ? (
+        <p className="text-xs text-ink-muted">No recent articles found.</p>
+      ) : (
+        <ul className="space-y-4">
+          {articles.map((article) => (
+            <li key={article.url}>
+              <a
+                href={article.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="group block"
+              >
+                <p className="text-[12.5px] text-ink leading-snug group-hover:text-accent transition-colors line-clamp-2">
+                  {article.title}
+                </p>
+                <div className="mt-1 flex items-center gap-2">
+                  <span className="text-[10px] font-medium text-ink-subtle truncate">
+                    {article.source}
+                  </span>
+                  {article.ageLabel && (
+                    <span className="text-[10px] font-mono text-ink-subtle shrink-0">
+                      · {article.ageLabel}
+                    </span>
+                  )}
+                </div>
+              </a>
+            </li>
+          ))}
+        </ul>
       )}
     </div>
   );

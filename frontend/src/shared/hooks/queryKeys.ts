@@ -21,4 +21,5 @@ export const queryKeys = {
   dataFreshness: ["data-freshness"] as const,
   journalEntries: ["journal-entries"] as const,
   journalReviews: ["journal-reviews"] as const,
+  marketNews: ["market-news"] as const,
 };

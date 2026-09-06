@@ -3,6 +3,7 @@ import type {
   DataFreshness,
   DiscoverGroup,
   MarketIndicator,
+  NewsArticle,
   PipelineColumn,
   SectorPulse,
 } from "@/shared/api/types";
@@ -58,6 +59,18 @@ export async function fetchDataFreshness(): Promise<DataFreshness> {
 
   if (!response.ok) {
     throw new ApiError("Failed to fetch data freshness", response.status);
+  }
+
+  return response.json();
+}
+
+/** GET /news/market — live RSS market news feed, deduplicated, sorted newest-first.
+ *  Cached in-process on the backend for 5 min; matches the React Query staleTime below. */
+export async function fetchMarketNews(limit = 8): Promise<NewsArticle[]> {
+  const response = await fetch(`${API_URL}/news/market?limit=${limit}`);
+
+  if (!response.ok) {
+    throw new ApiError("Failed to fetch market news", response.status);
   }
 
   return response.json();

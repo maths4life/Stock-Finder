@@ -432,3 +432,14 @@ export type JournalReviewInput = {
  * `journal_entries.symbol` IS editable.
  */
 export type JournalReviewUpdateInput = Omit<JournalReviewInput, "entryId">;
+
+/** One article from GET /news/market */
+export type NewsArticle = {
+  title: string;
+  url: string;
+  source: string;
+  provider: string;
+  ageLabel: string;
+  publishedAt: string | null;
+};
+

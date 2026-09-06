@@ -17,17 +17,6 @@ on:
     - cron: "30 20 * * 5"
 
   workflow_dispatch:
-    inputs:
-      run_news_refresh:
-        description: >-
-          Also run the weekly Market Intelligence (news) refresh. Off by
-          default: this step is unverified against a live RSS feed in
-          production (TECHNICAL_DEBT.md TD-008/TD-009) — enable this only
-          for a deliberate manual test, not routine use, until TD-008 is
-          closed. Never runs on the scheduled trigger regardless of this
-          setting.
-        type: boolean
-        default: false
 
 jobs:
   refresh:
@@ -48,7 +37,7 @@ jobs:
         run: pip install -r requirements.txt
 
       # --- Dependency order matters below: prices -> technicals ->
-      # fundamentals -> financial statements -> (optional news) -> scores.
+      # fundamentals -> financial statements -> news -> scores.
       # Each step fails the job loudly (non-zero exit) if its own
       # fetch/write run was mostly or entirely unsuccessful — see
       # ingest/resilience.py's assert_healthy() and each script's own
@@ -82,12 +71,11 @@ jobs:
         working-directory: backend
         run: python -m ingest.fetch_financial_statements
 
-      # Weekly Market Intelligence (news) refresh — manual-trigger only,
-      # never on the scheduled run, until TD-008 (unverified against a
-      # live RSS feed) is closed. See DATA_STRATEGY.md §5 and
-      # TECHNICAL_DEBT.md TD-008/TD-009 for what "closed" requires.
-      - name: Weekly market intelligence (news) refresh [manual opt-in only]
-        if: github.event_name == 'workflow_dispatch' && inputs.run_news_refresh == true
+      # Weekly Market Intelligence (news) refresh — runs on every
+      # scheduled trigger (TD-008/TD-009 closed: feeds verified via
+      # scripts/validate_news_pipeline.py). Runs before scores so
+      # sector intelligence is fresh when scores are recomputed.
+      - name: Weekly market intelligence (news) refresh
         working-directory: backend
         run: python -m ingest.weekly_news_refresh
 
