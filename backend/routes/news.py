@@ -72,30 +72,39 @@ def _age_label(article: RawArticle) -> str:
     return f"{seconds // 604800}w ago"
 
 
-# Priority order: Indian financial sources first, then global.
+# Providers whose content is scoped to Indian markets.
+# yahoo_finance is a global feed and is deliberately excluded from the
+# sidebar — it's kept in the weekly intelligence pipeline (which needs
+# broad coverage) but filtered out here so only Indian news is shown.
+_INDIA_PROVIDERS = {"economic_times", "hindu_business_line", "livemint", "google_news"}
+
+# Priority order within Indian sources.
 _SOURCE_PRIORITY = {
     "economic_times": 0,
     "hindu_business_line": 1,
     "livemint": 2,
-    "yahoo_finance": 3,
-    "google_news": 4,
+    "google_news": 3,
 }
 
 
 @router.get("/news/market")
 def get_market_news(limit: int = Query(default=8, ge=1, le=30)):
-    """Live market news feed — deduplicated, sorted newest-first.
+    """Live Indian market news feed — deduplicated, sorted newest-first.
 
-    Articles are fetched from all RSS providers and cached in-process for
-    5 minutes. Only the last 48 hours of articles are returned.
+    Articles are fetched from Indian RSS providers (Economic Times,
+    Hindu BusinessLine, Livemint, Google News India) and cached
+    in-process for 5 minutes. Global feeds (yahoo_finance) are excluded
+    so only NSE/BSE-relevant news reaches the sidebar.
     """
     articles = _get_cached_articles()
     if articles is None:
-        articles = fetch_all_recent_articles(days=2)
+        raw = fetch_all_recent_articles(days=2)
+        # Keep only Indian-market providers.
+        india_only = [a for a in raw if a.provider in _INDIA_PROVIDERS]
         # Deduplicate by title hash (same key the DB pipeline uses).
         seen: set = set()
         deduped: List[RawArticle] = []
-        for a in articles:
+        for a in india_only:
             if a.dedup_key not in seen:
                 seen.add(a.dedup_key)
                 deduped.append(a)
