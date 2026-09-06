@@ -441,5 +441,6 @@ export type NewsArticle = {
   provider: string;
   ageLabel: string;
   publishedAt: string | null;
+  importance: number; // 0.55–1.0, quality score used for filtering and ranking
 };
 

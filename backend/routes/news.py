@@ -17,6 +17,7 @@ from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, Query
 
 from services.news_provider import RawArticle, fetch_all_recent_articles
+from services.sector_classifier import importance_score
 
 router = APIRouter()
 
@@ -78,6 +79,11 @@ def _age_label(article: RawArticle) -> str:
 # broad coverage) but filtered out here so only Indian news is shown.
 _INDIA_PROVIDERS = {"economic_times", "hindu_business_line", "livemint", "google_news"}
 
+# Minimum importance score to surface in the sidebar. Articles below this
+# are bare headlines with no polarity signal and no real summary — not
+# worth showing. 0.55 = base(0.40) + at least one polarity word(0.15).
+_MIN_IMPORTANCE = 0.55
+
 # Priority order within Indian sources.
 _SOURCE_PRIORITY = {
     "economic_times": 0,
@@ -89,34 +95,40 @@ _SOURCE_PRIORITY = {
 
 @router.get("/news/market")
 def get_market_news(limit: int = Query(default=8, ge=1, le=30)):
-    """Live Indian market news feed — deduplicated, sorted newest-first.
+    """Live Indian market news feed — quality-filtered, deduplicated, sorted newest-first.
 
-    Articles are fetched from Indian RSS providers (Economic Times,
-    Hindu BusinessLine, Livemint, Google News India) and cached
-    in-process for 5 minutes. Global feeds (yahoo_finance) are excluded
-    so only NSE/BSE-relevant news reaches the sidebar.
+    Pipeline applied before caching:
+      1. Indian providers only (drops yahoo_finance global feed)
+      2. Deduplicate by title hash
+      3. importance_score >= 0.55 — drops bare headlines with no
+         polarity signal and no real summary
+
+    Cached in-process for 5 minutes to match the React Query staleTime.
     """
     articles = _get_cached_articles()
     if articles is None:
         raw = fetch_all_recent_articles(days=2)
-        # Keep only Indian-market providers.
+        # 1. Keep only Indian-market providers.
         india_only = [a for a in raw if a.provider in _INDIA_PROVIDERS]
-        # Deduplicate by title hash (same key the DB pipeline uses).
+        # 2. Deduplicate by title hash (same key the DB pipeline uses).
         seen: set = set()
         deduped: List[RawArticle] = []
         for a in india_only:
             if a.dedup_key not in seen:
                 seen.add(a.dedup_key)
                 deduped.append(a)
-        _set_cached_articles(deduped)
-        articles = deduped
+        # 3. Quality gate — drop bare headlines with no substance.
+        quality = [a for a in deduped if importance_score(a) >= _MIN_IMPORTANCE]
+        _set_cached_articles(quality)
+        articles = quality
 
-    # Sort: articles with a date come first (newest-first), undated ones last.
-    # Within same-timestamp ties, higher-priority source wins.
+    # Sort: newest-first; within same timestamp, higher importance wins;
+    # within same importance, higher-priority source wins.
     def sort_key(a: RawArticle):
         ts = a.published_at.timestamp() if a.published_at else 0
+        score = importance_score(a)
         priority = _SOURCE_PRIORITY.get(a.provider, 99)
-        return (-ts, priority)
+        return (-ts, -score, priority)
 
     sorted_articles = sorted(articles, key=sort_key)[:limit]
 
@@ -128,6 +140,7 @@ def get_market_news(limit: int = Query(default=8, ge=1, le=30)):
             "provider": a.provider,
             "ageLabel": _age_label(a),
             "publishedAt": a.published_at.isoformat() if a.published_at else None,
+            "importance": importance_score(a),
         }
         for a in sorted_articles
     ]
