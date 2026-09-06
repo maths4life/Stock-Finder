@@ -137,16 +137,28 @@ PROVIDERS: List[NewsProvider] = [
         feed_url="https://finance.yahoo.com/news/rssindex",
     ),
     RSSNewsProvider(
-        name="moneycontrol",
-        feed_url="https://www.moneycontrol.com/rss/latestnews.xml",
+        # moneycontrol.com/rss/latestnews.xml is abandoned — all entries are
+        # from April 2024 (stale by 17+ months). The date filter would silently
+        # discard all 15 articles on every run. Replaced with The Hindu
+        # BusinessLine Markets RSS, which delivers 60 fresh articles (verified).
+        # Provider name updated to 'hindu_business_line'; dedup is title-hash-
+        # based so existing news_articles rows are unaffected.
+        name="hindu_business_line",
+        feed_url="https://www.thehindubusinessline.com/markets/feeder/default.rss",
     ),
     RSSNewsProvider(
         name="economic_times",
         feed_url="https://economictimes.indiatimes.com/markets/rssfeeds/1977021501.cms",
     ),
     RSSNewsProvider(
-        name="business_standard",
-        feed_url="https://www.business-standard.com/rss/markets-106.rss",
+        # business-standard.com blocks programmatic RSS access (HTTP 403
+        # Forbidden). Replaced with Livemint Markets RSS, which covers the
+        # same beat (NSE/BSE markets, results, sector news) and is verified
+        # reachable. The provider name is updated to 'livemint' — any
+        # existing DB rows with provider='business_standard' are unaffected
+        # since news_articles deduplicates on title hash, not provider name.
+        name="livemint",
+        feed_url="https://www.livemint.com/rss/markets",
     ),
 ]
 
