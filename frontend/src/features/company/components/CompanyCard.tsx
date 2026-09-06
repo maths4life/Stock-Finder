@@ -12,9 +12,12 @@ type Props = {
   /** Optional content shown above the rationale, e.g. a "why selected" line with an icon. */
   note?: ReactNode;
   className?: string;
-  /** Show Overall/Fundamental/Technical scores + "Add to Ideas". Default true —
-   * set false only for tight spaces where the row variant is a better fit. */
+  /** Show Overall/Fundamental/Technical scores. Default true — set false
+   * only for tight spaces where the row variant is a better fit. */
   showScores?: boolean;
+  /** Show the "Add to Ideas" action. Independent of showScores — Discover
+   * shows scores but hides this to keep Research the primary action. */
+  showAddToIdeas?: boolean;
 };
 
 /**
@@ -23,7 +26,7 @@ type Props = {
  * results). Purely presentational — all data comes in via props so it can
  * be fed straight from a `Company` API response.
  */
-export function CompanyCard({ company: c, footer, note, className, showScores = true }: Props) {
+export function CompanyCard({ company: c, footer, note, className, showScores = true, showAddToIdeas = true }: Props) {
   const positive = c.changePct >= 0;
   return (
     <div
@@ -85,7 +88,7 @@ export function CompanyCard({ company: c, footer, note, className, showScores = 
         {footer}
       </Link>
 
-      {showScores && (
+      {showAddToIdeas && (
         <div className="px-5 pb-5 -mt-1">
           <AddToIdeasButton symbol={c.symbol} className="w-full justify-center" />
         </div>

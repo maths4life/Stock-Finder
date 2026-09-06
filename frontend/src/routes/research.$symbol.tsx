@@ -91,7 +91,9 @@ function ResearchDetail() {
 
         {c && (
           <>
-            {/* Hero — Company header, full width */}
+            {/* Overview — company header, thesis, top-line snapshot.
+                Deliberately no score numbers here: the score is the
+                conclusion of the research below, not the opener. */}
             <header className="animate-fade-up">
               <div className="flex items-center gap-2.5 mb-3 text-[13px] text-ink-subtle">
                 <span className="font-medium">
@@ -132,7 +134,8 @@ function ResearchDetail() {
                 </div>
               )}
 
-              {/* Score summary, full width */}
+              {/* Snapshot — the handful of numbers an investor wants before
+                  reading anything else. Full-width, one row on desktop. */}
               <div className="mt-10 grid grid-cols-2 md:grid-cols-6 gap-y-7 gap-x-4 hairline-t hairline-b py-7">
                 <StatMetric
                   label="Price"
@@ -148,31 +151,11 @@ function ResearchDetail() {
                 <StatMetric label="Risk Level" value={c.riskLevel} size="lg" />
               </div>
 
-              <div className="grid grid-cols-3 gap-y-6 gap-x-4 py-7 hairline-b">
-                <StatMetric
-                  label="Overall Score"
-                  value={c.overallScore.toFixed(0) + "/100"}
-                  tone="positive"
-                  size="lg"
-                  highlight
-                />
-                <StatMetric
-                  label="Fundamental Score"
-                  value={c.fundamentalScore.toFixed(0) + "/100"}
-                  size="lg"
-                />
-                <StatMetric
-                  label="Technical Score"
-                  value={c.technicalScore.toFixed(0) + "/100"}
-                  size="lg"
-                />
-              </div>
-
               <div ref={sentinelRef} />
             </header>
 
-            {/* Price chart — the dominant visual on the page, so it breaks out of the
-                label-sidebar grid the other sections use and takes the full content width. */}
+            {/* Financial information — the price history and reported
+                numbers, ahead of the computed ratios below. */}
             <div className="mt-16">
               <PriceChart
                 data={prices ?? []}
@@ -183,12 +166,22 @@ function ResearchDetail() {
               />
             </div>
 
-            {/* Two-column research grid — Fundamentals paired with the
-                score explanation, Technicals paired with Risks, per the
-                desktop layout spec. Stacks to one column below lg. */}
             <div className="mt-16 grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-14">
+              <Section label="Quarterly Comparison">
+                <FinancialComparisonTable data={c.quarterlyComparison} />
+              </Section>
+
+              <Section label="Annual Comparison">
+                <FinancialComparisonTable data={c.annualComparison} />
+              </Section>
+            </div>
+
+            {/* Fundamentals — the computed ratios, with ownership
+                (Shareholding) grouped alongside since promoter/institutional
+                holding is a fundamentals question. */}
+            <div className="mt-16">
               <Section label="Fundamentals">
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-y-6 gap-x-6">
                   <StatMetric label="P/B" value={c.pb.toFixed(2) + "x"} />
                   <StatMetric label="ROCE" value={c.roce.toFixed(1) + "%"} />
                   <StatMetric label="Debt/Equity" value={c.debtToEquity.toFixed(2)} />
@@ -208,139 +201,17 @@ function ResearchDetail() {
                     value={c.promoterHoldingPct.toFixed(1) + "%"}
                   />
                 </div>
-              </Section>
 
-              <Section label="Why This Score">
-                <StrengthsList company={c} />
-                <ScoreBreakdownPanel company={c} />
-              </Section>
-
-              <Section label="Technicals">
-                <div className="grid grid-cols-2 gap-y-6 gap-x-4">
-                  <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
-                  <StatMetric
-                    label="Above 50 DMA"
-                    value={c.aboveEma50 ? "Yes" : "No"}
-                    tone={c.aboveEma50 ? "positive" : "negative"}
-                  />
-                  <StatMetric
-                    label="Above 200 DMA"
-                    value={c.aboveEma200 ? "Yes" : "No"}
-                    tone={c.aboveEma200 ? "positive" : "negative"}
-                  />
-                  <StatMetric
-                    label="Golden Cross"
-                    value={c.goldenCross ? "Yes" : "No"}
-                    tone={c.goldenCross ? "positive" : "neutral"}
-                  />
-                  <StatMetric
-                    label="Volume Breakout"
-                    value={c.volumeBreakout ? "Yes" : "No"}
-                    tone={c.volumeBreakout ? "positive" : "neutral"}
-                  />
-                  <StatMetric
-                    label="Trend"
-                    value={c.trend}
-                    tone={
-                      c.trend === "Uptrend"
-                        ? "positive"
-                        : c.trend === "Downtrend"
-                          ? "negative"
-                          : "neutral"
-                    }
-                  />
-                </div>
-              </Section>
-
-              <Section label="Risks">
-                <RisksList company={c} />
-              </Section>
-            </div>
-
-            {/* Full-width sections and tables */}
-            <div className="mt-16 space-y-16">
-              <Section label="Support & Resistance">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
-                  <StatMetric
-                    label="Support 1"
-                    value={fmtRupee(c.supportResistance.support1)}
-                    tone="negative"
-                  />
-                  <StatMetric
-                    label="Support 2"
-                    value={fmtRupee(c.supportResistance.support2)}
-                    tone="negative"
-                  />
-                  <StatMetric label="Pivot" value={fmtRupee(c.supportResistance.pivot)} />
-                  <StatMetric
-                    label="Resistance 1"
-                    value={fmtRupee(c.supportResistance.resistance1)}
-                    tone="positive"
-                  />
-                  <StatMetric
-                    label="Resistance 2"
-                    value={fmtRupee(c.supportResistance.resistance2)}
-                    tone="positive"
-                  />
-                  <StatMetric label="VWAP" value={fmtRupee(c.supportResistance.vwap)} />
-                  <StatMetric
-                    label="52 Week High"
-                    value={fmtRupee(c.supportResistance.high52w)}
-                    tone="positive"
-                  />
-                  <StatMetric
-                    label="52 Week Low"
-                    value={fmtRupee(c.supportResistance.low52w)}
-                    tone="negative"
-                  />
-                </div>
-              </Section>
-
-              <Section label="Valuation">
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-y-6 gap-x-4">
-                  <StatMetric label="Market Cap" value={c.valuation.marketCap ?? "N/A"} />
-                  <StatMetric
-                    label="Enterprise Value"
-                    value={fmtCr(c.valuation.enterpriseValueCr)}
-                  />
-                  <StatMetric label="P/E Ratio" value={fmtX(c.valuation.pe)} />
-                  <StatMetric label="Forward P/E" value={fmtX(c.valuation.forwardPe)} />
-                  <StatMetric label="PEG Ratio" value={fmtNum(c.valuation.peg)} />
-                  <StatMetric label="Price to Book" value={fmtX(c.valuation.pb)} />
-                  <StatMetric label="EV/EBITDA" value={fmtX(c.valuation.evEbitda)} />
-                  <StatMetric label="Dividend Yield" value={fmtPct(c.valuation.divYield)} />
-                  <StatMetric label="Beta" value={fmtNum(c.valuation.beta)} />
-                  <StatMetric
-                    label="Shares Outstanding"
-                    value={fmtShares(c.valuation.sharesOutstanding)}
-                  />
-                  <StatMetric label="Free Float" value={fmtPct(c.valuation.freeFloatPct)} />
-                  <StatMetric
-                    label="Book Value / Share"
-                    value={fmtRupee(c.valuation.bookValuePerShare)}
-                  />
-                </div>
-              </Section>
-
-              <Section label="Quarterly Comparison">
-                <FinancialComparisonTable data={c.quarterlyComparison} />
-              </Section>
-
-              <Section label="Annual Comparison">
-                <FinancialComparisonTable data={c.annualComparison} />
-              </Section>
-
-              <Section label="Shareholding">
                 {c.shareholdingSummary.latestQuarter && (
-                  <p className="text-[13px] text-ink-subtle mb-3">
-                    {c.shareholdingSummary.latestQuarter}
+                  <p className="mt-8 text-[13px] text-ink-subtle mb-3">
+                    Shareholding — {c.shareholdingSummary.latestQuarter}
                     {c.shareholdingSummary.previousQuarter &&
                       ` vs ${c.shareholdingSummary.previousQuarter}`}
                     {c.shareholdingSummary.source === "yfinance_approx" &&
                       " · approximate (see note)"}
                   </p>
                 )}
-                <div className="w-full rounded-lg ring-1 ring-hairline overflow-hidden overflow-x-auto">
+                <div className="mt-8 w-full rounded-lg ring-1 ring-hairline overflow-hidden overflow-x-auto">
                   <table className="w-full border-collapse">
                     <thead>
                       <tr className="bg-secondary/50">
@@ -410,7 +281,138 @@ function ResearchDetail() {
                   </table>
                 </div>
               </Section>
+            </div>
 
+            {/* Technicals */}
+            <div className="mt-16">
+              <Section label="Technicals">
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-6 gap-x-6">
+                  <StatMetric label="RSI (14)" value={c.rsi.toFixed(0)} />
+                  <StatMetric
+                    label="Above 50 DMA"
+                    value={c.aboveEma50 ? "Yes" : "No"}
+                    tone={c.aboveEma50 ? "positive" : "negative"}
+                  />
+                  <StatMetric
+                    label="Above 200 DMA"
+                    value={c.aboveEma200 ? "Yes" : "No"}
+                    tone={c.aboveEma200 ? "positive" : "negative"}
+                  />
+                  <StatMetric
+                    label="Golden Cross"
+                    value={c.goldenCross ? "Yes" : "No"}
+                    tone={c.goldenCross ? "positive" : "neutral"}
+                  />
+                  <StatMetric
+                    label="Volume Breakout"
+                    value={c.volumeBreakout ? "Yes" : "No"}
+                    tone={c.volumeBreakout ? "positive" : "neutral"}
+                  />
+                  <StatMetric
+                    label="Trend"
+                    value={c.trend}
+                    tone={
+                      c.trend === "Uptrend"
+                        ? "positive"
+                        : c.trend === "Downtrend"
+                          ? "negative"
+                          : "neutral"
+                    }
+                  />
+                </div>
+              </Section>
+            </div>
+
+            {/* Valuation & price levels — grouped together since both
+                answer "is the current price reasonable". */}
+            <div className="mt-16 space-y-12">
+              <Section label="Valuation & Price Levels">
+                <div>
+                  <p className="text-metric-label mb-4">Valuation</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-6 gap-x-6">
+                    <StatMetric label="Market Cap" value={c.valuation.marketCap ?? "N/A"} />
+                    <StatMetric
+                      label="Enterprise Value"
+                      value={fmtCr(c.valuation.enterpriseValueCr)}
+                    />
+                    <StatMetric label="P/E Ratio" value={fmtX(c.valuation.pe)} />
+                    <StatMetric label="Forward P/E" value={fmtX(c.valuation.forwardPe)} />
+                    <StatMetric label="PEG Ratio" value={fmtNum(c.valuation.peg)} />
+                    <StatMetric label="Price to Book" value={fmtX(c.valuation.pb)} />
+                    <StatMetric label="EV/EBITDA" value={fmtX(c.valuation.evEbitda)} />
+                    <StatMetric label="Dividend Yield" value={fmtPct(c.valuation.divYield)} />
+                    <StatMetric label="Beta" value={fmtNum(c.valuation.beta)} />
+                    <StatMetric
+                      label="Shares Outstanding"
+                      value={fmtShares(c.valuation.sharesOutstanding)}
+                    />
+                    <StatMetric label="Free Float" value={fmtPct(c.valuation.freeFloatPct)} />
+                    <StatMetric
+                      label="Book Value / Share"
+                      value={fmtRupee(c.valuation.bookValuePerShare)}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-10 pt-10 hairline-t">
+                  <p className="text-metric-label mb-4">Support & Resistance</p>
+                  <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-y-6 gap-x-6">
+                    <StatMetric
+                      label="Support 1"
+                      value={fmtRupee(c.supportResistance.support1)}
+                      tone="negative"
+                    />
+                    <StatMetric
+                      label="Support 2"
+                      value={fmtRupee(c.supportResistance.support2)}
+                      tone="negative"
+                    />
+                    <StatMetric label="Pivot" value={fmtRupee(c.supportResistance.pivot)} />
+                    <StatMetric
+                      label="Resistance 1"
+                      value={fmtRupee(c.supportResistance.resistance1)}
+                      tone="positive"
+                    />
+                    <StatMetric
+                      label="Resistance 2"
+                      value={fmtRupee(c.supportResistance.resistance2)}
+                      tone="positive"
+                    />
+                    <StatMetric label="VWAP" value={fmtRupee(c.supportResistance.vwap)} />
+                    <StatMetric
+                      label="52 Week High"
+                      value={fmtRupee(c.supportResistance.high52w)}
+                      tone="positive"
+                    />
+                    <StatMetric
+                      label="52 Week Low"
+                      value={fmtRupee(c.supportResistance.low52w)}
+                      tone="negative"
+                    />
+                  </div>
+                </div>
+              </Section>
+            </div>
+
+            {/* Strengths, risks, and the due-diligence checklist — what's
+                working, what to watch, and what's left to verify, ahead
+                of the concluding score. */}
+            <div className="mt-16">
+              <Section label="Strengths & Risks">
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-16 gap-y-10">
+                  <div>
+                    <p className="text-metric-label mb-3">Strengths</p>
+                    <StrengthsList company={c} />
+                  </div>
+                  <div>
+                    <p className="text-metric-label mb-3">Risks</p>
+                    <RisksList company={c} />
+                  </div>
+                </div>
+              </Section>
+            </div>
+
+            <div className="mt-16">
               <Section label="Checklist">
                 <div className="rounded-xl ring-1 ring-hairline divide-y divide-hairline overflow-hidden">
                   {c.checklist.map((item) => (
@@ -432,16 +434,48 @@ function ResearchDetail() {
               </Section>
             </div>
 
-            <div className="mt-14 flex items-center gap-3">
-              <AddToIdeasButton symbol={c.symbol} size="md" />
-              <button
-                type="button"
-                onClick={() => setThesisFormOpen(true)}
-                className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md ring-1 ring-hairline text-sm font-medium hover:bg-secondary transition-colors"
-              >
-                <NotebookPen className="size-3.5" />
-                {existingThesis ? "Edit Thesis" : "Write Thesis"}
-              </button>
+            {/* Conclusion — the overall/fundamental/technical score is the
+                summary of everything above, not a preview of it, so it
+                closes the page. "Why this score?" lives here too, exactly
+                once, rather than being duplicated earlier. */}
+            <div className="mt-16 pt-10 hairline-t">
+              <Section label="Overall Assessment">
+                <div className="rounded-xl ring-1 ring-hairline bg-surface-raised p-6 sm:p-8">
+                  <div className="grid grid-cols-3 gap-y-6 gap-x-4">
+                    <StatMetric
+                      label="Overall Score"
+                      value={c.overallScore.toFixed(0) + "/100"}
+                      tone="positive"
+                      size="lg"
+                      highlight
+                    />
+                    <StatMetric
+                      label="Fundamental Score"
+                      value={c.fundamentalScore.toFixed(0) + "/100"}
+                      size="lg"
+                    />
+                    <StatMetric
+                      label="Technical Score"
+                      value={c.technicalScore.toFixed(0) + "/100"}
+                      size="lg"
+                    />
+                  </div>
+
+                  <ScoreBreakdownPanel company={c} />
+
+                  <div className="pt-6 flex flex-wrap items-center gap-3">
+                    <AddToIdeasButton symbol={c.symbol} size="md" />
+                    <button
+                      type="button"
+                      onClick={() => setThesisFormOpen(true)}
+                      className="inline-flex items-center gap-1.5 px-4 py-2 rounded-md ring-1 ring-hairline text-sm font-medium hover:bg-secondary transition-colors bg-surface-raised"
+                    >
+                      <NotebookPen className="size-3.5" />
+                      {existingThesis ? "Edit Thesis" : "Write Thesis"}
+                    </button>
+                  </div>
+                </div>
+              </Section>
             </div>
           </>
         )}
@@ -462,7 +496,7 @@ function ResearchDetail() {
 /** Quick-scan strengths list, folded from the same real `scoreBreakdown`
  * the full "Why this score?" panel renders, so nothing here is a second
  * source of truth: a metric is a strength when it passed and has real
- * data. Paired with the Fundamentals column. */
+ * data. Shown side by side with risks, ahead of the concluding score. */
 function StrengthsList({ company: c }: { company: Company }) {
   if (!c.scoreBreakdown) return null;
   const allMetrics = [...c.scoreBreakdown.fundamental, ...c.scoreBreakdown.technical];
@@ -470,24 +504,20 @@ function StrengthsList({ company: c }: { company: Company }) {
   if (strengths.length === 0) return null;
 
   return (
-    <div className="mb-6">
-      <p className="text-metric-label mb-2.5">Strengths</p>
-      <ul className="space-y-2">
-        {strengths.map((m) => (
-          <li key={m.metric} className="text-sm text-ink flex items-start gap-2.5">
-            <Check className="size-4 mt-0.5 shrink-0 text-positive" />
-            {m.reason}
-          </li>
-        ))}
-      </ul>
-    </div>
+    <ul className="space-y-2">
+      {strengths.map((m) => (
+        <li key={m.metric} className="text-sm text-ink flex items-start gap-2.5">
+          <Check className="size-4 mt-0.5 shrink-0 text-positive" />
+          {m.reason}
+        </li>
+      ))}
+    </ul>
   );
 }
 
 /** Same `scoreBreakdown` data, the failed side — a metric is a risk
- * when it didn't pass and has real data. Paired with the Technicals
- * column so the two-column desktop layout reads as "what's working /
- * what to watch" side by side. */
+ * when it didn't pass and has real data. Shown side by side with
+ * strengths, ahead of the concluding score. */
 function RisksList({ company: c }: { company: Company }) {
   if (!c.scoreBreakdown) {
     return <p className="text-sm text-ink-subtle">No score breakdown available yet.</p>;

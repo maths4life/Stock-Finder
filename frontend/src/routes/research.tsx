@@ -138,7 +138,7 @@ function ResearchIndex() {
           <>
             <div>
               {results.map((c) => (
-                <CompanyRow key={c.symbol} company={c} />
+                <CompanyRow key={c.symbol} company={c} showAddToIdeas={false} />
               ))}
             </div>
             {query.data && query.data.totalPages > 1 && (

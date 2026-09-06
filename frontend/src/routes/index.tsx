@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/shared/components/layout/AppShell";
 import { CompanyCard } from "@/features/company/components/CompanyCard";
 import { CompanyRow } from "@/features/company/components/CompanyRow";
@@ -9,11 +9,10 @@ import { DataFreshness } from "@/shared/components/common/DataFreshness";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
 import { qualifyingReasons } from "@/features/company/utils/qualifyingReasons";
-import { useDiscoverGroups, useMarketIndicators, usePipeline, useSectorPulse } from "@/features/market/hooks/useDiscover";
+import { useDiscoverGroups, useMarketIndicators, useSectorPulse } from "@/features/market/hooks/useDiscover";
 import { fetchDiscoverGroups } from "@/features/market/api/market";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { Company, DiscoverGroup } from "@/shared/api/types";
-import { ArrowUpRight } from "lucide-react";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) =>
@@ -48,16 +47,17 @@ function Discover() {
   return (
     <AppShell>
       <div className="page-container py-12 pb-24">
-        <header className="mb-14 animate-fade-up">
-          <p className="text-eyebrow text-accent mb-2">{formatToday()}</p>
-          <h1 className="text-display md:text-display-lg text-balance max-w-[22ch]">
-            Today's shortlist, before the market gets loud.
-          </h1>
-          <p className="mt-5 text-base text-ink-muted max-w-xl leading-relaxed">
-            A few companies worth investigating based on fundamentals, technicals and current signals.
-            Add one to your pipeline, or move on with a clear conscience.
-          </p>
-          <DataFreshness className="mt-4" />
+        <header className="mb-12 animate-fade-up flex flex-col sm:flex-row sm:items-end sm:justify-between gap-4">
+          <div>
+            <p className="text-eyebrow text-accent mb-2">{formatToday()}</p>
+            <h1 className="text-heading-xl md:text-display text-balance max-w-[26ch]">
+              Today's shortlist
+            </h1>
+            <p className="mt-3 text-sm text-ink-muted max-w-lg leading-relaxed">
+              Companies worth a look today, grouped by why they qualify.
+            </p>
+          </div>
+          <DataFreshness />
         </header>
 
         <div className="grid grid-cols-12 gap-x-12 gap-y-16">
@@ -72,11 +72,11 @@ function Discover() {
             ))}
           </div>
 
-          {/* Sidebar */}
-          <aside className="col-span-12 lg:col-span-4 space-y-8">
-            <PipelinePreview />
-            <SectorPulseList />
+          {/* Sidebar — market-wide context, freed up now that the pipeline
+              lives solely on the Ideas page (Section 4). */}
+          <aside className="col-span-12 lg:col-span-4 space-y-10">
             <MarketContextList />
+            <SectorPulseList />
           </aside>
         </div>
       </div>
@@ -103,15 +103,25 @@ function DiscoverGroupSection({ group, index }: { group: DiscoverGroup; index: n
           <Skeleton className="h-40 w-full rounded-md" />
         )
       ) : group.layout === "grid" ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {companies.map((c) => (
-            <CompanyCard key={c.symbol} company={c} note={<WhyThisStock company={c} />} />
+            <CompanyCard
+              key={c.symbol}
+              company={c}
+              note={<WhyThisStock company={c} />}
+              showAddToIdeas={false}
+            />
           ))}
         </div>
       ) : (
         <div>
           {companies.map((c) => (
-            <CompanyRow key={c.symbol} company={c} description={rowDescription(c)} />
+            <CompanyRow
+              key={c.symbol}
+              company={c}
+              description={rowDescription(c)}
+              showAddToIdeas={false}
+            />
           ))}
         </div>
       )}
@@ -146,97 +156,11 @@ function rowDescription(c: Company): string {
   return reasons.length > 0 ? reasons[0] : c.rationale;
 }
 
-function PipelinePreview() {
-  const { data: columns = [], isPending } = usePipeline();
-  const { data: companies = [] } = useCompaniesForSymbols(columns.flatMap((c) => c.items.map((i) => i.symbol)));
-  const companyBySymbol = new Map(companies.map((c) => [c.symbol, c]));
-
-  const stageColor: Record<string, string> = {
-    Watching: "bg-hairline-strong",
-    Researching: "bg-[oklch(0.65_0.14_75)]",
-    Conviction: "bg-positive",
-  };
-
-  return (
-    <div className="p-6 rounded-xl ring-1 ring-hairline bg-secondary/40 border-t-2 border-accent animate-fade-up">
-      <div className="flex items-center justify-between mb-5">
-        <h3 className="text-eyebrow text-ink-subtle">Active Pipeline</h3>
-        <Link to="/ideas" className="text-[11px] text-accent hover:underline underline-offset-2">
-          Full board
-        </Link>
-      </div>
-      {isPending ? (
-        <div className="space-y-4">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-5">
-          {columns.flatMap((stage) =>
-            stage.items.map((item) => {
-              const c = companyBySymbol.get(item.symbol);
-              if (!c) return null;
-              return (
-                <Link key={item.symbol + stage.stage} to="/research/$symbol" params={{ symbol: item.symbol }} className="flex gap-4 group">
-                  <div className={"w-1 rounded-full shrink-0 " + stageColor[stage.stage]} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-[10px] uppercase tracking-widest text-ink-subtle font-medium">{stage.stage}</p>
-                    <p className="text-sm font-medium mt-0.5 group-hover:text-accent transition-colors">{c.name}</p>
-                    <p className="text-[11px] text-ink-subtle mt-1 truncate">
-                      {item.note} · {item.ago}
-                    </p>
-                  </div>
-                </Link>
-              );
-            }),
-          )}
-        </div>
-      )}
-      <Link
-        to="/ideas"
-        className="mt-6 w-full py-2 px-3 flex items-center justify-center gap-2 rounded-md bg-accent text-accent-foreground text-sm font-medium hover:brightness-110 transition-all"
-      >
-        Open Pipeline
-        <ArrowUpRight className="size-3.5" />
-      </Link>
-    </div>
-  );
-}
-
-function SectorPulseList() {
-  const { data: sectors = [], isPending } = useSectorPulse();
-  return (
-    <div>
-      <h3 className="text-eyebrow text-ink-subtle mb-3">Top Sectors</h3>
-      {isPending ? (
-        <div className="space-y-4">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-12 w-full" />
-          ))}
-        </div>
-      ) : (
-        <div className="space-y-4">
-          {sectors.map((s) => (
-            <div key={s.sector}>
-              <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-ink">{s.sector}</span>
-                <SentimentBadge sentiment={s.sentiment} />
-              </div>
-              <p className="mt-1 text-[12px] text-ink-muted leading-snug text-pretty">{s.reason}</p>
-            </div>
-          ))}
-        </div>
-      )}
-    </div>
-  );
-}
-
 function MarketContextList() {
   const { data: indicators = [], isPending } = useMarketIndicators();
   return (
-    <div>
-      <h3 className="text-eyebrow text-ink-subtle mb-3">Market Context</h3>
+    <div className="p-6 rounded-xl ring-1 ring-hairline bg-surface-raised">
+      <h3 className="text-eyebrow text-ink-subtle mb-4">Market Context</h3>
       {isPending ? (
         <div className="space-y-2">
           {Array.from({ length: 5 }).map((_, i) => (
@@ -254,6 +178,34 @@ function MarketContextList() {
                   {m.change}
                 </span>
               </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function SectorPulseList() {
+  const { data: sectors = [], isPending } = useSectorPulse();
+  return (
+    <div className="p-6 rounded-xl ring-1 ring-hairline bg-surface-raised">
+      <h3 className="text-eyebrow text-ink-subtle mb-4">Top Sectors</h3>
+      {isPending ? (
+        <div className="space-y-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-12 w-full" />
+          ))}
+        </div>
+      ) : (
+        <div className="space-y-5">
+          {sectors.map((s) => (
+            <div key={s.sector}>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-ink">{s.sector}</span>
+                <SentimentBadge sentiment={s.sentiment} />
+              </div>
+              <p className="mt-1 text-[12px] text-ink-muted leading-snug text-pretty">{s.reason}</p>
             </div>
           ))}
         </div>

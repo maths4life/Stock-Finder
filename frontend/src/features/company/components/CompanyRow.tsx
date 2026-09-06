@@ -9,12 +9,14 @@ type Props = {
   /** Override the middle description column (defaults to the rationale). */
   description?: string;
   className?: string;
-  /** Show the Overall/Fundamental/Technical score cluster + "Add to Ideas". Default true. */
+  /** Show the Overall/Fundamental/Technical score cluster. Default true. */
   showScores?: boolean;
+  /** Show the "Add to Ideas" action. Independent of showScores. Default true. */
+  showAddToIdeas?: boolean;
 };
 
 /** Dense, single-line-ish row presentation used in list-style sections (Discover feed, Research library). */
-export function CompanyRow({ company: c, description, className, showScores = true }: Props) {
+export function CompanyRow({ company: c, description, className, showScores = true, showAddToIdeas = true }: Props) {
   const positive = c.changePct >= 0;
   return (
     <div
@@ -38,7 +40,10 @@ export function CompanyRow({ company: c, description, className, showScores = tr
       <Link
         to="/research/$symbol"
         params={{ symbol: c.symbol }}
-        className={cn("col-span-12", showScores ? "sm:col-span-4" : "sm:col-span-6")}
+        className={cn(
+          "col-span-12",
+          showScores ? (showAddToIdeas ? "sm:col-span-4" : "sm:col-span-5") : "sm:col-span-6",
+        )}
       >
         <p className="text-[13.5px] leading-relaxed text-ink-muted text-pretty line-clamp-2">
           {description ?? c.rationale}
@@ -83,7 +88,7 @@ export function CompanyRow({ company: c, description, className, showScores = tr
         </div>
         <p className="text-[11px] text-ink-subtle sm:my-1">{c.marketCap}</p>
       </Link>
-      {showScores && (
+      {showAddToIdeas && (
         <div className="col-span-12 sm:col-span-1 flex sm:justify-end">
           <AddToIdeasButton symbol={c.symbol} />
         </div>
