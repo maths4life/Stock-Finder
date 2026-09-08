@@ -28,6 +28,7 @@ from services.fundamental_service import (
     get_quarterly_financials,
     get_shareholding_trend,
 )
+from services.financial_statements_service import get_trend_signals, get_historical_pe_range
 from services.shareholding_service import get_shareholding_summary
 from services.scoring_service import (
     expected_return_and_horizon,
@@ -168,7 +169,7 @@ def _company_fields(row, spark: list, latest_volume: Optional[int], sector_avg_p
 
     debt_to_equity = row["debt_to_equity"]
     roe = row["roe_pct"]
-    risk = risk_level(debt_to_equity, roe)
+    risk = risk_level(debt_to_equity, roe, sector=row["sector"])
 
     avg_volume_20 = row["avg_volume_20"]
     volume_breakout = bool(
@@ -385,5 +386,9 @@ def get_company_by_symbol(symbol: str) -> Optional[dict]:
         fields["supportResistance"] = get_support_resistance(symbol_upper)
         fields["quarterlyComparison"] = get_quarterly_comparison(symbol_upper)
         fields["annualComparison"] = get_annual_comparison(symbol_upper)
+        fields["trendSignals"] = get_trend_signals(symbol_upper)
+        fields["historicalPeRange"] = get_historical_pe_range(
+            symbol_upper, fields.get("pe") or None
+        )
 
         return Company(**fields).model_dump()

@@ -1,6 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useMemo, useState } from "react";
-import { ChevronDown, RotateCcw, SearchX, Sparkles, X } from "lucide-react";
+import { ArrowUpDown, ChevronDown, RotateCcw, SearchX, Sparkles, X } from "lucide-react";
 import { AppShell } from "@/shared/components/layout/AppShell";
 import { PageHeader } from "@/shared/components/common/PageHeader";
 import { StatMetric } from "@/shared/components/common/StatMetric";
@@ -36,6 +36,30 @@ const PAGE_SIZE = 10;
  * no client-side filtering engine, no invented metrics. `undefined` means
  * "no bound set", not 0, so partially-filled ranges (e.g. Min only) work.
  */
+type SortField =
+  | "overallScore"
+  | "fundamentalScore"
+  | "technicalScore"
+  | "profitGrowthPct"
+  | "salesGrowthPct"
+  | "roe"
+  | "pe"
+  | "marketCapCr"
+  | "changePct";
+
+/** Maps UI-friendly labels to backend sort field names. */
+const SORT_OPTIONS: { value: SortField; label: string }[] = [
+  { value: "overallScore", label: "Score" },
+  { value: "fundamentalScore", label: "Fundamental" },
+  { value: "technicalScore", label: "Technical" },
+  { value: "profitGrowthPct", label: "Profit Growth" },
+  { value: "salesGrowthPct", label: "Revenue Growth" },
+  { value: "roe", label: "ROE" },
+  { value: "pe", label: "P/E" },
+  { value: "marketCapCr", label: "Market Cap" },
+  { value: "changePct", label: "Daily Change" },
+];
+
 type FilterState = {
   sector: string;
   minPe?: number;
@@ -58,6 +82,8 @@ type FilterState = {
   volumeBreakout: boolean;
   riskLevel: RiskLevel | "Any";
   horizon: CompanyQueryParams["horizon"];
+  sortField: SortField;
+  sortDirection: "asc" | "desc";
 };
 
 const DEFAULT_FILTERS: FilterState = {
@@ -67,6 +93,8 @@ const DEFAULT_FILTERS: FilterState = {
   volumeBreakout: false,
   riskLevel: "Any",
   horizon: "Any",
+  sortField: "overallScore",
+  sortDirection: "desc",
 };
 
 const PRESETS: { id: string; label: string; filters: Partial<FilterState> }[] = [
@@ -101,8 +129,8 @@ function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
     aboveEma200: filters.aboveEma200,
     aboveEma50: filters.aboveEma50,
     volumeBreakout: filters.volumeBreakout,
-    sort: "overallScore",
-    sortDirection: "desc",
+    sort: filters.sortField,
+    sortDirection: filters.sortDirection,
     page,
     pageSize: PAGE_SIZE,
   };
@@ -546,14 +574,53 @@ function Screener() {
           </div>
         )}
 
-        {/* Results */}
-        <div className="flex items-baseline gap-3 mb-6 hairline-b pb-3">
-          <span className="text-heading-xl tabular-nums">{query.data?.total ?? "–"}</span>
-          <span className="text-sm text-ink-muted">
-            {query.data?.total === 1
-              ? "company matches your criteria"
-              : "companies match your criteria"}
-          </span>
+        {/* Results header: count + sort controls */}
+        <div className="flex flex-wrap items-center justify-between gap-4 mb-6 hairline-b pb-3">
+          <div className="flex items-baseline gap-3">
+            <span className="text-heading-xl tabular-nums">{query.data?.total ?? "–"}</span>
+            <span className="text-sm text-ink-muted">
+              {query.data?.total === 1
+                ? "company matches your criteria"
+                : "companies match your criteria"}
+            </span>
+          </div>
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-[12px] text-ink-subtle">Sort by</span>
+            <Select
+              value={applied.sortField}
+              onValueChange={(v) => {
+                const next = { ...applied, sortField: v as SortField };
+                setFilters(next);
+                setApplied(next);
+                setPage(1);
+              }}
+            >
+              <SelectTrigger className="w-40 h-8 text-[12.5px]">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {SORT_OPTIONS.map((o) => (
+                  <SelectItem key={o.value} value={o.value} className="text-[12.5px]">
+                    {o.label}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <button
+              aria-label="Toggle sort direction"
+              onClick={() => {
+                const dir = (applied.sortDirection === "desc" ? "asc" : "desc") as "asc" | "desc";
+                const next = { ...applied, sortDirection: dir };
+                setFilters(next);
+                setApplied(next);
+                setPage(1);
+              }}
+              className="flex items-center gap-1 px-2.5 py-1.5 h-8 rounded-md ring-1 ring-hairline text-[12px] text-ink-muted hover:text-ink hover:bg-secondary transition-colors"
+            >
+              <ArrowUpDown className="size-3.5" />
+              {applied.sortDirection === "desc" ? "High → Low" : "Low → High"}
+            </button>
+          </div>
         </div>
 
         {query.isPending && <CompanyRowListSkeleton count={PAGE_SIZE} />}

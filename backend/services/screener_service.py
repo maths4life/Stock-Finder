@@ -46,6 +46,9 @@ VALID_SORT_FIELDS = {
     "changePct",
     "marketCapCr",
     "pe",
+    "roe",
+    "profitGrowthPct",
+    "salesGrowthPct",
     "name",
 }
 

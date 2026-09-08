@@ -14,10 +14,59 @@ here is real investment advice; see API_CONTRACT.md's known-gaps table.
 """
 from typing import Dict, List, Optional, Tuple
 
+# Sectors where structural high leverage is the business model (deposits,
+# borrowings, policy reserves, etc.) — a generic D/E threshold produces
+# actively wrong risk labels for these. Compared case-insensitively against
+# companies.sector, which Yahoo's classification fills in; keep broad so
+# sub-classifications like "Private Bank" or "Financial Services - Banking"
+# still match.
+_FINANCIAL_SECTOR_KEYWORDS = (
+    "bank",
+    "financial services",
+    "nbfc",
+    "insurance",
+    "housing finance",
+    "microfinance",
+)
 
-def risk_level(debt_to_equity: Optional[float], roe: Optional[float]) -> str:
-    """v1 heuristic: higher leverage or negative returns on capital reads
-    as higher risk. Not a real risk assessment."""
+
+def _is_financial_sector(sector: Optional[str]) -> bool:
+    """True when a company's sector structurally carries high D/E by design,
+    so the generic D/E threshold in risk_level() should not be applied."""
+    if not sector:
+        return False
+    s = sector.lower()
+    return any(kw in s for kw in _FINANCIAL_SECTOR_KEYWORDS)
+
+
+def risk_level(
+    debt_to_equity: Optional[float],
+    roe: Optional[float],
+    sector: Optional[str] = None,
+) -> str:
+    """Sector-aware risk heuristic.
+
+    Financial sector companies (banks, NBFCs, insurers, HFCs) carry
+    structurally high leverage because deposits and borrowings are the
+    business model — applying a D/E > 1.5 threshold to them would label
+    conservatively-run institutions like HDFC Bank as "High Risk", which
+    is actively misleading. For financial sector companies we classify on
+    ROE/profitability alone (loss-making = High, strong ROE = Low).
+
+    For all other sectors the original D/E-first heuristic is preserved
+    unchanged, so no existing behaviour changes for non-financial companies.
+    """
+    if _is_financial_sector(sector):
+        # Financial companies: ROE-based classification only.
+        if roe is None:
+            return "Moderate"
+        if roe < 0:
+            return "High"
+        if roe >= 15:
+            return "Low"
+        return "Moderate"
+
+    # Non-financial: original D/E threshold logic.
     if debt_to_equity is None:
         return "Moderate"
     if debt_to_equity > 1.5 or (roe is not None and roe < 0):

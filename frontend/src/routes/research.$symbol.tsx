@@ -18,7 +18,7 @@ import {
 import { useJournalEntries } from "@/features/journal/hooks/useJournalEntries";
 import { JournalEntryForm } from "@/features/journal/components/JournalEntryForm";
 import { queryKeys } from "@/shared/hooks/queryKeys";
-import type { Company, PriceRange } from "@/shared/api/types";
+import type { Company, HistoricalPeRange, PriceRange, TrendSignal } from "@/shared/api/types";
 
 const DEFAULT_PRICE_RANGE: PriceRange = "6M";
 
@@ -202,6 +202,14 @@ function ResearchDetail() {
                   />
                 </div>
 
+                {/* Trend signals — directional momentum over the last 4 quarters.
+                    Only shown when financial_statements has enough history.
+                    Renders nothing when trendSignals is empty or all Insufficient. */}
+                {c.trendSignals.length > 0 &&
+                  c.trendSignals.some((s) => s.direction !== "Insufficient") && (
+                    <TrendSignals signals={c.trendSignals} />
+                  )}
+
                 {c.shareholdingSummary.latestQuarter && (
                   <p className="mt-8 text-[13px] text-ink-subtle mb-3">
                     Shareholding — {c.shareholdingSummary.latestQuarter}
@@ -210,6 +218,42 @@ function ResearchDetail() {
                     {c.shareholdingSummary.source === "yfinance_approx" &&
                       " · approximate (see note)"}
                   </p>
+                )}
+
+                {/* Directional change badges — sourced from shareholdingSummary
+                    which the backend already computes (changePct = latest minus
+                    previous reporting period). Shown only when at least one
+                    category has a non-null change, so companies with a single
+                    period of data don't show empty badges. */}
+                {c.shareholdingSummary.categories.some((cat) => cat.changePct != null) && (
+                  <div className="mt-6 flex flex-wrap gap-2 mb-4">
+                    {c.shareholdingSummary.categories
+                      .filter((cat) => cat.changePct != null && cat.latest != null)
+                      .map((cat) => {
+                        const change = cat.changePct!;
+                        const up = change > 0;
+                        const neutral = Math.abs(change) < 0.05;
+                        const tone = neutral
+                          ? "text-ink-subtle"
+                          : up
+                            ? "text-positive"
+                            : "text-negative";
+                        const arrow = neutral ? "→" : up ? "↑" : "↓";
+                        const sign = change > 0 ? "+" : "";
+                        return (
+                          <span
+                            key={cat.category}
+                            className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-[11.5px] font-medium ring-1 ring-hairline ${tone}`}
+                          >
+                            <span className="text-ink-muted">{cat.category}</span>
+                            <span>{arrow}</span>
+                            <span className="font-mono tabular-nums">
+                              {sign}{change.toFixed(2)}pp
+                            </span>
+                          </span>
+                        );
+                      })}
+                  </div>
                 )}
                 <div className="mt-8 w-full rounded-lg ring-1 ring-hairline overflow-hidden overflow-x-auto">
                   <table className="w-full border-collapse">
@@ -353,6 +397,11 @@ function ResearchDetail() {
                     />
                   </div>
                 </div>
+
+{/* Historical P/E Range — contextualises current P/E vs own history */}
+                {c.historicalPeRange && c.historicalPeRange.pe_min !== null && (
+                  <HistoricalPeBand range={c.historicalPeRange} />
+                )}
 
                 <div className="mt-10 pt-10 hairline-t">
                   <p className="text-metric-label mb-4">Support & Resistance</p>
@@ -601,6 +650,169 @@ function ResearchDetailSkeleton() {
         ))}
       </div>
       <Skeleton className="h-20 w-full mt-8" />
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Trend Signals component (R1) — directional trend over the last 4 quarters.
+// ---------------------------------------------------------------------------
+
+const DIRECTION_CONFIG = {
+  Accelerating: {
+    icon: "↑",
+    label: "Accelerating",
+    className: "text-positive ring-positive/30 bg-positive/5",
+  },
+  Improving: {
+    icon: "↑",
+    label: "Improving",
+    className: "text-positive/80 ring-positive/20 bg-positive/5",
+  },
+  Steady: {
+    icon: "→",
+    label: "Steady",
+    className: "text-ink-subtle ring-hairline",
+  },
+  Decelerating: {
+    icon: "↓",
+    label: "Decelerating",
+    className: "text-[oklch(0.62_0.18_60)] ring-[oklch(0.62_0.18_60)]/25 bg-[oklch(0.62_0.18_60)]/5",
+  },
+  Contracting: {
+    icon: "↓",
+    label: "Contracting",
+    className: "text-negative ring-negative/25 bg-negative/5",
+  },
+  Insufficient: {
+    icon: "—",
+    label: "No data",
+    className: "text-ink-subtle ring-hairline opacity-50",
+  },
+} as const;
+
+function TrendSignals({ signals }: { signals: TrendSignal[] }) {
+  const visible = signals.filter((s) => s.direction !== "Insufficient");
+  if (visible.length === 0) return null;
+
+  return (
+    <div className="mt-8 pt-6 hairline-t">
+      <p className="text-[11px] font-mono uppercase tracking-[0.18em] text-ink-subtle mb-4">
+        4-Quarter Trend
+      </p>
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {visible.map((signal) => {
+          const cfg = DIRECTION_CONFIG[signal.direction] ?? DIRECTION_CONFIG.Steady;
+          const hasGain = signal.delta !== null;
+          const sign = signal.delta !== null && signal.delta > 0 ? "+" : "";
+          const deltaStr =
+            signal.unit === "%"
+              ? `${sign}${signal.delta?.toFixed(1)}pp`
+              : signal.delta !== null
+                ? `${sign}${
+                    Math.abs(signal.delta) >= 1000
+                      ? (signal.delta / 1000).toFixed(1) + "K"
+                      : signal.delta.toFixed(0)
+                  } Cr`
+                : null;
+
+          return (
+            <div key={signal.metric} className={`rounded-lg p-3.5 ring-1 ${cfg.className}`}>
+              <p className="text-[11px] font-medium text-ink-muted mb-1.5">{signal.metric}</p>
+              <div className="flex items-center gap-1.5">
+                <span className="text-lg leading-none font-semibold">{cfg.icon}</span>
+                <span className="text-[13px] font-semibold">{cfg.label}</span>
+              </div>
+              {hasGain && deltaStr && (
+                <p className="mt-1 text-[11px] font-mono tabular-nums text-ink-muted">
+                  {deltaStr} over 4Q
+                </p>
+              )}
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Historical P/E Band component (R7)
+// ---------------------------------------------------------------------------
+
+function HistoricalPeBand({ range }: { range: HistoricalPeRange }) {
+  const { pe_min, pe_max, pe_median, current_pe, percentile, years } = range;
+  if (pe_min === null || pe_max === null) return null;
+
+  const span = pe_max - pe_min;
+
+  // Position of a value as a percentage of the min→max range, clamped 0-100.
+  const pct = (v: number) =>
+    span === 0 ? 50 : Math.max(0, Math.min(100, ((v - pe_min) / span) * 100));
+
+  const verdict =
+    percentile === null
+      ? null
+      : percentile >= 75
+        ? { label: "Expensive vs. own history", className: "text-negative" }
+        : percentile >= 40
+          ? { label: "Fairly valued vs. own history", className: "text-ink-muted" }
+          : { label: "Below historical median", className: "text-positive" };
+
+  return (
+    <div className="mt-8 pt-6 hairline-t">
+      <div className="flex items-baseline justify-between mb-3">
+        <p className="text-[12px] font-medium text-ink-muted">
+          Historical P/E Range ({years}Y)
+        </p>
+        {verdict && (
+          <p className={`text-[12px] font-medium ${verdict.className}`}>{verdict.label}</p>
+        )}
+      </div>
+
+      {/* Range bar */}
+      <div className="relative h-2 w-full rounded-full bg-secondary overflow-visible mb-3">
+        {/* Median marker */}
+        {pe_median !== null && (
+          <div
+            className="absolute top-1/2 -translate-y-1/2 w-px h-4 bg-ink-subtle"
+            style={{ left: `${pct(pe_median)}%` }}
+            title={`Median: ${pe_median}x`}
+          />
+        )}
+        {/* Filled bar from min to current */}
+        {current_pe !== null && (
+          <div
+            className="absolute top-0 left-0 h-full rounded-full bg-accent/40"
+            style={{ width: `${pct(current_pe)}%` }}
+          />
+        )}
+        {/* Current P/E dot */}
+        {current_pe !== null && (
+          <div
+            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-accent ring-2 ring-surface"
+            style={{ left: `${pct(current_pe)}%` }}
+            title={`Current: ${current_pe}x`}
+          />
+        )}
+      </div>
+
+      {/* Labels */}
+      <div className="flex items-baseline justify-between font-mono text-[11px] tabular-nums">
+        <span className="text-ink-subtle">{pe_min}x</span>
+        {pe_median !== null && (
+          <span className="text-ink-subtle">
+            Med {pe_median}x
+          </span>
+        )}
+        <span className="text-ink-subtle">{pe_max}x</span>
+      </div>
+
+      {percentile !== null && current_pe !== null && (
+        <p className="mt-2 text-[11px] text-ink-subtle font-mono">
+          Current {current_pe}x · {percentile}th percentile of {years}-year range
+        </p>
+      )}
     </div>
   );
 }

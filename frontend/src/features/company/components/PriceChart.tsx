@@ -120,6 +120,8 @@ type PanelHandle = {
  * lightweight-charts instance since Radix only mounts DialogContent while open. */
 function PriceChartPanel({ data, heightClassName }: { data: PriceBar[]; heightClassName: string }) {
   const [showVolume, setShowVolume] = useState(true);
+  const [showMa50, setShowMa50] = useState(true);
+  const [showMa200, setShowMa200] = useState(true);
   const chartRef = useRef<PanelHandle>(null);
   const latest = data[data.length - 1];
   const first = data[0];
@@ -154,6 +156,43 @@ function PriceChartPanel({ data, heightClassName }: { data: PriceBar[]; heightCl
           )}
         </div>
         <div className="flex items-center gap-1">
+          {/* MA legend */}
+          {showMa50 && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-ink-subtle mr-1">
+              <span className="inline-block w-4 h-px bg-accent align-middle" />
+              50D
+            </span>
+          )}
+          {showMa200 && (
+            <span className="hidden sm:inline-flex items-center gap-1 text-[10px] font-mono text-ink-subtle mr-2">
+              <span className="inline-block w-4 h-px bg-[oklch(0.62_0.18_60)] align-middle" />
+              200D
+            </span>
+          )}
+          <button
+            onClick={() => setShowMa50((v) => !v)}
+            title="Toggle 50-day MA"
+            className={
+              "px-2 py-1 rounded-md ring-1 ring-hairline text-[10px] font-mono transition-colors " +
+              (showMa50
+                ? "bg-secondary text-ink"
+                : "text-ink-subtle hover:text-ink hover:bg-secondary")
+            }
+          >
+            50D
+          </button>
+          <button
+            onClick={() => setShowMa200((v) => !v)}
+            title="Toggle 200-day MA"
+            className={
+              "px-2 py-1 rounded-md ring-1 ring-hairline text-[10px] font-mono transition-colors " +
+              (showMa200
+                ? "bg-secondary text-ink"
+                : "text-ink-subtle hover:text-ink hover:bg-secondary")
+            }
+          >
+            200D
+          </button>
           <button
             onClick={() => setShowVolume((v) => !v)}
             title="Toggle volume"
@@ -186,6 +225,8 @@ function PriceChartPanel({ data, heightClassName }: { data: PriceBar[]; heightCl
         ref={chartRef}
         data={data}
         showVolume={showVolume}
+        showMa50={showMa50}
+        showMa200={showMa200}
         className="w-full flex-1 min-h-0"
         onCrosshairMove={setHovered}
       />
@@ -244,6 +285,7 @@ function resolvedThemeColors() {
     hairline: resolveCssColor(cssVar("--hairline")),
     positive: resolveCssColor(cssVar("--positive")),
     negative: resolveCssColor(cssVar("--negative")),
+    accent: resolveCssColor(cssVar("--accent")),
   };
 }
 
@@ -261,14 +303,18 @@ const CandlestickChart = forwardRef<
   {
     data: PriceBar[];
     showVolume: boolean;
+    showMa50: boolean;
+    showMa200: boolean;
     className: string;
     onCrosshairMove: (bar: PriceBar | null) => void;
   }
->(function CandlestickChart({ data, showVolume, className, onCrosshairMove }, ref) {
+>(function CandlestickChart({ data, showVolume, showMa50, showMa200, className, onCrosshairMove }, ref) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartApiRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
   const volumeSeriesRef = useRef<ISeriesApi<"Histogram"> | null>(null);
+  const ma50SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
+  const ma200SeriesRef = useRef<ISeriesApi<"Line"> | null>(null);
   const dataRef = useRef(data);
   dataRef.current = data;
   const [mounted, setMounted] = useState(false);
@@ -302,9 +348,9 @@ const CandlestickChart = forwardRef<
     let cancelled = false;
 
     import("lightweight-charts").then(
-      ({ createChart, CandlestickSeries, HistogramSeries, ColorType, CrosshairMode }) => {
+      ({ createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType, CrosshairMode }) => {
         if (cancelled || !el) return;
-        const { ink, inkMuted, hairline, positive, negative } = resolvedThemeColors();
+        const { ink, inkMuted, hairline, positive, negative, accent } = resolvedThemeColors();
 
         const chart = createChart(el, {
           autoSize: true,
@@ -357,6 +403,27 @@ const CandlestickChart = forwardRef<
           visible: false,
         });
 
+        // 50 DMA — accent color (blue/primary)
+        const ma50Series = chart.addSeries(LineSeries, {
+          color: accent,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+          visible: showMa50,
+        });
+
+        // 200 DMA — amber
+        const ma200Color = resolveCssColor("oklch(0.62 0.18 60)");
+        const ma200Series = chart.addSeries(LineSeries, {
+          color: ma200Color,
+          lineWidth: 1,
+          priceLineVisible: false,
+          lastValueVisible: false,
+          crosshairMarkerVisible: false,
+          visible: showMa200,
+        });
+
         chart.subscribeCrosshairMove((param) => {
           const bar = param.time
             ? (dataRef.current.find((d) => d.date === param.time) ?? null)
@@ -367,9 +434,12 @@ const CandlestickChart = forwardRef<
         chartApiRef.current = chart;
         candleSeriesRef.current = candleSeries;
         volumeSeriesRef.current = volumeSeries;
+        ma50SeriesRef.current = ma50Series;
+        ma200SeriesRef.current = ma200Series;
 
         // Data may have been set (or changed) while the module was loading.
         pushChartData(candleSeries, volumeSeries, dataRef.current, positive, negative);
+        pushMaData(ma50Series, ma200Series, dataRef.current);
         chart.timeScale().fitContent();
       },
     );
@@ -380,6 +450,8 @@ const CandlestickChart = forwardRef<
       chartApiRef.current = null;
       candleSeriesRef.current = null;
       volumeSeriesRef.current = null;
+      ma50SeriesRef.current = null;
+      ma200SeriesRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chart is created once after mount; data/theme are pushed via the effects below
   }, [mounted]);
@@ -390,6 +462,9 @@ const CandlestickChart = forwardRef<
     if (!candleSeriesRef.current || !volumeSeriesRef.current) return;
     const { positive, negative } = resolvedThemeColors();
     pushChartData(candleSeriesRef.current, volumeSeriesRef.current, data, positive, negative);
+    if (ma50SeriesRef.current && ma200SeriesRef.current) {
+      pushMaData(ma50SeriesRef.current, ma200SeriesRef.current, data);
+    }
     chartApiRef.current?.timeScale().fitContent();
   }, [data, mounted]);
 
@@ -401,6 +476,17 @@ const CandlestickChart = forwardRef<
     });
     volumeSeriesRef.current?.applyOptions({ visible: showVolume });
   }, [showVolume, mounted]);
+
+  // Toggle MA visibility without touching data.
+  useEffect(() => {
+    if (!mounted) return;
+    ma50SeriesRef.current?.applyOptions({ visible: showMa50 });
+  }, [showMa50, mounted]);
+
+  useEffect(() => {
+    if (!mounted) return;
+    ma200SeriesRef.current?.applyOptions({ visible: showMa200 });
+  }, [showMa200, mounted]);
 
   return <div ref={containerRef} className={className} />;
 });
@@ -432,5 +518,42 @@ function pushChartData(
       value: d.volume,
       color: i === 0 || d.close >= sorted[i - 1].close ? upFill : downFill,
     })),
+  );
+}
+
+/** Computes a simple moving average and pushes it to a line series.
+ * Called both on initial chart creation and whenever price data changes. */
+function computeSma(closes: number[], period: number): number[] {
+  const out: number[] = [];
+  for (let i = 0; i < closes.length; i++) {
+    if (i < period - 1) {
+      out.push(NaN);
+    } else {
+      const slice = closes.slice(i - period + 1, i + 1);
+      out.push(slice.reduce((a, b) => a + b, 0) / period);
+    }
+  }
+  return out;
+}
+
+function pushMaData(
+  ma50Series: ISeriesApi<"Line">,
+  ma200Series: ISeriesApi<"Line">,
+  data: PriceBar[],
+) {
+  const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
+  const closes = sorted.map((d) => d.close);
+  const sma50 = computeSma(closes, 50);
+  const sma200 = computeSma(closes, 200);
+
+  ma50Series.setData(
+    sorted
+      .map((d, i) => ({ time: d.date as UTCTimestamp | string, value: sma50[i] }))
+      .filter((p) => !isNaN(p.value)),
+  );
+  ma200Series.setData(
+    sorted
+      .map((d, i) => ({ time: d.date as UTCTimestamp | string, value: sma200[i] }))
+      .filter((p) => !isNaN(p.value)),
   );
 }

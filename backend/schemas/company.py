@@ -219,6 +219,33 @@ class CompanyListItem(CompanyBase):
     keeps GET /companies cheap regardless of what Module 3 adds."""
 
 
+class TrendSignal(BaseModel):
+    """One directional trend signal over the last 4 quarters, computed by
+    financial_statements_service.get_trend_signals(). `direction` is one of:
+    Accelerating | Improving | Steady | Decelerating | Contracting | Insufficient.
+    `delta` is the raw difference (newest minus oldest, same units as series).
+    `unit` is 'Cr' for absolute amounts or '%' for margin metrics."""
+
+    metric: str
+    direction: str
+    delta: Optional[float] = None
+    unit: str = ""
+    series: List[Optional[float]] = Field(default_factory=list)
+
+
+class HistoricalPeRange(BaseModel):
+    """Approximate historical P/E band computed from annual EPS (financial_statements)
+    and annual OHLC (prices_daily) — see financial_statements_service.get_historical_pe_range.
+    None fields mean the data didn't exist (e.g. company is too new)."""
+
+    pe_min: Optional[float] = None
+    pe_max: Optional[float] = None
+    pe_median: Optional[float] = None
+    current_pe: Optional[float] = None
+    percentile: Optional[int] = None
+    years: int = 0
+
+
 class Company(CompanyBase):
     """Returned by GET /company/{symbol} — the complete object, including
     the deep-research fields Module 3 will populate."""
@@ -232,6 +259,8 @@ class Company(CompanyBase):
     supportResistance: PivotLevels = Field(default_factory=PivotLevels)
     quarterlyComparison: ComparisonTable = Field(default_factory=ComparisonTable)
     annualComparison: ComparisonTable = Field(default_factory=ComparisonTable)
+    trendSignals: List[TrendSignal] = Field(default_factory=list)
+    historicalPeRange: Optional[HistoricalPeRange] = None
 
     # "Why this score?" — full transparency for fundamentalScore /
     # technicalScore / overallScore above. Every entry traces back to a

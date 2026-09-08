@@ -146,6 +146,31 @@ export type ScoreWeighting = {
   technical: number; // e.g. 0.4
 };
 
+/** Approximate historical P/E band — computed from annual EPS (financial_statements)
+ * and annual OHLC (prices_daily). See backend get_historical_pe_range(). */
+export type HistoricalPeRange = {
+  pe_min: number | null;
+  pe_max: number | null;
+  pe_median: number | null;
+  current_pe: number | null;
+  percentile: number | null;
+  years: number;
+};
+
+/** Directional trend signal over the last 4 quarters, computed by
+ * backend/services/financial_statements_service.get_trend_signals().
+ * direction is one of: Accelerating | Improving | Steady | Decelerating |
+ * Contracting | Insufficient (the last when fewer than 2 periods exist).
+ * delta is the raw numeric change (newest minus oldest period), same units
+ * as the series values. unit is 'Cr' for absolute amounts, '%' for margins. */
+export type TrendSignal = {
+  metric: string;
+  direction: "Accelerating" | "Improving" | "Steady" | "Decelerating" | "Contracting" | "Insufficient";
+  delta: number | null;
+  unit: string;
+  series: (number | null)[];
+};
+
 export type Company = {
   symbol: string;
   exchange: string;
@@ -215,6 +240,14 @@ export type Company = {
   supportResistance: PivotLevels;
   quarterlyComparison: ComparisonTable;
   annualComparison: ComparisonTable;
+
+  // Directional trend signals — computed from the last 4 quarters of
+  // financial_statements. Empty array when financial_statements has no
+  // quarterly data for this symbol yet.
+  trendSignals: TrendSignal[];
+
+  // Historical P/E band — null when insufficient history (<2 annual periods).
+  historicalPeRange: HistoricalPeRange | null;
 };
 
 /** GET /company/{symbol}/prices row — mirrors backend/schemas/technical.py's PriceBar exactly. */
@@ -236,6 +269,9 @@ export type CompanySort =
   | "changePct"
   | "marketCapCr"
   | "pe"
+  | "roe"
+  | "profitGrowthPct"
+  | "salesGrowthPct"
   | "name";
 
 export type SortDirection = "asc" | "desc";
