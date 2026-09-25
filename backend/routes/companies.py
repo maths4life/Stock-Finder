@@ -31,6 +31,8 @@ def companies(
     aboveEma200: Optional[bool] = Query(None),  # noqa: N803
     aboveEma50: Optional[bool] = Query(None),  # noqa: N803
     volumeBreakout: Optional[bool] = Query(None),  # noqa: N803
+    minMarketCap: Optional[float] = Query(None, description="Minimum market cap in Crores"),  # noqa: N803
+    maxMarketCap: Optional[float] = Query(None, description="Maximum market cap in Crores"),  # noqa: N803
     sort: Optional[str] = Query(None, description="overallScore|fundamentalScore|technicalScore|changePct|marketCapCr|pe|name"),
     sortDirection: str = Query("desc", description="asc|desc"),  # noqa: N803
     page: int = Query(1, ge=1),
@@ -56,6 +58,8 @@ def companies(
         above_ema_200=aboveEma200,
         above_ema_50=aboveEma50,
         volume_breakout=volumeBreakout,
+        min_market_cap=minMarketCap,
+        max_market_cap=maxMarketCap,
         sort=sort or "overallScore",
         sort_direction=sortDirection,
         page=page,

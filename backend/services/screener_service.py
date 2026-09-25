@@ -90,6 +90,8 @@ def _matches(
     above_ema_200: Optional[bool],
     above_ema_50: Optional[bool],
     volume_breakout: Optional[bool],
+    min_market_cap: Optional[float],
+    max_market_cap: Optional[float],
 ) -> bool:
     if sector and sector != "All" and c["sector"] != sector:
         return False
@@ -127,6 +129,10 @@ def _matches(
         return False
     if volume_breakout and not c["volumeBreakout"]:
         return False
+    if min_market_cap is not None and (c.get("marketCapCr") or 0) < min_market_cap:
+        return False
+    if max_market_cap is not None and (c.get("marketCapCr") or 0) > max_market_cap:
+        return False
     return True
 
 
@@ -150,6 +156,8 @@ def screen_companies(
     above_ema_200: Optional[bool] = None,
     above_ema_50: Optional[bool] = None,
     volume_breakout: Optional[bool] = None,
+    min_market_cap: Optional[float] = None,
+    max_market_cap: Optional[float] = None,
     sort: str = DEFAULT_SORT,
     sort_direction: str = "desc",
     page: int = 1,
@@ -190,6 +198,8 @@ def screen_companies(
             above_ema_200=above_ema_200,
             above_ema_50=above_ema_50,
             volume_breakout=volume_breakout,
+            min_market_cap=min_market_cap,
+            max_market_cap=max_market_cap,
         )
     ]
 

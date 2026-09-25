@@ -36,9 +36,42 @@ from schemas.discover import DiscoverGroup, MarketIndicator, PipelineColumn, Pip
 
 _GROUP_DEFS = [
     {
-        "id": "fundamentals",
-        "label": "Improving Fundamentals",
-        "tagline": "Companies where the numbers turned a corner this quarter.",
+        "id": "qarp",
+        "label": "Quality at a Reasonable Price",
+        "tagline": "High-ROE businesses trading below their sector's median P/E.",
+        "layout": "list",
+        "limit": 3,
+        "query": text(
+            """
+            with sector_median_pe as (
+                select
+                    c2.sector,
+                    percentile_cont(0.5) within group (order by f2.pe) as median_pe
+                from companies c2
+                join financials_quarterly f2
+                    on f2.symbol = c2.symbol and f2.quarter = 'latest'
+                where f2.pe > 0 and f2.pe < 200 and c2.sector is not null
+                group by c2.sector
+            )
+            select c.symbol
+            from companies c
+            join financials_quarterly f
+                on f.symbol = c.symbol and f.quarter = 'latest'
+            join sector_median_pe smp on smp.sector = c.sector
+            left join scores s on s.symbol = c.symbol
+            where c.is_active
+              and f.roe_pct >= 15
+              and f.pe > 0
+              and f.pe < smp.median_pe
+            order by f.roe_pct desc
+            limit :limit
+            """
+        ),
+    },
+    {
+        "id": "profit_acceleration",
+        "label": "Margin Expansion",
+        "tagline": "Profit growing faster than revenue — the clearest sign of improving business quality.",
         "layout": "list",
         "limit": 3,
         "query": text(
@@ -47,17 +80,21 @@ _GROUP_DEFS = [
             from companies c
             join financials_quarterly f
                 on f.symbol = c.symbol and f.quarter = 'latest'
-            where (f.revenue_growth_pct is not null and f.revenue_growth_pct > 0)
-               or (f.profit_growth_pct is not null and f.profit_growth_pct > 0)
-            order by (coalesce(f.revenue_growth_pct, 0) + coalesce(f.profit_growth_pct, 0)) desc
+            left join scores s on s.symbol = c.symbol
+            where c.is_active
+              and f.profit_growth_pct is not null
+              and f.revenue_growth_pct is not null
+              and f.profit_growth_pct > 10
+              and f.profit_growth_pct > f.revenue_growth_pct
+            order by (f.profit_growth_pct - f.revenue_growth_pct) desc
             limit :limit
             """
         ),
     },
     {
-        "id": "technicals",
-        "label": "Technical Momentum",
-        "tagline": "Clean breakouts and healthy accumulation zones.",
+        "id": "momentum_recovery",
+        "label": "Momentum Turning Up",
+        "tagline": "Stocks recovering above the 200-day average with RSI in a constructive zone.",
         "layout": "grid",
         "limit": 2,
         "query": text(
@@ -66,46 +103,31 @@ _GROUP_DEFS = [
             from companies c
             join technical_snapshot t on t.symbol = c.symbol
             left join scores s on s.symbol = c.symbol
-            where t.above_200dma = true
-              and t.rsi_14 is not null
-              and t.rsi_14 between 50 and 72
-            order by coalesce(s.technical_score, 0) desc
+            where c.is_active
+              and t.above_200dma = true
+              and t.rsi_14 between 50 and 68
+              and t.above_50dma = false
+            order by coalesce(s.fundamental_score, 0) desc
             limit :limit
             """
         ),
     },
     {
-        "id": "smallcap",
-        "label": "Small & Mid Cap Watch",
-        "tagline": "Under-covered names with the strongest scores in their weight class.",
+        "id": "quality_pullback",
+        "label": "Quality on Pullback",
+        "tagline": "Strong fundamentals, price below the 200-day average — potential entry zones.",
         "layout": "list",
-        "limit": 2,
-        "query": text(
-            """
-            select c.symbol
-            from companies c
-            join financials_quarterly f
-                on f.symbol = c.symbol and f.quarter = 'latest'
-            left join scores s on s.symbol = c.symbol
-            where f.market_cap_cr is not null and f.market_cap_cr < 20000
-            order by coalesce(s.overall_score, 0) desc
-            limit :limit
-            """
-        ),
-    },
-    {
-        "id": "movers",
-        "label": "Biggest Movers",
-        "tagline": "Companies moving the most today, up or down.",
-        "layout": "list",
-        "limit": 2,
+        "limit": 3,
         "query": text(
             """
             select c.symbol
             from companies c
             join technical_snapshot t on t.symbol = c.symbol
-            where t.change_pct is not null
-            order by abs(t.change_pct) desc
+            left join scores s on s.symbol = c.symbol
+            where c.is_active
+              and t.above_200dma = false
+              and coalesce(s.fundamental_score, 0) >= 60
+            order by coalesce(s.fundamental_score, 0) desc
             limit :limit
             """
         ),

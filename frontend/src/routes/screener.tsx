@@ -77,6 +77,8 @@ type FilterState = {
   maxRevenueGrowth?: number;
   maxDebtToEquity?: number;
   minPromoterHolding?: number;
+  minMarketCap?: number; // Crores
+  maxMarketCap?: number; // Crores
   aboveEma200: boolean;
   aboveEma50: boolean;
   volumeBreakout: boolean;
@@ -107,6 +109,9 @@ const PRESETS: { id: string; label: string; filters: Partial<FilterState> }[] = 
     filters: { aboveEma200: true, aboveEma50: true, volumeBreakout: true },
   },
   { id: "low-risk", label: "Low Risk", filters: { riskLevel: "Low" } },
+  { id: "largecap", label: "Large Cap", filters: { minMarketCap: 20000 } },
+  { id: "midcap", label: "Mid Cap", filters: { minMarketCap: 5000, maxMarketCap: 20000 } },
+  { id: "smallcap", label: "Small Cap", filters: { maxMarketCap: 5000 } },
 ];
 
 function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
@@ -126,6 +131,8 @@ function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
     maxSalesGrowth: filters.maxRevenueGrowth,
     maxDebtToEquity: filters.maxDebtToEquity,
     minPromoterHolding: filters.minPromoterHolding,
+    minMarketCap: filters.minMarketCap,
+    maxMarketCap: filters.maxMarketCap,
     aboveEma200: filters.aboveEma200,
     aboveEma50: filters.aboveEma50,
     volumeBreakout: filters.volumeBreakout,

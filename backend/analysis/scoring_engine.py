@@ -310,36 +310,52 @@ _FUNDAMENTAL_RULES = [
 # Technical metrics
 # ---------------------------------------------------------------------------
 # Max points sum to 100 when every input is available:
-#   RSI 20 · Above 50 DMA 15 · Above 200 DMA 20 · Golden/Death Cross 15 ·
-#   Volume Breakout 10 · 52-Week Range Position 20
+#   RSI 25 · Above 200 DMA 20 · Above 50 DMA 15 · Golden/Death Cross 15 ·
+#   Volume Breakout 15 · 52-Week Range Position 10
 #
-# Weighting rationale: the 200-day trend (20 pts) is weighted above the
-# 50-day trend (15 pts) because the long-term trend is the more decisive
-# regime signal; RSI and 52-week range position (20 pts each) both
-# capture momentum/positioning but from different angles (oscillator vs.
-# price level) so both are kept, at equal weight, rather than letting one
-# proxy for the other. Golden/death cross is a trend-*change* signal,
-# distinct from the above-DMA level checks, so it is not a duplicate.
+# Rebalancing rationale (v2, fixes the "rewards buying at highs" bias
+# identified in the scoring audit):
+#
+# - RSI raised 20→25: the most nuanced technical indicator available; its
+#   overbought/oversold/constructive bands already encode both momentum quality
+#   and reversal risk, so giving it the top weight makes the score more
+#   sensitive to actual momentum health rather than price level.
+#
+# - Volume Breakout raised 10→15: genuine institutional participation signal
+#   that is independent of price level. A stock near 52-week lows with a
+#   volume surge is a very different situation from one at highs; this weight
+#   lets that information surface.
+#
+# - 52-Week Range Position cut 20→10 AND rewritten as a bell curve: the
+#   old linear score (90th percentile = full marks) created a feedback loop
+#   where already-extended stocks always scored higher than oversold quality
+#   names. The new curve rewards the 30-70% zone (healthy accumulation) with
+#   full marks; near highs and near lows both earn partial credit but with
+#   different explanatory notes, letting the user distinguish between
+#   "extended" and "opportunity" rather than treating both as failures.
+#
+# - DMA weights unchanged: 200-day trend (20 pts) as the regime signal and
+#   50-day trend (15 pts) as the confirmation overlay remain the right split
+#   for a multi-month investing horizon.
 
 
 def _score_rsi(m: Dict) -> ScoreMetric:
     rsi = m.get("rsi")
     if rsi is None or rsi <= 0:
         return _unavailable("RSI (14)", "RSI data is not available for this company.")
-    # Bands match the qualitative thresholds already used elsewhere on
-    # the platform (analysis/rules/technical.momentum_notes): >70
-    # overbought, <30 oversold, 55-70 constructive, 45-55 neutral.
+    # Bands: >70 overbought, <30 oversold, 55-70 constructive, 45-55 neutral.
+    # Max raised to 25 pts from 20 — most nuanced single technical indicator.
     if rsi >= 80:
-        return _metric("RSI (14)", rsi, 6, 20, False, f"RSI of {rsi:.0f} is extremely overbought, elevated reversal risk.")
+        return _metric("RSI (14)", rsi, 8, 25, False, f"RSI of {rsi:.0f} is extremely overbought — momentum is stretched, elevated reversal risk.")
     if rsi >= 70:
-        return _metric("RSI (14)", rsi, 10, 20, False, f"RSI of {rsi:.0f} is overbought.")
+        return _metric("RSI (14)", rsi, 13, 25, False, f"RSI of {rsi:.0f} is overbought.")
     if rsi >= 55:
-        return _metric("RSI (14)", rsi, 20, 20, True, f"RSI of {rsi:.0f} shows healthy, constructive momentum.")
+        return _metric("RSI (14)", rsi, 25, 25, True, f"RSI of {rsi:.0f} shows healthy, constructive momentum.")
     if rsi >= 45:
-        return _metric("RSI (14)", rsi, 15, 20, True, f"RSI of {rsi:.0f} is neutral.")
+        return _metric("RSI (14)", rsi, 18, 25, True, f"RSI of {rsi:.0f} is neutral — no strong momentum signal.")
     if rsi >= 30:
-        return _metric("RSI (14)", rsi, 8, 20, False, f"RSI of {rsi:.0f} shows cooling, soft momentum.")
-    return _metric("RSI (14)", rsi, 4, 20, False, f"RSI of {rsi:.0f} is oversold — momentum-negative even if the stock looks 'cheap'.")
+        return _metric("RSI (14)", rsi, 10, 25, False, f"RSI of {rsi:.0f} shows cooling momentum.")
+    return _metric("RSI (14)", rsi, 5, 25, False, f"RSI of {rsi:.0f} is oversold — momentum is negative regardless of price level.")
 
 
 def _score_above_50dma(m: Dict) -> ScoreMetric:
@@ -377,26 +393,34 @@ def _score_volume_breakout(m: Dict) -> ScoreMetric:
     if v is None:
         return _unavailable("Volume Breakout", "Volume data is not available for this company.")
     if v:
-        return _metric("Volume Breakout", True, 10, 10, True, "Recent volume surged more than 1.5x the 20-day average, signaling a pickup in participation.")
-    return _metric("Volume Breakout", False, 5, 10, True, "Volume is trading in line with its 20-day average — no penalty, this is the normal state.")
+        return _metric("Volume Breakout", True, 15, 15, True, "Recent volume surged >1.5× the 20-day average — signals genuine institutional participation.")
+    return _metric("Volume Breakout", False, 7, 15, True, "Volume is in line with the 20-day average — normal, no penalty.")
 
 
 def _score_52w_range(m: Dict) -> ScoreMetric:
+    """Bell-curve scoring: rewards the 30-70% zone (healthy accumulation),
+    gives partial credit near highs (extended but strong) and near lows
+    (potential opportunity but downtrend risk). No longer a linear
+    'higher = better' that mechanically boosted extended stocks."""
     price, high, low = m.get("price"), m.get("high52w"), m.get("low52w")
     if not price or not high or not low or high <= low:
-        return _unavailable("52-Week Range Position", "52-week high/low data is not available for this company.")
-    position = (price - low) / (high - low)
-    position = max(0.0, min(1.0, position))
+        return _unavailable("52-Week Range", "52-week high/low data is not available for this company.")
+    position = max(0.0, min(1.0, (price - low) / (high - low)))
     pct = position * 100
-    if position >= 0.90:
-        return _metric("52-Week Range Position", pct, 20, 20, True, f"Trading at {pct:.0f}% of its 52-week range — near highs, strong relative strength (watch for resistance overhead).")
-    if position >= 0.70:
-        return _metric("52-Week Range Position", pct, 16, 20, True, f"Trading at {pct:.0f}% of its 52-week range — firmly in the upper band.")
-    if position >= 0.40:
-        return _metric("52-Week Range Position", pct, 10, 20, False, f"Trading at {pct:.0f}% of its 52-week range — mid-range, no clear edge.")
-    if position >= 0.20:
-        return _metric("52-Week Range Position", pct, 5, 20, False, f"Trading at {pct:.0f}% of its 52-week range — closer to support, weak positioning.")
-    return _metric("52-Week Range Position", pct, 2, 20, False, f"Trading at {pct:.0f}% of its 52-week range — near 52-week lows, a breakdown-risk zone if support fails.")
+    # Bell curve: 30-70% = full marks (healthy accumulation zone),
+    # 70-85% = good (upper band but not extended),
+    # >85% = moderate (near highs, resistance risk),
+    # 15-30% = moderate (lower band, weak but not broken),
+    # <15% = low (near 52w lows, downtrend risk).
+    if 0.30 <= position <= 0.70:
+        return _metric("52-Week Range", pct, 10, 10, True, f"At {pct:.0f}% of the 52-week range — healthy accumulation zone, neither extended nor broken.")
+    if 0.70 < position <= 0.85:
+        return _metric("52-Week Range", pct, 8, 10, True, f"At {pct:.0f}% of the 52-week range — upper band, strong but watch for overhead resistance.")
+    if position > 0.85:
+        return _metric("52-Week Range", pct, 5, 10, False, f"At {pct:.0f}% of the 52-week range — near highs, momentum is extended.")
+    if position >= 0.15:
+        return _metric("52-Week Range", pct, 4, 10, False, f"At {pct:.0f}% of the 52-week range — lower band, weak near-term trend.")
+    return _metric("52-Week Range", pct, 2, 10, False, f"At {pct:.0f}% of the 52-week range — near 52-week lows, high downtrend risk.")
 
 
 _TECHNICAL_RULES = [
