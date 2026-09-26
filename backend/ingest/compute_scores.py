@@ -112,12 +112,149 @@ def fetch_sector_avg_pe(engine) -> dict[str, float]:
     return {row["sector"]: float(row["avg_pe"]) for row in rows}
 
 
+# ---------------------------------------------------------------------------
+# Sprint 3 (v2): batch pre-computation helpers
+# Mirror of the queries in services/company_service.py — same SQL, same
+# peer-set rules, so the batch-persisted `scores` table and the live
+# per-request score can never use different inputs.
+# ---------------------------------------------------------------------------
+
+
+def compute_sector_percentiles(engine) -> dict[str, dict]:
+    """Returns {symbol: {sectorRoePercentile, sectorRocePercentile, sectorDePercentile}}.
+    Only sectors with >= 3 active peers included. D/E percentile is inverted."""
+    query = text(
+        """
+        with universe as (
+            select c.symbol, c.sector,
+                   f.roe_pct, f.roce_pct,
+                   d.debt_to_equity
+            from companies c
+            join financials_quarterly f
+                on f.symbol = c.symbol and f.quarter = 'latest'
+            left join lateral (
+                select debt_to_equity
+                from financials_quarterly
+                where symbol = c.symbol and debt_to_equity is not null
+                order by fiscal_year_end desc nulls last
+                limit 1
+            ) d on true
+            where c.is_active
+        ),
+        sector_counts as (
+            select sector, count(*) as n
+            from universe
+            group by sector
+            having count(*) >= 3
+        )
+        select u.symbol, u.sector, u.roe_pct, u.roce_pct, u.debt_to_equity
+        from universe u
+        join sector_counts sc on sc.sector = u.sector
+        """
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(query).mappings().all()
+    if not rows:
+        return {}
+
+    from collections import defaultdict
+    by_sector: dict[str, list] = defaultdict(list)
+    for row in rows:
+        by_sector[row["sector"]].append(dict(row))
+
+    result: dict[str, dict] = {}
+    for sector, peers in by_sector.items():
+        roe_vals = sorted([(p["symbol"], float(p["roe_pct"])) for p in peers if p["roe_pct"] is not None], key=lambda x: x[1])
+        roce_vals = sorted([(p["symbol"], float(p["roce_pct"])) for p in peers if p["roce_pct"] is not None], key=lambda x: x[1])
+        de_vals = sorted([(p["symbol"], float(p["debt_to_equity"])) for p in peers if p["debt_to_equity"] is not None], key=lambda x: x[1])
+
+        def _pct(sym, ranked):
+            for i, (s, _) in enumerate(ranked):
+                if s == sym:
+                    return round((i + 0.5) / len(ranked) * 100, 1)
+            return None
+
+        def _inv_pct(sym, ranked):
+            p = _pct(sym, ranked)
+            return round(100 - p, 1) if p is not None else None
+
+        for p in peers:
+            sym = p["symbol"]
+            result[sym] = {
+                "sectorRoePercentile": _pct(sym, roe_vals),
+                "sectorRocePercentile": _pct(sym, roce_vals),
+                "sectorDePercentile": _inv_pct(sym, de_vals),
+            }
+    return result
+
+
+def fetch_fii_dii_trend(engine, symbol: str) -> dict | None:
+    """Returns {fiiTrendPct, diiTrendPct} for one symbol, or None if < 2 quarters."""
+    query = text(
+        """
+        select fii_pct, dii_pct
+        from shareholding_pattern
+        where symbol = :symbol
+        order by period_end desc nulls last, quarter desc
+        limit 2
+        """
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(query, {"symbol": symbol}).mappings().all()
+    if len(rows) < 2:
+        return None
+    fii_t = (
+        round(float(rows[0]["fii_pct"]) - float(rows[1]["fii_pct"]), 4)
+        if rows[0]["fii_pct"] is not None and rows[1]["fii_pct"] is not None else None
+    )
+    dii_t = (
+        round(float(rows[0]["dii_pct"]) - float(rows[1]["dii_pct"]), 4)
+        if rows[0]["dii_pct"] is not None and rows[1]["dii_pct"] is not None else None
+    )
+    return {"fiiTrendPct": fii_t, "diiTrendPct": dii_t}
+
+
+def compute_earnings_quality_for(engine, symbol: str) -> dict | None:
+    """Fetches up to 8 quarters of net_profit_cr and returns the quality dict
+    expected by scoring_engine._score_earnings_quality. Returns None when < 2 quarters."""
+    query = text(
+        """
+        select net_profit_cr
+        from financial_statements
+        where symbol = :symbol and period_type = 'quarterly'
+          and net_profit_cr is not null
+        order by period_end desc
+        limit 8
+        """
+    )
+    with engine.connect() as conn:
+        rows = conn.execute(query, {"symbol": symbol}).mappings().all()
+    values = [float(r["net_profit_cr"]) for r in rows]
+    n = len(values)
+    if n < 2:
+        return None
+    from services.financial_statements_service import _linear_direction
+    direction = _linear_direction(values)
+    overall_slope = values[0] - values[-1]
+    pairs = [values[i] - values[i + 1] for i in range(n - 1)]
+    matching = sum(1 for d in pairs if (d >= 0 if overall_slope >= 0 else d < 0))
+    consistency_score = round(matching / len(pairs), 3) if pairs else 0.0
+    return {"direction": direction, "consistency_score": consistency_score, "n_periods": n, "profit_series": values}
+
+
 def build_metrics(f: dict | None, t: dict | None, promoter_pct: float | None,
-                   latest_volume: int | None, sector_avg_pe: float | None) -> dict:
+                   latest_volume: int | None, sector_avg_pe: float | None,
+                   fii_dii_trend: dict | None = None,
+                   earnings_quality: dict | None = None,
+                   sector_percentiles: dict | None = None) -> dict:
     """Shapes raw DB rows into analysis.scoring_engine's flat input
     contract. Field names here intentionally mirror
     services/company_service.py's `_company_fields` output so the two
-    callers stay trivially comparable."""
+    callers stay trivially comparable.
+
+    Sprint 3: fii_dii_trend, earnings_quality, and sector_percentiles are
+    new optional kwargs. All three default to None so callers that don't
+    yet pass them still work (graceful degradation to unavailable metric)."""
     f = f or {}
     t = t or {}
 
@@ -139,6 +276,14 @@ def build_metrics(f: dict | None, t: dict | None, promoter_pct: float | None,
         "sectorAvgPe": sector_avg_pe,
         "divYield": float(f["dividend_yield_pct"]) if f.get("dividend_yield_pct") is not None else None,
         "promoterHoldingPct": promoter_pct,
+        # Sprint 3 (v2) additions:
+        "earningsQuality": earnings_quality,
+        "fiiTrendPct": (fii_dii_trend or {}).get("fiiTrendPct"),
+        "diiTrendPct": (fii_dii_trend or {}).get("diiTrendPct"),
+        "sectorRoePercentile": (sector_percentiles or {}).get("sectorRoePercentile"),
+        "sectorRocePercentile": (sector_percentiles or {}).get("sectorRocePercentile"),
+        "sectorDePercentile": (sector_percentiles or {}).get("sectorDePercentile"),
+        # Technical inputs (unchanged):
         "rsi": float(t["rsi_14"]) if t.get("rsi_14") is not None else None,
         "aboveEma50": t.get("above_50dma"),
         "aboveEma200": t.get("above_200dma"),
@@ -206,6 +351,8 @@ def main():
     engine = get_engine()
     sector_avg_pe_by_sector = fetch_sector_avg_pe(engine)
     sector_by_symbol = {c["symbol"]: c.get("sector") for c in UNIVERSE}
+    # Sprint 3: pre-compute universe-wide sector percentile ranks (one query)
+    sector_pct_by_symbol = compute_sector_percentiles(engine)
 
     for company in UNIVERSE:
         symbol = company["symbol"]
@@ -214,8 +361,17 @@ def main():
         promoter_pct = fetch_promoter_holding(engine, symbol)
         latest_volume = fetch_latest_volume(engine, symbol)
         sector_avg_pe = sector_avg_pe_by_sector.get(sector_by_symbol.get(symbol))
+        # Sprint 3: per-symbol new inputs
+        fii_dii = fetch_fii_dii_trend(engine, symbol)
+        eq = compute_earnings_quality_for(engine, symbol)
+        sector_pct = sector_pct_by_symbol.get(symbol)
 
-        metrics = build_metrics(f, t, promoter_pct, latest_volume, sector_avg_pe)
+        metrics = build_metrics(
+            f, t, promoter_pct, latest_volume, sector_avg_pe,
+            fii_dii_trend=fii_dii,
+            earnings_quality=eq,
+            sector_percentiles=sector_pct,
+        )
         result = compute_scores(metrics)
         rationale = build_rationale(symbol, f, t)
 
@@ -237,6 +393,7 @@ def main():
 
         upsert_score(engine, symbol, result["fundamentalScore"], result["technicalScore"], result["overallScore"], rationale, as_of_date)
         print(f"{symbol}: fundamental={result['fundamentalScore']} technical={result['technicalScore']} overall={result['overallScore']} (as_of={as_of_date}) -> {rationale}")
+
 
 
 if __name__ == "__main__":

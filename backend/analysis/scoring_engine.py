@@ -37,6 +37,23 @@ company yet):
     divYield                     percent
     promoterHoldingPct           percent
 
+  Sprint 3 (v2) additions — Fundamental:
+    earningsQuality             dict or None — result of _compute_earnings_quality();
+                                  contains 'direction', 'consistency_score', 'n_periods',
+                                  'profit_series' (list of net_profit_cr newest-first).
+                                  Pre-computed by company_service/compute_scores from
+                                  financial_statements rows (4-8 quarters).
+    fiiTrendPct                 float or None — FII/FPI holding change (pp) from latest
+                                  minus previous quarter in shareholding_pattern.
+                                  Positive = institutional buying, negative = selling.
+    diiTrendPct                 float or None — same for DII. Scored together as one
+                                  institutional-interest metric.
+    sectorRoePercentile         float 0-100 or None — ROE percentile rank vs sector peers
+                                  (100 = best in sector). Computed from peer ROE values.
+    sectorRocePercentile        float 0-100 or None — same for ROCE.
+    sectorDePercentile          float 0-100 or None — D/E percentile (inverted: 100 =
+                                  lowest debt/equity in sector = best).
+
   Technical inputs:
     rsi                          0-100
     aboveEma50, aboveEma200      bool
@@ -291,6 +308,184 @@ def _score_promoter_holding(m: Dict) -> ScoreMetric:
     return _metric("Promoter Holding", p, 0, 8, False, f"Promoter holding of {p:.1f}% is low.")
 
 
+# ---------------------------------------------------------------------------
+# Sprint 3 (v2) metric additions
+# ---------------------------------------------------------------------------
+# Three new fundamental metrics, all following the same honest-missing-data
+# contract as the v1.5 metrics above. Max points:
+#   Earnings Quality            10 pts
+#   Institutional Trend         8 pts
+#   Sector-Relative Position    12 pts   (replaces absolute thresholds for
+#                                          ROE/ROCE/D/E when sector data exists)
+# Total adds 30 pts to the fundamental side when all three are available,
+# keeping the 60/40 overall split unchanged (both sides still normalise
+# to 0-100 as a percentage of available points).
+
+
+def _score_earnings_quality(m: Dict) -> ScoreMetric:
+    """Multi-quarter earnings consistency from `financial_statements`.
+
+    Pre-computed by company_service/_compute_earnings_quality before the
+    engine runs, so no DB call happens here. Scores direction + consistency:
+    - Consistent growth (positive direction, low stddev) = full marks.
+    - Improving but volatile = partial.
+    - Declining or contracting = penalty.
+    Only evaluated when ≥3 quarterly periods exist (fewer periods can't
+    meaningfully distinguish trend from noise)."""
+    eq = m.get("earningsQuality")
+    if not eq or eq.get("n_periods", 0) < 3:
+        return _unavailable(
+            "Earnings Quality",
+            "Fewer than 3 quarters of financial history are available — trend cannot be assessed yet.",
+        )
+
+    direction = eq.get("direction", "Insufficient")
+    n = eq.get("n_periods", 0)
+    consistency = eq.get("consistency_score", 0.0)  # 0-1, higher = more consistent
+
+    period_note = f"({n} quarters)"
+
+    if direction == "Accelerating" and consistency >= 0.7:
+        return _metric("Earnings Quality", direction, 10, 10, True,
+                        f"Earnings are accelerating with high consistency {period_note} — a strong quality signal.")
+    if direction == "Accelerating":
+        return _metric("Earnings Quality", direction, 8, 10, True,
+                        f"Earnings are accelerating {period_note} but with some quarter-to-quarter volatility.")
+    if direction == "Improving" and consistency >= 0.6:
+        return _metric("Earnings Quality", direction, 7, 10, True,
+                        f"Earnings are improving steadily {period_note}.")
+    if direction == "Improving":
+        return _metric("Earnings Quality", direction, 5, 10, True,
+                        f"Earnings are improving {period_note} but the trend is uneven.")
+    if direction == "Steady":
+        return _metric("Earnings Quality", direction, 4, 10, False,
+                        f"Earnings are flat {period_note} — no growth momentum, but no deterioration either.")
+    if direction == "Decelerating":
+        return _metric("Earnings Quality", direction, 2, 10, False,
+                        f"Earnings growth is decelerating {period_note} — watch for further weakness.")
+    # Contracting or Insufficient
+    return _metric("Earnings Quality", direction, 0, 10, False,
+                   f"Earnings are contracting {period_note} — a material fundamental headwind.")
+
+
+def _score_institutional_trend(m: Dict) -> ScoreMetric:
+    """FII/DII institutional interest trend (quarter-over-quarter change).
+
+    Addresses SCORING_ENGINE.md §0.3's explicitly deferred item: FII/DII
+    *trend* (direction, not level). Available here because shareholding_pattern
+    now has multi-quarter history (two rows needed to compute a diff).
+
+    fiiTrendPct and diiTrendPct are percentage-point changes (latest minus
+    previous quarter) pre-fetched by company_service/compute_scores from
+    shareholding_pattern — same table as Promoter Holding, no extra query
+    needed beyond what already runs. Both being None means we only have one
+    quarter of data (can't diff), so this metric is excluded.
+
+    Scored together as one signal because both FII and DII buying
+    simultaneously is a genuinely strong institutional endorsement, while
+    mixed signals are noise rather than a score-worthy event."""
+    fii = m.get("fiiTrendPct")
+    dii = m.get("diiTrendPct")
+
+    if fii is None and dii is None:
+        return _unavailable(
+            "Institutional Trend (FII + DII)",
+            "Only one quarter of shareholding data is available — trend direction cannot be computed yet.",
+        )
+
+    # At least one is not None — use what we have.
+    fii = fii or 0.0
+    dii = dii or 0.0
+    combined = fii + dii
+    fii_str = f"FII {fii:+.2f}pp"
+    dii_str = f"DII {dii:+.2f}pp"
+    detail = f"{fii_str}, {dii_str}"
+
+    if combined >= 1.0:
+        return _metric("Institutional Trend (FII + DII)", combined, 8, 8, True,
+                        f"Both FII and DII holdings increased this quarter ({detail}) — strong institutional buying signal.")
+    if combined >= 0.3:
+        return _metric("Institutional Trend (FII + DII)", combined, 6, 8, True,
+                        f"Net institutional buying ({detail}) — modest positive signal.")
+    if combined >= -0.3:
+        return _metric("Institutional Trend (FII + DII)", combined, 4, 8, True,
+                        f"Institutional holdings were broadly stable ({detail}) — no clear directional signal.")
+    if combined >= -1.0:
+        return _metric("Institutional Trend (FII + DII)", combined, 2, 8, False,
+                        f"Net institutional selling ({detail}) — mild caution signal.")
+    return _metric("Institutional Trend (FII + DII)", combined, 0, 8, False,
+                   f"Significant institutional selling ({detail}) — a notable ownership headwind.")
+
+
+def _score_sector_relative_fundamentals(m: Dict) -> ScoreMetric:
+    """Sector-relative position for ROE, ROCE, and Debt/Equity.
+
+    The single biggest model correctness improvement in v2 (SCORING_ENGINE.md
+    §3.1): a 12% ROE may be excellent for a utility and weak for an IT firm.
+    Three inputs are scored together as one composite metric to keep the
+    breakdown readable — each contributes 4 pts of the 12 total, so even
+    partial availability is useful.
+
+    Percentiles are pre-computed by company_service/compute_scores against
+    same-sector peers in `financials_quarterly`/`companies`, same peer set
+    as the existing sectorAvgPe query. Falls back gracefully when a sector
+    has < 3 peers (too thin to trust a percentile) or when inputs are None.
+
+    sectorRoePercentile / sectorRocePercentile: 100 = top of sector (best).
+    sectorDePercentile: 100 = lowest D/E in sector = best (inverted rank).
+    """
+    roe_pct = m.get("sectorRoePercentile")
+    roce_pct = m.get("sectorRocePercentile")
+    de_pct = m.get("sectorDePercentile")
+
+    available = [(v, label) for v, label in [
+        (roe_pct, "ROE"), (roce_pct, "ROCE"), (de_pct, "D/E (inverted)")
+    ] if v is not None]
+
+    if not available:
+        return _unavailable(
+            "Sector-Relative Position (ROE / ROCE / D/E)",
+            "No sector peer data is available to benchmark this company's fundamentals against.",
+        )
+
+    def _pts(pct: float) -> float:
+        """4-point scale per metric: top quartile = 4, bottom = 0."""
+        if pct >= 75:
+            return 4.0
+        if pct >= 50:
+            return 3.0
+        if pct >= 25:
+            return 1.5
+        return 0.0
+
+    total_score = sum(_pts(v) for v, _ in available)
+    total_max = len(available) * 4.0
+
+    # Build a readable summary of each available metric's rank.
+    parts = []
+    for v, label in available:
+        if v >= 75:
+            parts.append(f"{label} top quartile ({v:.0f}th pct)")
+        elif v >= 50:
+            parts.append(f"{label} above median ({v:.0f}th pct)")
+        elif v >= 25:
+            parts.append(f"{label} below median ({v:.0f}th pct)")
+        else:
+            parts.append(f"{label} bottom quartile ({v:.0f}th pct)")
+
+    summary = "; ".join(parts)
+    passed = total_score >= total_max * 0.5
+
+    return _metric(
+        "Sector-Relative Position (ROE / ROCE / D/E)",
+        round(total_score, 1),
+        total_score,
+        12.0,
+        passed,
+        f"vs sector peers — {summary}.",
+    )
+
+
 _FUNDAMENTAL_RULES = [
     _score_roe,
     _score_roce,
@@ -303,7 +498,12 @@ _FUNDAMENTAL_RULES = [
     _score_pb,
     _score_dividend_yield,
     _score_promoter_holding,
+    # Sprint 3 (v2) additions:
+    _score_earnings_quality,
+    _score_institutional_trend,
+    _score_sector_relative_fundamentals,
 ]
+
 
 
 # ---------------------------------------------------------------------------

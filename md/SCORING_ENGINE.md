@@ -10,7 +10,7 @@
 
 **Location:** `backend/backend/analysis/scoring_engine.py` — the single source of truth, called by both `services/company_service.py` (live, per-request) and `ingest/compute_scores.py` (batch job, refreshes the `scores` table used for SQL-level sorting in Discover/Screener). See that module's own docstring for the full contract; this section is the narrative quant-review version of the same document.
 
-This was a full review-and-improve pass on v1 (§2), driven by the problems logged in §3 below. It is **not** the v2 redesign in §4 — no sector-relative percentile scoring, no multi-quarter trend/earnings-quality factor, no calibration loop. It's the highest-value subset of v2 gettable without a larger universe or backtest history: real new data sources already in the schema wired in, an honest fix to how missing data is handled, and full UI transparency. §4's target architecture is still the direction to build toward.
+This was a full review-and-improve pass on v1 (§2), driven by the problems logged in §3 below. **Sprint 3 (v2) additions** extend this with three new metrics: Earnings Quality (§3.2), FII/DII Institutional Trend (§3.3), and Sector-Relative Fundamentals (§3.1) — see the new §0.4 below for the full v2 change record.
 
 ### 0.1 What changed vs. v1
 
@@ -27,17 +27,28 @@ This was a full review-and-improve pass on v1 (§2), driven by the problems logg
 
 ### 0.2 Points table (v1.5)
 
-Fundamental (11 metrics, 100 pts): ROE 12 · ROCE 10 · Revenue Growth YoY 10 · Profit Growth YoY 12 · Debt/Equity 12 · Current Ratio 8 · P/E vs Sector 10 · PEG 8 · P/B 6 · Dividend Yield 4 · Promoter Holding 8.
+Fundamental (11 metrics → 14 metrics, 100 pts → 130 pts available): ROE 12 · ROCE 10 · Revenue Growth YoY 10 · Profit Growth YoY 12 · Debt/Equity 12 · Current Ratio 8 · P/E vs Sector 10 · PEG 8 · P/B 6 · Dividend Yield 4 · Promoter Holding 8 · **Earnings Quality 10 (Sprint 3)** · **Institutional Trend FII+DII 8 (Sprint 3)** · **Sector-Relative Position ROE/ROCE/D/E 12 (Sprint 3)**.
 
-Technical (6 metrics, 100 pts): RSI(14) 20 · Above 50-DMA 15 · Above 200-DMA 20 · Golden/Death Cross 15 · Volume Breakout 10 · 52-Week Range Position 20.
+Technical (6 metrics, 100 pts): RSI(14) 25 · Above 50-DMA 15 · Above 200-DMA 20 · Golden/Death Cross 15 · Volume Breakout 15 · 52-Week Range Position 10.
 
-`overallScore = 0.6 × fundamentalScore + 0.4 × technicalScore` (falls back to whichever side has data if the other is fully unavailable; 50.0 neutral if neither has any data at all — a brand-new/untracked company).
+`overallScore = 0.6 × fundamentalScore + 0.4 × technicalScore` (both normalised to 0-100 as percentage of available points — metrics with no underlying data are excluded from both numerator and denominator, not defaulted to 0).
 
 ### 0.3 Deliberately not done in this pass
 
-- **FII/DII holding *trend*** (direction of change quarter over quarter) was considered but not added as a scored metric: `get_shareholding_trend()` (used for the Research page's shareholding chart) issues an extra per-symbol query and isn't available cheaply on the list endpoint, and scoring it only on the detail page would make the list-card score and detail-page score legitimately different numbers for the same company — a worse transparency trade than leaving it unscored. Promoter Holding *level* (available on both endpoints with zero extra queries) was scored instead. Revisit once FII/DII history is denormalized onto the main query path.
-- **Earnings-quality / multi-quarter consistency** (§3.2, §4.1) — genuinely needs the v2 trend-aware architecture (§4), not a bolt-on; still on the roadmap there.
+- **FII/DII holding *trend*** **— ADDED in Sprint 3 (v2).** `_score_institutional_trend` in `scoring_engine.py` scores FII + DII combined quarter-over-quarter change (pp), fetched from `shareholding_pattern`'s latest two rows. Pre-computed by `company_service.py` (`_fetch_fii_dii_trend_batch`) and `ingest/compute_scores.py` (`fetch_fii_dii_trend`). The "only level, not trend" concern that blocked this in v1.5 is resolved: two rows are sufficient for a diff, and the per-request batch query fetches both in one SQL call. TD-011 resolved.
+- **Earnings-quality / multi-quarter consistency** — **ADDED in Sprint 3 (v2).** `_score_earnings_quality` uses up to 8 quarters of `net_profit_cr` from `financial_statements` (direction label + consistency score). Requires ≥ 3 quarters — excluded gracefully otherwise.
+- **Sector-Relative Fundamentals** — **ADDED in Sprint 3 (v2).** `_score_sector_relative_fundamentals` computes ROE/ROCE/D/E percentile rank within same-sector peers (≥ 3 peers required). Pre-computed universe-wide in one CTE query. The single biggest model correctness improvement per §3.1.
 - **PEG's `salesGrowthPct`/`profitGrowthPct` cross-check** for margin direction was added as a *narrative note inside the Profit Growth reason string* (see `_score_profit_growth`), not a separate scored metric — avoids double-counting the same two numbers as two separate point sources.
+
+---
+
+### §0.4 Sprint 3 (v2) — what changed vs. v1.5
+
+| Problem (§3) | v1.5 | v2 fix |
+|---|---|---|
+| §3.1 Absolute thresholds, not sector-relative | Sector-relative P/E only (via `sectorAvgPe`) | **Sector-Relative Position metric** (12 pts): ROE/ROCE/D/E percentile rank vs same-sector peers with ≥3 members. Pre-computed universe-wide in one CTE query in `company_service.py` / `compute_scores.py`. |
+| §3.2 Point-in-time, not trend-aware | Single YoY profit number | **Earnings Quality metric** (10 pts): direction label + consistency score from up to 8 quarters of `net_profit_cr` in `financial_statements`. Requires ≥3 quarters; excluded gracefully when history is thin. |
+| §3.3 FII/DII interest deferred | Promoter *level* scored; FII/DII *trend* explicitly deferred | **Institutional Trend metric** (8 pts): FII + DII combined pp change from `shareholding_pattern` (latest minus previous quarter). Scored together — simultaneous institutional buying is a stronger signal than either alone. Resolves TD-011. |
 
 ---
 

@@ -137,6 +137,208 @@ def _fetch_sector_avg_pe(conn) -> Dict[str, float]:
     return {row["sector"]: float(row["avg_pe"]) for row in rows}
 
 
+# ---------------------------------------------------------------------------
+# Sprint 3 (v2): Sector-Relative Percentiles for ROE, ROCE, and D/E
+# One universe-wide query, same approach as _fetch_sector_avg_pe. Returns
+# a dict keyed by symbol: {symbol: {roePercentile, rocePercentile, dePercentile}}.
+# Only sectors with >= 3 priced active peers are included — a thinner sector
+# can't support a meaningful percentile rank. Results are pre-computed per
+# universe run and looked up per company, not computed per-symbol.
+# ---------------------------------------------------------------------------
+
+_SECTOR_PEER_STATS_QUERY = text(
+    """
+    with universe as (
+        select c.symbol, c.sector,
+               f.roe_pct, f.roce_pct,
+               d.debt_to_equity
+        from companies c
+        join financials_quarterly f
+            on f.symbol = c.symbol and f.quarter = 'latest'
+        left join lateral (
+            select debt_to_equity
+            from financials_quarterly
+            where symbol = c.symbol and debt_to_equity is not null
+            order by fiscal_year_end desc nulls last
+            limit 1
+        ) d on true
+        where c.is_active
+    ),
+    sector_counts as (
+        select sector, count(*) as n
+        from universe
+        group by sector
+        having count(*) >= 3
+    )
+    select u.symbol, u.sector,
+           u.roe_pct, u.roce_pct, u.debt_to_equity
+    from universe u
+    join sector_counts sc on sc.sector = u.sector
+    """
+)
+
+
+def _compute_sector_percentiles(conn) -> Dict[str, Dict[str, Optional[float]]]:
+    """Returns {symbol: {sectorRoePercentile, sectorRocePercentile, sectorDePercentile}}.
+    For each metric the percentile is computed against same-sector peers only.
+    D/E percentile is inverted (lower D/E = higher percentile = better)."""
+    rows = conn.execute(_SECTOR_PEER_STATS_QUERY).mappings().all()
+    if not rows:
+        return {}
+
+    # Group by sector
+    from collections import defaultdict
+    by_sector: Dict[str, list] = defaultdict(list)
+    for row in rows:
+        by_sector[row["sector"]].append(dict(row))
+
+    result: Dict[str, Dict[str, Optional[float]]] = {}
+
+    for sector, peers in by_sector.items():
+        # Build sorted lists for each metric (None values excluded from the rank)
+        roe_vals = sorted(
+            [(p["symbol"], float(p["roe_pct"])) for p in peers if p["roe_pct"] is not None],
+            key=lambda x: x[1]
+        )
+        roce_vals = sorted(
+            [(p["symbol"], float(p["roce_pct"])) for p in peers if p["roce_pct"] is not None],
+            key=lambda x: x[1]
+        )
+        # D/E: lower is better, so we sort ascending and INVERT the rank
+        de_vals = sorted(
+            [(p["symbol"], float(p["debt_to_equity"])) for p in peers if p["debt_to_equity"] is not None],
+            key=lambda x: x[1]
+        )
+
+        def _percentile_rank(sym: str, ranked: list) -> Optional[float]:
+            if not ranked:
+                return None
+            for i, (s, _) in enumerate(ranked):
+                if s == sym:
+                    # (i+0.5)/n * 100 gives the mid-point percentile
+                    return round((i + 0.5) / len(ranked) * 100, 1)
+            return None
+
+        def _inv_percentile_rank(sym: str, ranked: list) -> Optional[float]:
+            """Invert: symbol with lowest value (best D/E) gets 100th percentile."""
+            p = _percentile_rank(sym, ranked)
+            return round(100 - p, 1) if p is not None else None
+
+        for p in peers:
+            sym = p["symbol"]
+            result[sym] = {
+                "sectorRoePercentile": _percentile_rank(sym, roe_vals),
+                "sectorRocePercentile": _percentile_rank(sym, roce_vals),
+                "sectorDePercentile": _inv_percentile_rank(sym, de_vals),
+            }
+
+    return result
+
+
+# ---------------------------------------------------------------------------
+# Sprint 3 (v2): FII/DII Institutional Trend
+# Batched query for the whole symbol list — returns {symbol: (fii_trend, dii_trend)}
+# where trend is the percentage-point change from previous to latest quarter.
+# None for either means only one quarter of data exists (no diff possible).
+# ---------------------------------------------------------------------------
+
+_FII_DII_TREND_QUERY = text(
+    """
+    with ranked as (
+        select symbol, fii_pct, dii_pct,
+               row_number() over (partition by symbol order by period_end desc nulls last, quarter desc) as rn
+        from shareholding_pattern
+        where symbol in :symbols
+    )
+    select symbol,
+           max(case when rn = 1 then fii_pct end) as fii_latest,
+           max(case when rn = 2 then fii_pct end) as fii_prev,
+           max(case when rn = 1 then dii_pct end) as dii_latest,
+           max(case when rn = 2 then dii_pct end) as dii_prev
+    from ranked
+    where rn <= 2
+    group by symbol
+    """
+).bindparams(bindparam("symbols", expanding=True))
+
+
+def _fetch_fii_dii_trend_batch(conn, symbols: List[str]) -> Dict[str, Dict[str, Optional[float]]]:
+    """Returns {symbol: {fiiTrendPct: float|None, diiTrendPct: float|None}}."""
+    if not symbols:
+        return {}
+    rows = conn.execute(_FII_DII_TREND_QUERY, {"symbols": symbols}).mappings().all()
+    out: Dict[str, Dict[str, Optional[float]]] = {}
+    for row in rows:
+        fii_t = (
+            round(float(row["fii_latest"]) - float(row["fii_prev"]), 4)
+            if row["fii_latest"] is not None and row["fii_prev"] is not None
+            else None
+        )
+        dii_t = (
+            round(float(row["dii_latest"]) - float(row["dii_prev"]), 4)
+            if row["dii_latest"] is not None and row["dii_prev"] is not None
+            else None
+        )
+        out[row["symbol"]] = {"fiiTrendPct": fii_t, "diiTrendPct": dii_t}
+    return out
+
+
+# ---------------------------------------------------------------------------
+# Sprint 3 (v2): Earnings Quality from financial_statements
+# Uses the same _linear_direction logic already in financial_statements_service
+# — imported here rather than duplicated.
+# ---------------------------------------------------------------------------
+
+_EARNINGS_QUALITY_QUERY = text(
+    """
+    select net_profit_cr
+    from financial_statements
+    where symbol = :symbol and period_type = 'quarterly'
+      and net_profit_cr is not null
+    order by period_end desc
+    limit 8
+    """
+)
+
+
+def _compute_earnings_quality(conn, symbol: str) -> Optional[Dict]:
+    """Fetches up to 8 quarters of net_profit_cr and computes direction +
+    consistency_score. Returns None when fewer than 2 quarters exist.
+
+    consistency_score (0-1): fraction of consecutive quarter-pairs that move
+    in the same direction as the overall trend. 1.0 = every quarter improved
+    monotonically; 0.0 = completely erratic."""
+    rows = conn.execute(_EARNINGS_QUALITY_QUERY, {"symbol": symbol.upper()}).mappings().all()
+    values = [float(r["net_profit_cr"]) for r in rows]  # newest-first
+    n = len(values)
+    if n < 2:
+        return None
+
+    # Reuse the direction logic from financial_statements_service
+    from services.financial_statements_service import _linear_direction
+    direction = _linear_direction(values)
+
+    # Consistency: proportion of consecutive pairs moving in the dominant direction.
+    # Dominant direction: positive slope = "up", negative = "down".
+    if n >= 2:
+        overall_slope = values[0] - values[-1]  # newest - oldest (DESC list, so newest is [0])
+        pairs = [(values[i] - values[i + 1]) for i in range(n - 1)]  # each newest minus prev
+        if overall_slope >= 0:
+            matching = sum(1 for d in pairs if d >= 0)
+        else:
+            matching = sum(1 for d in pairs if d < 0)
+        consistency_score = round(matching / len(pairs), 3) if pairs else 0.0
+    else:
+        consistency_score = 0.0
+
+    return {
+        "direction": direction,
+        "consistency_score": consistency_score,
+        "n_periods": n,
+        "profit_series": values,  # newest-first, for optional frontend sparkline
+    }
+
+
 def _fetch_spark_batch(conn, symbols: List[str], n: int = SPARK_POINTS) -> Dict[str, list]:
     if not symbols:
         return {}
@@ -151,10 +353,18 @@ def _fetch_latest_volume_batch(conn, symbols: List[str]) -> Dict[str, int]:
     return {row["symbol"]: int(row["volume"]) for row in rows if row["volume"] is not None}
 
 
-def _company_fields(row, spark: list, latest_volume: Optional[int], sector_avg_pe: Optional[float]) -> dict:
+def _company_fields(row, spark: list, latest_volume: Optional[int],
+                    sector_avg_pe: Optional[float],
+                    sector_percentiles: Optional[Dict] = None,
+                    fii_dii_trend: Optional[Dict] = None,
+                    earnings_quality: Optional[Dict] = None) -> dict:
     """Pure — no I/O. Builds the shared CompanyBase field dict from an
     already-fetched DB row plus already-batched spark/volume/sector-PE
     lookups.
+
+    Sprint 3 additions: sector_percentiles, fii_dii_trend, earnings_quality
+    are pre-fetched by the caller (batched for the list path, per-symbol
+    for the detail path) and passed in here — this function stays pure.
 
     Scores are computed live by analysis.scoring_engine, not read off
     the `scores` table — see that module's docstring for why: it's the
@@ -192,6 +402,14 @@ def _company_fields(row, spark: list, latest_volume: Optional[int], sector_avg_p
             "sectorAvgPe": sector_avg_pe,
             "divYield": float(row["dividend_yield_pct"]) if row["dividend_yield_pct"] is not None else None,
             "promoterHoldingPct": float(row["promoter_pct"]) if row["promoter_pct"] is not None else None,
+            # Sprint 3 (v2) additions:
+            "earningsQuality": earnings_quality,
+            "fiiTrendPct": (fii_dii_trend or {}).get("fiiTrendPct"),
+            "diiTrendPct": (fii_dii_trend or {}).get("diiTrendPct"),
+            "sectorRoePercentile": (sector_percentiles or {}).get("sectorRoePercentile"),
+            "sectorRocePercentile": (sector_percentiles or {}).get("sectorRocePercentile"),
+            "sectorDePercentile": (sector_percentiles or {}).get("sectorDePercentile"),
+            # Technical inputs (unchanged):
             "rsi": float(row["rsi_14"]) if row["rsi_14"] is not None else None,
             "aboveEma50": row["above_50dma"],
             "aboveEma200": row["above_200dma"],
@@ -307,8 +525,9 @@ def _valuation_metrics(fields: dict, row) -> dict:
 
 
 def get_all_companies(search: Optional[str] = None, limit: int = 500) -> List[dict]:
-    """GET /companies — lightweight list shape (CompanyListItem). Exactly
-    3 DB round trips total, independent of result size."""
+    """GET /companies — lightweight list shape (CompanyListItem).
+    Query count: 3 original + 3 Sprint 3 additions = 6 total, all
+    batched/universe-wide (no per-row round trips)."""
     # Milestone 5: companies.is_active is now genuinely populated (kept in
     # sync with the universe CSV by ensure_company_rows in
     # ingest/fetch_prices.py) rather than an unused default-true column, so
@@ -335,6 +554,14 @@ def get_all_companies(search: Optional[str] = None, limit: int = 500) -> List[di
         spark_by_symbol = _fetch_spark_batch(conn, symbols)
         volume_by_symbol = _fetch_latest_volume_batch(conn, symbols)
         sector_avg_pe_by_sector = _fetch_sector_avg_pe(conn)
+        # Sprint 3: universe-wide sector percentile ranks (one query)
+        sector_pct_by_symbol = _compute_sector_percentiles(conn)
+        # Sprint 3: FII/DII trend (batched, one query for all symbols)
+        fii_dii_by_symbol = _fetch_fii_dii_trend_batch(conn, symbols)
+        # Sprint 3: Earnings quality — one query per company (kept inside
+        # the open connection to avoid per-call reconnect overhead). This
+        # adds N queries but each is a tiny indexed lookup on financial_statements.
+        eq_by_symbol = {sym: _compute_earnings_quality(conn, sym) for sym in symbols}
 
         return [
             CompanyListItem(
@@ -343,6 +570,9 @@ def get_all_companies(search: Optional[str] = None, limit: int = 500) -> List[di
                     spark_by_symbol.get(row["symbol"], []),
                     volume_by_symbol.get(row["symbol"]),
                     sector_avg_pe_by_sector.get(row["sector"]),
+                    sector_percentiles=sector_pct_by_symbol.get(row["symbol"]),
+                    fii_dii_trend=fii_dii_by_symbol.get(row["symbol"]),
+                    earnings_quality=eq_by_symbol.get(row["symbol"]),
                 )
             ).model_dump()
             for row in rows
@@ -364,8 +594,19 @@ def get_company_by_symbol(symbol: str) -> Optional[dict]:
         spark = _fetch_spark_batch(conn, symbols).get(row["symbol"], [])
         latest_volume = _fetch_latest_volume_batch(conn, symbols).get(row["symbol"])
         sector_avg_pe = _fetch_sector_avg_pe(conn).get(row["sector"])
+        # Sprint 3: sector percentiles (universe-wide, single query)
+        sector_pct = _compute_sector_percentiles(conn).get(row["symbol"])
+        # Sprint 3: FII/DII trend (single-symbol, same query)
+        fii_dii = _fetch_fii_dii_trend_batch(conn, symbols).get(row["symbol"])
+        # Sprint 3: Earnings quality (single-symbol)
+        eq = _compute_earnings_quality(conn, row["symbol"])
 
-        fields = _company_fields(row, spark, latest_volume, sector_avg_pe)
+        fields = _company_fields(
+            row, spark, latest_volume, sector_avg_pe,
+            sector_percentiles=sector_pct,
+            fii_dii_trend=fii_dii,
+            earnings_quality=eq,
+        )
         symbol_upper = row["symbol"]
 
         # Deep-research fields (Module 3 + the Bloomberg/TIKR redesign).
