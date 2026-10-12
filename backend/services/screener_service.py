@@ -30,7 +30,7 @@ fields should move into SQL (or materialized columns) and this function's
 filtering should move into the WHERE clause instead.
 """
 import math
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 
 from services.company_service import get_all_companies
 
@@ -70,8 +70,14 @@ def _horizon_matches(horizon: str, months: int) -> bool:
     return True
 
 
+def _val(c, key, default=None):
+    if isinstance(c, dict):
+        return c.get(key, default)
+    return getattr(c, key, default)
+
+
 def _matches(
-    c: Dict,
+    c: Any,
     sector: Optional[str],
     risk_level: Optional[str],
     horizon: Optional[str],
@@ -93,46 +99,67 @@ def _matches(
     min_market_cap: Optional[float],
     max_market_cap: Optional[float],
 ) -> bool:
-    if sector and sector != "All" and c["sector"] != sector:
+    sec = _val(c, "sector")
+    if sector and sector != "All" and sec != sector:
         return False
-    if risk_level and risk_level != "Any" and c["riskLevel"] != risk_level:
+    risk = _val(c, "riskLevel")
+    if risk_level and risk_level != "Any" and risk != risk_level:
         return False
-    if horizon and horizon != "Any" and not _horizon_matches(horizon, c["investmentHorizonMonths"]):
+    horiz_months = _val(c, "investmentHorizonMonths", 0)
+    if horizon and horizon != "Any" and not _horizon_matches(horizon, horiz_months):
         return False
-    if min_roe is not None and c["roe"] < min_roe:
+
+    roe = _val(c, "roe")
+    if min_roe is not None and (roe is None or roe < min_roe):
         return False
-    if max_roe is not None and c["roe"] > max_roe:
+    if max_roe is not None and (roe is None or roe > max_roe):
         return False
-    if min_roce is not None and c["roce"] < min_roce:
+
+    roce = _val(c, "roce")
+    if min_roce is not None and (roce is None or roce < min_roce):
         return False
-    if max_roce is not None and c["roce"] > max_roce:
+    if max_roce is not None and (roce is None or roce > max_roce):
         return False
-    if min_eps_growth is not None and c["epsGrowthPct"] < min_eps_growth:
+
+    eps_growth = _val(c, "epsGrowthPct")
+    if min_eps_growth is not None and (eps_growth is None or eps_growth < min_eps_growth):
         return False
-    if max_eps_growth is not None and c["epsGrowthPct"] > max_eps_growth:
+    if max_eps_growth is not None and (eps_growth is None or eps_growth > max_eps_growth):
         return False
-    if min_sales_growth is not None and c["salesGrowthPct"] < min_sales_growth:
+
+    sales_growth = _val(c, "salesGrowthPct")
+    if min_sales_growth is not None and (sales_growth is None or sales_growth < min_sales_growth):
         return False
-    if max_sales_growth is not None and c["salesGrowthPct"] > max_sales_growth:
+    if max_sales_growth is not None and (sales_growth is None or sales_growth > max_sales_growth):
         return False
-    if min_pe is not None and c["pe"] < min_pe:
+
+    pe = _val(c, "pe")
+    if min_pe is not None and (pe is None or pe < min_pe):
         return False
-    if max_pe is not None and c["pe"] > max_pe:
+    if max_pe is not None and (pe is None or pe > max_pe):
         return False
-    if max_debt_to_equity is not None and c["debtToEquity"] > max_debt_to_equity:
+
+    de = _val(c, "debtToEquity")
+    if max_debt_to_equity is not None and (de is None or de > max_debt_to_equity):
         return False
-    if min_promoter_holding is not None and c["promoterHoldingPct"] < min_promoter_holding:
+
+    promoter = _val(c, "promoterHoldingPct")
+    if min_promoter_holding is not None and (promoter is None or promoter < min_promoter_holding):
         return False
-    if above_ema_200 and not c["aboveEma200"]:
+
+    if above_ema_200 and not _val(c, "aboveEma200"):
         return False
-    if above_ema_50 and not c["aboveEma50"]:
+    if above_ema_50 and not _val(c, "aboveEma50"):
         return False
-    if volume_breakout and not c["volumeBreakout"]:
+    if volume_breakout and not _val(c, "volumeBreakout"):
         return False
-    if min_market_cap is not None and (c.get("marketCapCr") or 0) < min_market_cap:
+
+    mcap = _val(c, "marketCapCr") or 0.0
+    if min_market_cap is not None and mcap < min_market_cap:
         return False
-    if max_market_cap is not None and (c.get("marketCapCr") or 0) > max_market_cap:
+    if max_market_cap is not None and mcap > max_market_cap:
         return False
+
     return True
 
 
@@ -211,7 +238,14 @@ def screen_companies(
     # ascending) — every other field's desc genuinely means "highest
     # first", so only name is pinned.
     reverse = False if sort_field == "name" else sort_direction != "asc"
-    filtered.sort(key=lambda c: c[sort_field], reverse=reverse)
+
+    def _sort_key(item):
+        val = _val(item, sort_field)
+        if val is None:
+            return (-1e12 if reverse else 1e12) if sort_field != "name" else ""
+        return val
+
+    filtered.sort(key=_sort_key, reverse=reverse)
 
     total = len(filtered)
     page = max(1, page)

@@ -144,11 +144,16 @@ function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
 }
 
 export const Route = createFileRoute("/screener")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: queryKeys.companies.list(toQueryParams(DEFAULT_FILTERS, 1)),
-      queryFn: () => fetchCompanies(toQueryParams(DEFAULT_FILTERS, 1)),
-    }),
+  loader: async ({ context }) => {
+    try {
+      await context.queryClient.ensureQueryData({
+        queryKey: queryKeys.companies.list(toQueryParams(DEFAULT_FILTERS, 1)),
+        queryFn: () => fetchCompanies(toQueryParams(DEFAULT_FILTERS, 1)),
+      });
+    } catch {
+      // Allow client-side rendering with skeleton/retry if server fetch fails or times out
+    }
+  },
   head: () => ({
     meta: [
       { title: "Screener — Stock Finder" },
@@ -293,6 +298,30 @@ function activeChips(filters: FilterState): ActiveChip[] {
   return chips;
 }
 
+const DEFAULT_SECTORS = [
+  "All",
+  "Automobile and Auto Components",
+  "Capital Goods",
+  "Chemicals",
+  "Construction",
+  "Construction Materials",
+  "Consumer Durables",
+  "Consumer Services",
+  "Fast Moving Consumer Goods",
+  "Financial Services",
+  "Forest Materials",
+  "Healthcare",
+  "Information Technology",
+  "Media Entertainment & Publication",
+  "Metals & Mining",
+  "Oil Gas & Consumable Fuels",
+  "Power",
+  "Realty",
+  "Services",
+  "Telecommunication",
+  "Textiles",
+];
+
 function Screener() {
   const [filters, setFilters] = useState<FilterState>(DEFAULT_FILTERS);
   const [applied, setApplied] = useState<FilterState>(DEFAULT_FILTERS);
@@ -300,11 +329,14 @@ function Screener() {
   const [activePreset, setActivePreset] = useState<string | null>(null);
   const [moreOpen, setMoreOpen] = useState(false);
 
-  const { data: allCompanies = [] } = useAllCompanies();
-  const sectors = useMemo(
-    () => ["All", ...new Set(allCompanies.map((c) => c.sector))],
-    [allCompanies],
-  );
+  const { data: allCompanies } = useAllCompanies();
+  const sectors = useMemo(() => {
+    if (!allCompanies || allCompanies.length === 0) return DEFAULT_SECTORS;
+    const dynamicSectors = Array.from(
+      new Set(allCompanies.map((c) => c.sector).filter(Boolean)),
+    );
+    return ["All", ...dynamicSectors.sort()];
+  }, [allCompanies]);
 
   const query = useCompanies(toQueryParams(applied, page));
   const results = query.data?.items ?? [];

@@ -111,7 +111,12 @@ export async function fetchAllCompanies(): Promise<Company[]> {
   if (allCompaniesCache && now - allCompaniesCache.timestamp < ALL_COMPANIES_TTL) {
     return allCompaniesCache.promise;
   }
-  const promise = fetchCompanies({ sort: "name", pageSize: 1000 }).then((res) => res.items);
+  const promise = fetchCompanies({ sort: "name", pageSize: 1000 })
+    .then((res) => res.items)
+    .catch((err) => {
+      allCompaniesCache = null;
+      throw err;
+    });
   allCompaniesCache = { promise, timestamp: now };
   return promise;
 }

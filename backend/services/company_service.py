@@ -555,6 +555,10 @@ def _valuation_metrics(fields: dict, row) -> dict:
     )
 
 
+_ALL_COMPANIES_CACHE: Dict[str, tuple] = {}
+_ALL_COMPANIES_CACHE_TTL = 180.0  # 3 minutes
+
+
 def get_all_companies(
     search: Optional[str] = None,
     limit: int = 500,
@@ -564,6 +568,13 @@ def get_all_companies(
     Query count: fixed batched queries total, no per-row round trips."""
     if symbols is not None and len(symbols) == 0:
         return []
+
+    now = time.monotonic()
+    if not search and not symbols and limit >= 500:
+        if "data" in _ALL_COMPANIES_CACHE:
+            ts, cached_data = _ALL_COMPANIES_CACHE["data"]
+            if now - ts < _ALL_COMPANIES_CACHE_TTL:
+                return cached_data[:limit]
 
     params = {"limit": limit}
     where_parts = ["c.is_active"]
@@ -595,7 +606,7 @@ def get_all_companies(
         # Sprint 3: Earnings quality — single batched query across all symbols
         eq_by_symbol = _fetch_earnings_quality_batch(conn, symbols_found)
 
-        return [
+        items = [
             CompanyListItem(
                 **_company_fields(
                     row,
@@ -609,6 +620,11 @@ def get_all_companies(
             ).model_dump()
             for row in rows
         ]
+
+        if not search and not symbols and limit >= 500:
+            _ALL_COMPANIES_CACHE["data"] = (now, items)
+
+        return items
 
 
 def get_company_by_symbol(symbol: str) -> Optional[dict]:
