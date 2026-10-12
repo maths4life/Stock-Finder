@@ -80,9 +80,6 @@ export function AppShell({ children }: { children: ReactNode }) {
               </kbd>
             </button>
             <ThemeToggle />
-            <div className="size-8 rounded-md bg-secondary ring-1 ring-hairline grid place-items-center text-[11px] font-mono font-medium text-accent">
-              IN
-            </div>
           </div>
         </div>
         {/* Mobile nav */}
