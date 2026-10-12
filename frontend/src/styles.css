@@ -79,15 +79,15 @@
 :root {
   --radius: 0.5rem;
 
-  /* Obsidian trading terminal — the one and only theme */
-  --paper: oklch(0.115 0.015 255);
-  --ink: oklch(0.97 0.005 250);
-  --ink-muted: oklch(0.7 0.015 250);
-  --ink-subtle: oklch(0.5 0.018 250);
-  --hairline: oklch(1 0 0 / 8.5%);
-  --hairline-strong: oklch(0.75 0.14 220 / 22%);
-  --surface: oklch(0.145 0.018 255);
-  --surface-raised: oklch(0.175 0.022 255);
+  /* Clean, crisp financial light theme */
+  --paper: oklch(0.985 0.003 250);
+  --ink: oklch(0.18 0.015 250);
+  --ink-muted: oklch(0.48 0.018 250);
+  --ink-subtle: oklch(0.64 0.015 250);
+  --hairline: oklch(0.89 0.008 250);
+  --hairline-strong: oklch(0.78 0.012 250);
+  --surface: oklch(1 0 0);
+  --surface-raised: oklch(1 0 0);
 
   --background: var(--paper);
   --foreground: var(--ink);
@@ -96,64 +96,134 @@
   --popover: var(--surface-raised);
   --popover-foreground: var(--ink);
 
-  /* Electric terminal cyan — tickers, links, active states */
-  --primary: oklch(0.75 0.14 220);
-  --primary-foreground: oklch(0.115 0.015 255);
-  --accent: oklch(0.75 0.14 220);
-  --accent-foreground: oklch(0.115 0.015 255);
+  --primary: oklch(0.52 0.16 235);
+  --primary-foreground: oklch(0.985 0.003 250);
+  --accent: oklch(0.52 0.16 235);
+  --accent-foreground: oklch(0.985 0.003 250);
 
-  --secondary: oklch(0.2 0.02 255);
+  --secondary: oklch(0.955 0.006 250);
+  --secondary-foreground: var(--ink);
+  --muted: oklch(0.955 0.006 250);
+  --muted-foreground: var(--ink-muted);
+
+  --destructive: oklch(0.55 0.20 27);
+  --destructive-foreground: oklch(0.985 0.003 250);
+
+  --border: var(--hairline);
+  --input: oklch(0.89 0.008 250);
+  --ring: oklch(0.52 0.16 235);
+
+  --positive: oklch(0.52 0.17 150);
+  --positive-soft: oklch(0.95 0.04 150);
+  --negative: oklch(0.55 0.20 27);
+  --negative-soft: oklch(0.96 0.04 27);
+  --neutral: oklch(0.55 0.12 235);
+  --neutral-soft: oklch(0.95 0.03 235);
+
+  --chart-1: oklch(0.52 0.16 235);
+  --chart-2: oklch(0.52 0.17 150);
+  --chart-3: oklch(0.55 0.20 27);
+  --chart-4: oklch(0.65 0.15 85);
+  --chart-5: oklch(0.50 0.15 280);
+
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--accent-foreground);
+  --sidebar-accent: oklch(0.955 0.006 250);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--ring);
+
+  --shadow-color: 220 20% 50%;
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.08), 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --shadow-md: 0 4px 6px -1px hsl(var(--shadow-color) / 0.1), 0 2px 4px -2px hsl(var(--shadow-color) / 0.08);
+  --shadow-lg: 0 10px 15px -3px hsl(var(--shadow-color) / 0.1), 0 4px 6px -4px hsl(var(--shadow-color) / 0.08);
+}
+
+:root.dark,
+.dark {
+  /*
+    Ultra-Premium Obsidian Trading Terminal Dark Theme
+    Deep, rich charcoal canvas with subtle blue undertone (not dull pitch-black, not muddy grey).
+    Razor-sharp contrast and vibrant financial indicators.
+  */
+  --paper: oklch(0.125 0.014 255);        /* ~ #0B0F17 Canvas */
+  --surface: oklch(0.155 0.018 255);      /* ~ #111724 Card Surface */
+  --surface-raised: oklch(0.185 0.022 255); /* ~ #162031 Elevated Panel */
+  
+  --ink: oklch(0.98 0.005 250);           /* Crisp high-contrast text #F8FAFC */
+  --ink-muted: oklch(0.72 0.015 250);     /* Slate secondary text #94A3B8 */
+  --ink-subtle: oklch(0.52 0.018 250);    /* Metadata / timestamps #64748B */
+
+  --hairline: oklch(1 0 0 / 8.5%);        /* Translucent crisp hairline */
+  --hairline-strong: oklch(0.74 0.15 220 / 25%); /* Electric cyan hairline on hover */
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+
+  /* Electric Terminal Cyan — high visual impact for active tabs and tickers */
+  --primary: oklch(0.74 0.15 220);
+  --primary-foreground: oklch(0.125 0.014 255);
+  --accent: oklch(0.74 0.15 220);
+  --accent-foreground: oklch(0.125 0.014 255);
+
+  --secondary: oklch(0.20 0.02 255);
   --secondary-foreground: var(--ink);
   --muted: oklch(0.18 0.018 255);
   --muted-foreground: var(--ink-muted);
 
   --destructive: oklch(0.68 0.22 25);
-  --destructive-foreground: oklch(0.115 0.015 255);
+  --destructive-foreground: oklch(0.125 0.014 255);
 
   --border: var(--hairline);
   --input: oklch(1 0 0 / 12%);
-  --ring: oklch(0.75 0.14 220);
+  --ring: oklch(0.74 0.15 220);
 
-  /* Market signals — bull green / bear red / neutral cyan */
-  --positive: oklch(0.78 0.2 152);
-  --positive-soft: oklch(0.25 0.08 152 / 40%);
-  --negative: oklch(0.68 0.22 25);
-  --negative-soft: oklch(0.26 0.09 25 / 40%);
-  --neutral: oklch(0.72 0.12 220);
-  --neutral-soft: oklch(0.24 0.05 220 / 40%);
+  /* High-Performance Trading Signals */
+  --positive: oklch(0.78 0.20 152);         /* Electric Emerald #00E676 */
+  --positive-soft: oklch(0.24 0.08 152 / 38%);
+  --negative: oklch(0.68 0.22 25);          /* Vivid Crimson #FF3366 */
+  --negative-soft: oklch(0.25 0.09 25 / 38%);
+  --neutral: oklch(0.72 0.12 220);          /* Electric Blue */
+  --neutral-soft: oklch(0.23 0.05 220 / 38%);
 
-  --chart-1: oklch(0.75 0.14 220);
-  --chart-2: oklch(0.78 0.2 152);
+  --chart-1: oklch(0.74 0.15 220);
+  --chart-2: oklch(0.78 0.20 152);
   --chart-3: oklch(0.68 0.22 25);
-  --chart-4: oklch(0.8 0.15 85);
+  --chart-4: oklch(0.80 0.15 85);
   --chart-5: oklch(0.65 0.15 280);
 
   --sidebar: var(--paper);
   --sidebar-foreground: var(--ink);
   --sidebar-primary: var(--accent);
   --sidebar-primary-foreground: var(--accent-foreground);
-  --sidebar-accent: oklch(0.2 0.02 255);
+  --sidebar-accent: oklch(0.20 0.02 255);
   --sidebar-accent-foreground: var(--ink);
   --sidebar-border: var(--hairline);
   --sidebar-ring: var(--ring);
 
-  /* Elevation — deep, low-spread shadows suited to a dark terminal */
   --shadow-color: 240 25% 4%;
-  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.3);
-  --shadow-sm:
-    0 1px 2px hsl(var(--shadow-color) / 0.25), 0 2px 6px -2px hsl(var(--shadow-color) / 0.35);
-  --shadow-md:
-    0 2px 4px hsl(var(--shadow-color) / 0.25), 0 8px 24px -8px hsl(var(--shadow-color) / 0.45);
-  --shadow-lg:
-    0 4px 8px hsl(var(--shadow-color) / 0.3), 0 16px 40px -12px hsl(var(--shadow-color) / 0.6);
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.35);
+  --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.3), 0 2px 6px -2px hsl(var(--shadow-color) / 0.4);
+  --shadow-md: 0 4px 6px -1px hsl(var(--shadow-color) / 0.3), 0 8px 24px -8px hsl(var(--shadow-color) / 0.5);
+  --shadow-lg: 0 10px 15px -3px hsl(var(--shadow-color) / 0.35), 0 16px 40px -12px hsl(var(--shadow-color) / 0.65);
 }
 
 @layer base {
   * {
     border-color: var(--color-border);
   }
-  html {
+  html.dark {
     color-scheme: dark;
+  }
+  html:not(.dark) {
+    color-scheme: light;
   }
   html,
   body {

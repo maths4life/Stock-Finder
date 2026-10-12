@@ -3,6 +3,7 @@ import { type ReactNode } from "react";
 import { CommandPalette } from "./CommandPalette";
 import { Search } from "lucide-react";
 import { cn } from "@/shared/utils/utils";
+import { ThemeToggle } from "@/shared/components/common/ThemeToggle";
 
 const nav = [
   { to: "/", label: "Discover" },
@@ -89,7 +90,7 @@ export function AppShell({ children }: { children: ReactNode }) {
               ))}
             </div>
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center gap-2 sm:gap-3">
             <button
               onClick={() =>
                 window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))
@@ -102,6 +103,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                 ⌘K
               </kbd>
             </button>
+            <ThemeToggle />
             <div className="size-8 rounded-md bg-secondary ring-1 ring-hairline grid place-items-center text-[11px] font-mono font-medium text-accent">
               IN
             </div>

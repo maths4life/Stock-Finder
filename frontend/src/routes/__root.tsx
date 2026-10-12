@@ -111,9 +111,14 @@ function RootShell({ children }: { children: ReactNode }) {
   return (
     <html lang="en" className="dark">
       <head>
+        <script
+          dangerouslySetInnerHTML={{
+            __html: `(function(){try{var t=localStorage.getItem('theme');if(t==='light'){document.documentElement.classList.remove('dark');}else{document.documentElement.classList.add('dark');}}catch(e){}})();`,
+          }}
+        />
         <HeadContent />
       </head>
-      <body className="bg-paper text-ink selection:bg-accent/20 selection:text-accent min-h-screen antialiased">
+      <body className="bg-paper text-ink selection:bg-accent/20 selection:text-accent min-h-screen antialiased transition-colors duration-150">
         {children}
         <Scripts />
       </body>
