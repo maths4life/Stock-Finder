@@ -16,6 +16,7 @@ const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
  */
 export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<Paginated<Company>> {
   const qs = new URLSearchParams();
+  if (params.symbols) qs.set("symbols", params.symbols);
   if (params.search) qs.set("search", params.search);
   if (params.sector && params.sector !== "All") qs.set("sector", params.sector);
   if (params.riskLevel && params.riskLevel !== "Any") qs.set("riskLevel", params.riskLevel);
@@ -36,6 +37,8 @@ export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<P
   if (params.aboveEma200) qs.set("aboveEma200", "true");
   if (params.aboveEma50) qs.set("aboveEma50", "true");
   if (params.volumeBreakout) qs.set("volumeBreakout", "true");
+  if (params.minMarketCap !== undefined) qs.set("minMarketCap", String(params.minMarketCap));
+  if (params.maxMarketCap !== undefined) qs.set("maxMarketCap", String(params.maxMarketCap));
   if (params.sort) qs.set("sort", params.sort);
   if (params.sortDirection) qs.set("sortDirection", params.sortDirection);
   qs.set("page", String(params.page ?? 1));
@@ -100,17 +103,28 @@ export async function searchCompanies(query: string, limit = 8): Promise<Company
  * Used for dropdowns (e.g. sector filter options) and as the base list
  * `fetchCompaniesBySymbols` filters over.
  */
+let allCompaniesCache: { promise: Promise<Company[]>; timestamp: number } | null = null;
+const ALL_COMPANIES_TTL = 60 * 1000; // 1 minute
+
 export async function fetchAllCompanies(): Promise<Company[]> {
-  const { items } = await fetchCompanies({ sort: "name", pageSize: 1000 });
-  return items;
+  const now = Date.now();
+  if (allCompaniesCache && now - allCompaniesCache.timestamp < ALL_COMPANIES_TTL) {
+    return allCompaniesCache.promise;
+  }
+  const promise = fetchCompanies({ sort: "name", pageSize: 1000 }).then((res) => res.items);
+  allCompaniesCache = { promise, timestamp: now };
+  return promise;
 }
 
 /**
- * Used by watchlist/portfolio. A lookup by exact symbol, not screening or
- * ranking, so it's fine to filter client-side over the already-fetched list.
+ * Used by watchlist/portfolio/discover groups. Fetches only the requested
+ * symbols directly from the API instead of downloading the full universe.
  */
 export async function fetchCompaniesBySymbols(symbols: string[]): Promise<Company[]> {
-  const companies = await fetchAllCompanies();
-
-  return companies.filter((c) => symbols.includes(c.symbol.toUpperCase()));
+  if (!symbols || symbols.length === 0) return [];
+  const { items } = await fetchCompanies({
+    symbols: symbols.join(","),
+    pageSize: Math.max(symbols.length, 20),
+  });
+  return items;
 }

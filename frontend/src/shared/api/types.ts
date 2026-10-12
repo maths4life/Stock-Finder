@@ -278,6 +278,7 @@ export type SortDirection = "asc" | "desc";
 
 /** Filter/query params a real `/companies` endpoint would accept as query string params. */
 export type CompanyQueryParams = {
+  symbols?: string;
   search?: string;
   sector?: string;
   riskLevel?: RiskLevel | "Any";
@@ -299,6 +300,8 @@ export type CompanyQueryParams = {
   aboveEma200?: boolean;
   aboveEma50?: boolean;
   volumeBreakout?: boolean;
+  minMarketCap?: number;
+  maxMarketCap?: number;
   sort?: CompanySort;
   sortDirection?: SortDirection;
   page?: number;

@@ -135,10 +135,31 @@ _GROUP_DEFS = [
 ]
 
 
+import time
+
+_DISCOVER_CACHE: Dict[str, tuple] = {}
+_DISCOVER_CACHE_TTL = 300.0  # 5 minutes
+
+
+def _get_discover_cache(key: str):
+    now = time.monotonic()
+    if key in _DISCOVER_CACHE:
+        ts, val = _DISCOVER_CACHE[key]
+        if now - ts < _DISCOVER_CACHE_TTL:
+            return val
+    return None
+
+
+def _set_discover_cache(key: str, val):
+    _DISCOVER_CACHE[key] = (time.monotonic(), val)
+
+
 def get_discover_groups() -> List[dict]:
-    """GET /discover/groups — 4 real, computed groupings. Exactly one query
-    per group (4 total), each already LIMITed at the DB, so cost is fixed
-    regardless of how many companies exist."""
+    """GET /discover/groups — 4 real, computed groupings. Cached in-memory for 5 min."""
+    cached = _get_discover_cache("discover_groups")
+    if cached is not None:
+        return cached
+
     groups: List[dict] = []
     with engine.connect() as conn:
         for spec in _GROUP_DEFS:
@@ -153,6 +174,7 @@ def get_discover_groups() -> List[dict]:
                     symbols=symbols,
                 ).model_dump()
             )
+    _set_discover_cache("discover_groups", groups)
     return groups
 
 
@@ -247,6 +269,10 @@ def _sentiment_for_score(avg_score: float) -> str:
 
 
 def get_sector_pulse(limit: int = 4) -> List[dict]:
+    cached = _get_discover_cache(f"sector_pulse_{limit}")
+    if cached is not None:
+        return cached
+
     """GET /sectors/pulse — real aggregates over `companies` joined with
     `scores` and `technical_snapshot`, grouped by sector. Two queries total:
     one for the sector-level aggregate, one batched top-symbols lookup."""
@@ -296,6 +322,7 @@ def get_sector_pulse(limit: int = 4) -> List[dict]:
                 topSymbols=top_symbols_by_sector.get(row["sector"], []),
             ).model_dump()
         )
+    _set_discover_cache(f"sector_pulse_{limit}", results)
     return results
 
 
@@ -321,6 +348,10 @@ _MARKET_BREADTH_QUERY = text(
 
 
 def get_market_indicators() -> List[dict]:
+    cached = _get_discover_cache("market_indicators")
+    if cached is not None:
+        return cached
+
     """GET /market/indicators — one aggregate query, real market-breadth
     statistics over the covered universe. See module docstring: this
     intentionally does NOT fabricate NIFTY/VIX/USD-INR-style figures the
@@ -374,7 +405,9 @@ def get_market_indicators() -> List[dict]:
             tone="positive" if golden_crosses > 0 else "neutral",
         ),
     ]
-    return [ind.model_dump() for ind in indicators]
+    res = [ind.model_dump() for ind in indicators]
+    _set_discover_cache("market_indicators", res)
+    return res
 
 
 # ---------------------------------------------------------------------------

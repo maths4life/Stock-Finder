@@ -74,7 +74,18 @@ class RSSNewsProvider(NewsProvider):
         self.feed_url = feed_url
 
     def fetch(self, since: datetime) -> List[RawArticle]:
-        parsed = feedparser.parse(self.feed_url)
+        import urllib.request
+        try:
+            req = urllib.request.Request(
+                self.feed_url,
+                headers={"User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) StockFinder/1.0"}
+            )
+            with urllib.request.urlopen(req, timeout=3.5) as resp:
+                content = resp.read()
+            parsed = feedparser.parse(content)
+        except Exception as exc:
+            # Fall back to feedparser direct or return empty on timeout
+            return []
         articles: List[RawArticle] = []
 
         for entry in getattr(parsed, "entries", []):
@@ -164,24 +175,19 @@ PROVIDERS: List[NewsProvider] = [
 
 
 def fetch_all_recent_articles(days: int = 7) -> List[RawArticle]:
-    """Merge -- but do not yet deduplicate or classify -- articles from
-    every configured provider published in the last `days` calendar days.
-    Deduplication happens one layer up (weekly_market_intelligence.py),
-    since it needs to write survivors to the `news_articles` table, which
-    this I/O-only module doesn't touch.
-
-    A provider that fails (network error, malformed feed, site down)
-    is skipped, not fatal -- Module 7 should degrade to fewer sources
-    rather than fail the whole weekly refresh over one provider outage.
-    """
+    """Fetch articles concurrently with bounded thread pool and per-provider timeouts."""
     since = datetime.now(timezone.utc) - timedelta(days=days)
     all_articles: List[RawArticle] = []
+    from concurrent.futures import ThreadPoolExecutor, as_completed
 
-    for provider in PROVIDERS:
-        try:
-            all_articles.extend(provider.fetch(since))
-        except Exception as exc:  # noqa: BLE001 -- deliberately broad, see docstring
-            print(f"[news_provider] {provider.name} failed, skipping: {exc}")
-            continue
+    with ThreadPoolExecutor(max_workers=len(PROVIDERS)) as executor:
+        futures = {executor.submit(p.fetch, since): p.name for p in PROVIDERS}
+        for future in as_completed(futures):
+            pname = futures[future]
+            try:
+                articles = future.result()
+                all_articles.extend(articles)
+            except Exception as exc:
+                print(f"[news_provider] {pname} failed in pool: {exc}")
 
     return all_articles

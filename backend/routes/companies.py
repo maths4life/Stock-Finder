@@ -12,6 +12,7 @@ router = APIRouter()
 
 @router.get("/companies", response_model=PaginatedCompanies)
 def companies(
+    symbols: Optional[str] = Query(None, description="Comma-separated symbols (e.g. TCS,INFY)"),
     search: Optional[str] = Query(None, description="Match against name or symbol"),
     sector: Optional[str] = Query(None),
     riskLevel: Optional[str] = Query(None, description="Low|Moderate|High|Any"),  # noqa: N803 — matches querystring/CompanyQueryParams casing
@@ -39,6 +40,7 @@ def companies(
     pageSize: int = Query(DEFAULT_PAGE_SIZE, ge=1, le=MAX_PAGE_SIZE),  # noqa: N803
 ):
     return screen_companies(
+        symbols=symbols,
         search=search,
         sector=sector,
         risk_level=riskLevel,

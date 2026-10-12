@@ -137,6 +137,7 @@ def _matches(
 
 
 def screen_companies(
+    symbols: Optional[str] = None,
     search: Optional[str] = None,
     sector: Optional[str] = None,
     risk_level: Optional[str] = None,
@@ -173,7 +174,8 @@ def screen_companies(
     one-sided sliders. They read the same already-computed fields as their
     counterparts; no new metric, no scoring change.
     """
-    universe = get_all_companies(search=search, limit=SCREENER_UNIVERSE_LIMIT)
+    symbol_list = [s.strip().upper() for s in symbols.split(",") if s.strip()] if symbols else None
+    universe = get_all_companies(search=search, limit=SCREENER_UNIVERSE_LIMIT, symbols=symbol_list)
 
     filtered = [
         c
