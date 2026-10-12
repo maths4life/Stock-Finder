@@ -42,7 +42,7 @@ export const Route = createFileRoute("/journal")({
         queryKey: queryKeys.journalReviews,
         queryFn: fetchJournalReviews,
       }),
-    ]),
+    ]).catch(() => null),
   head: () => ({
     meta: [
       { title: "Journal — Stock Finder" },

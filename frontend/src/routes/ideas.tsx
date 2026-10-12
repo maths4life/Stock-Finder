@@ -40,7 +40,9 @@ import { Inbox, MoreVertical, NotebookPen } from "lucide-react";
 
 export const Route = createFileRoute("/ideas")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({ queryKey: queryKeys.pipeline, queryFn: fetchPipeline }),
+    context.queryClient
+      .ensureQueryData({ queryKey: queryKeys.pipeline, queryFn: fetchPipeline })
+      .catch(() => null),
   head: () => ({
     meta: [
       { title: "Ideas — Stock Finder" },

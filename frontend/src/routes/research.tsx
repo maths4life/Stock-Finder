@@ -43,10 +43,12 @@ const QUICK_FILTERS: { id: string; label: string; params: Partial<CompanyQueryPa
 
 export const Route = createFileRoute("/research")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: queryKeys.companies.list(DEFAULT_PARAMS),
-      queryFn: () => fetchCompanies(DEFAULT_PARAMS),
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: queryKeys.companies.list(DEFAULT_PARAMS),
+        queryFn: () => fetchCompanies(DEFAULT_PARAMS),
+      })
+      .catch(() => null),
   head: () => ({
     meta: [
       { title: "Research — Stock Finder" },

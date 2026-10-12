@@ -21,10 +21,12 @@ import type { Company, DiscoverGroup, SectorPulse } from "@/shared/api/types";
 
 export const Route = createFileRoute("/")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData({
-      queryKey: queryKeys.discoverGroups,
-      queryFn: fetchDiscoverGroups,
-    }),
+    context.queryClient
+      .ensureQueryData({
+        queryKey: queryKeys.discoverGroups,
+        queryFn: fetchDiscoverGroups,
+      })
+      .catch(() => null),
   head: () => ({
     meta: [
       { title: "Today's Shortlist — Stock Finder" },
