@@ -47,13 +47,11 @@ def _set_cached_articles(articles: List[RawArticle]) -> None:
 def _source_label(provider: str) -> str:
     """Human-readable source label for the UI."""
     labels = {
-        "economic_times": "Economic Times",
-        "hindu_business_line": "Hindu BusinessLine",
-        "livemint": "Livemint",
-        "yahoo_finance": "Yahoo Finance",
-        "google_news": "Google News",
+        "economic_times": "Economic Times Markets",
+        "economic_times_stocks": "Economic Times Stocks",
+        "economic_times_industry": "Economic Times Industry",
     }
-    return labels.get(provider, provider.replace("_", " ").title())
+    return labels.get(provider, "Economic Times")
 
 
 def _age_label(article: RawArticle) -> str:
@@ -73,23 +71,19 @@ def _age_label(article: RawArticle) -> str:
     return f"{seconds // 604800}w ago"
 
 
-# Providers whose content is scoped to Indian markets.
-# yahoo_finance is a global feed and is deliberately excluded from the
-# sidebar — it's kept in the weekly intelligence pipeline (which needs
-# broad coverage) but filtered out here so only Indian news is shown.
-_INDIA_PROVIDERS = {"economic_times", "hindu_business_line", "livemint", "google_news"}
+# Providers whose content is scoped to Indian markets (strictly Economic Times).
+_INDIA_PROVIDERS = {"economic_times", "economic_times_stocks", "economic_times_industry"}
 
 # Minimum importance score to surface in the sidebar. Articles below this
 # are bare headlines with no polarity signal and no real summary — not
-# worth showing. 0.55 = base(0.40) + at least one polarity word(0.15).
-_MIN_IMPORTANCE = 0.55
+# worth showing.
+_MIN_IMPORTANCE = 0.45
 
-# Priority order within Indian sources.
+# Priority order within Economic Times feeds.
 _SOURCE_PRIORITY = {
     "economic_times": 0,
-    "hindu_business_line": 1,
-    "livemint": 2,
-    "google_news": 3,
+    "economic_times_stocks": 1,
+    "economic_times_industry": 2,
 }
 
 

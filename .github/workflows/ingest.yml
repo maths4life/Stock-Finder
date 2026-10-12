@@ -8,13 +8,11 @@ name: Weekly data refresh
 # ~498-company universe.
 on:
   schedule:
-    # 20:30 UTC every Friday = 02:00 IST Saturday — i.e. Saturday early
-    # morning IST, safely after Friday's NSE market close (15:30 IST) and
-    # after Friday's US/global market activity that Yahoo's data reflects.
-    # Day-of-week is pinned to Friday only (5), so this fires exactly once
-    # a week — do not widen the day-of-week field without re-checking this
-    # comment.
-    - cron: "30 20 * * 5"
+    # Weekly data & market intelligence refresh:
+    # 20:30 UTC Saturday = 02:00 IST Sunday (Saturday night 2:00 AM IST).
+    # Runs weekly after market close and week's end, fetching prices,
+    # technicals, fundamentals, statements, Economic Times news, and scores.
+    - cron: "30 20 * * 6"
 
   workflow_dispatch:
 

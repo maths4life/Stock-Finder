@@ -38,7 +38,7 @@ _GROUP_DEFS = [
     {
         "id": "qarp",
         "label": "Quality at a Reasonable Price",
-        "tagline": "High-ROE businesses trading below their sector's median P/E.",
+        "tagline": "High-ROE market leaders trading below sector median valuation with healthy macro trend.",
         "layout": "list",
         "limit": 3,
         "query": text(
@@ -58,11 +58,13 @@ _GROUP_DEFS = [
             join financials_quarterly f
                 on f.symbol = c.symbol and f.quarter = 'latest'
             join sector_median_pe smp on smp.sector = c.sector
+            left join technical_snapshot t on t.symbol = c.symbol
             left join scores s on s.symbol = c.symbol
             where c.is_active
               and f.roe_pct >= 15
               and f.pe > 0
               and f.pe < smp.median_pe
+              and coalesce(t.above_200dma, true) = true
             order by f.roe_pct desc
             limit :limit
             """
@@ -71,7 +73,7 @@ _GROUP_DEFS = [
     {
         "id": "profit_acceleration",
         "label": "Margin Expansion",
-        "tagline": "Profit growing faster than revenue — the clearest sign of improving business quality.",
+        "tagline": "Profit growing faster than revenue — improving business profitability for the next 2–4 quarters.",
         "layout": "list",
         "limit": 3,
         "query": text(
@@ -80,12 +82,14 @@ _GROUP_DEFS = [
             from companies c
             join financials_quarterly f
                 on f.symbol = c.symbol and f.quarter = 'latest'
+            left join technical_snapshot t on t.symbol = c.symbol
             left join scores s on s.symbol = c.symbol
             where c.is_active
               and f.profit_growth_pct is not null
               and f.revenue_growth_pct is not null
-              and f.profit_growth_pct > 10
+              and f.profit_growth_pct > 12
               and f.profit_growth_pct > f.revenue_growth_pct
+              and coalesce(t.above_200dma, true) = true
             order by (f.profit_growth_pct - f.revenue_growth_pct) desc
             limit :limit
             """
@@ -93,10 +97,10 @@ _GROUP_DEFS = [
     },
     {
         "id": "momentum_recovery",
-        "label": "Momentum Turning Up",
-        "tagline": "Stocks recovering above the 200-day average with RSI in a constructive zone.",
+        "label": "Trend & Momentum Leaders",
+        "tagline": "Sustained momentum holding above key 50 & 200-day moving averages with constructive RSI.",
         "layout": "grid",
-        "limit": 2,
+        "limit": 3,
         "query": text(
             """
             select c.symbol
@@ -105,9 +109,10 @@ _GROUP_DEFS = [
             left join scores s on s.symbol = c.symbol
             where c.is_active
               and t.above_200dma = true
-              and t.rsi_14 between 50 and 68
-              and t.above_50dma = false
-            order by coalesce(s.fundamental_score, 0) desc
+              and t.above_50dma = true
+              and t.rsi_14 between 52 and 68
+              and coalesce(s.overall_score, 0) >= 60
+            order by coalesce(s.overall_score, 0) desc
             limit :limit
             """
         ),
@@ -115,7 +120,7 @@ _GROUP_DEFS = [
     {
         "id": "quality_pullback",
         "label": "Quality on Pullback",
-        "tagline": "Strong fundamentals, price below the 200-day average — potential entry zones.",
+        "tagline": "High-conviction compounders in macro uptrends pulling back to lower-risk entry zones.",
         "layout": "list",
         "limit": 3,
         "query": text(
@@ -125,8 +130,9 @@ _GROUP_DEFS = [
             join technical_snapshot t on t.symbol = c.symbol
             left join scores s on s.symbol = c.symbol
             where c.is_active
-              and t.above_200dma = false
-              and coalesce(s.fundamental_score, 0) >= 60
+              and t.above_200dma = true
+              and t.rsi_14 between 40 and 55
+              and coalesce(s.fundamental_score, 0) >= 65
             order by coalesce(s.fundamental_score, 0) desc
             limit :limit
             """
@@ -300,20 +306,41 @@ def get_sector_pulse(limit: int = 4) -> List[dict]:
         sectors = [row["sector"] for row in sector_rows]
 
         top_symbols_by_sector: Dict[str, List[str]] = {s: [] for s in sectors}
+        sector_intel: Dict[str, dict] = {}
         if sectors:
             top_rows = conn.execute(top_symbols_query, {"sectors": sectors}).mappings().all()
             for row in top_rows:
                 top_symbols_by_sector.setdefault(row["sector"], []).append(row["symbol"])
 
+            try:
+                intel_rows = conn.execute(
+                    text("""
+                        select distinct on (sector)
+                            sector, outlook, summary, article_count
+                        from weekly_sector_intelligence
+                        where sector in :sectors
+                        order by sector, week_start_date desc
+                    """).bindparams(bindparam("sectors", expanding=True)),
+                    {"sectors": sectors}
+                ).mappings().all()
+                for r in intel_rows:
+                    sector_intel[r["sector"]] = dict(r)
+            except Exception:
+                pass
+
     results = []
     for row in sector_rows:
         avg_score = float(row["avg_score"])
         avg_change = float(row["avg_change"])
-        sentiment = _sentiment_for_score(avg_score)
-        reason = (
-            f"Average score {avg_score:.0f}/100 across {row['n']} covered "
-            f"name{'s' if row['n'] != 1 else ''}, sector move {avg_change:+.2f}% today."
-        )
+        intel = sector_intel.get(row["sector"])
+        sentiment = intel["outlook"] if intel and intel.get("outlook") else _sentiment_for_score(avg_score)
+        if intel and intel.get("summary"):
+            reason = intel["summary"]
+        else:
+            reason = (
+                f"Average score {avg_score:.0f}/100 across {row['n']} covered "
+                f"name{'s' if row['n'] != 1 else ''}, sector move {avg_change:+.2f}% today."
+            )
         results.append(
             SectorPulse(
                 sector=row["sector"],
