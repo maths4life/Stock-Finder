@@ -20,25 +20,6 @@ export function AppShell({ children }: { children: ReactNode }) {
 
   return (
     <div className="min-h-screen bg-paper text-ink selection:bg-accent/20 selection:text-accent font-sans">
-      {/* ── Trading Terminal Status Bar ── */}
-      <div className="bg-surface/90 border-b border-hairline py-1 px-4 text-[11px] font-mono flex items-center justify-between text-ink-subtle">
-        <div className="flex items-center gap-4 overflow-hidden text-nowrap">
-          <span className="flex items-center gap-1.5 text-positive font-medium">
-            <span className="size-1.5 rounded-full bg-positive animate-pulse" />
-            NSE · NIFTY 500
-          </span>
-          <span className="hidden sm:inline text-hairline">|</span>
-          <span className="hidden sm:inline">SATURDAY CADENCE: 02:00 AM IST</span>
-          <span className="hidden md:inline text-hairline">|</span>
-          <span className="hidden md:inline text-ink-muted">INTELLIGENCE: THE ECONOMIC TIMES</span>
-        </div>
-        <div className="flex items-center gap-2 shrink-0">
-          <span className="px-1.5 py-0.5 rounded text-[10px] bg-secondary text-ink-muted ring-1 ring-hairline">
-            TERMINAL v2.4
-          </span>
-        </div>
-      </div>
-
       <nav className="sticky top-0 z-40 bg-paper/90 backdrop-blur-md hairline-b">
         <div className="page-container h-14 flex items-center justify-between">
           <div className="flex items-center gap-8">

@@ -5,7 +5,6 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "@/shared/components/layout/AppShell";
 import { SentimentBadge } from "@/shared/components/common/Badge";
 import { ErrorState } from "@/shared/components/common/ErrorState";
-import { DataFreshness } from "@/shared/components/common/DataFreshness";
 import { Skeleton } from "@/shared/components/ui/skeleton";
 import { useCompaniesForSymbols } from "@/features/company/hooks/useCompaniesForSymbols";
 import { cn } from "@/shared/utils/utils";
@@ -61,7 +60,7 @@ function Discover() {
     <AppShell>
       <div className="page-container py-12 pb-24">
         {/* ── Hero header ── */}
-        <header className="mb-14 animate-fade-up flex flex-col sm:flex-row sm:items-end sm:justify-between gap-6">
+        <header className="mb-14 animate-fade-up">
           <div>
             <p className="text-eyebrow text-accent mb-3">{formatToday()}</p>
             <h1 className="text-heading-xl md:text-display text-balance max-w-[26ch]">
@@ -71,7 +70,6 @@ function Discover() {
               Indian equities worth a second look today, grouped by why they qualify.
             </p>
           </div>
-          <DataFreshness />
         </header>
 
         <div className="grid grid-cols-12 gap-x-12 gap-y-16">
