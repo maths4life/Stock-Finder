@@ -9,8 +9,8 @@ export function ThemeToggle({ className }: { className?: string }) {
   useEffect(() => {
     setMounted(true);
     const root = document.documentElement;
-    const currentIsDark = root.classList.contains("dark");
-    setIsDark(currentIsDark);
+    const isLight = root.classList.contains("light");
+    setIsDark(!isLight);
   }, []);
 
   function toggleTheme() {
@@ -19,10 +19,12 @@ export function ThemeToggle({ className }: { className?: string }) {
     setIsDark(nextDark);
 
     if (nextDark) {
+      root.classList.remove("light");
       root.classList.add("dark");
       localStorage.setItem("theme", "dark");
     } else {
       root.classList.remove("dark");
+      root.classList.add("light");
       localStorage.setItem("theme", "light");
     }
   }

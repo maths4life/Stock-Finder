@@ -76,76 +76,13 @@
   --color-sidebar-ring: var(--sidebar-ring);
 }
 
-:root {
-  --radius: 0.5rem;
-
-  /* Clean, crisp financial light theme */
-  --paper: oklch(0.985 0.003 250);
-  --ink: oklch(0.18 0.015 250);
-  --ink-muted: oklch(0.48 0.018 250);
-  --ink-subtle: oklch(0.64 0.015 250);
-  --hairline: oklch(0.89 0.008 250);
-  --hairline-strong: oklch(0.78 0.012 250);
-  --surface: oklch(1 0 0);
-  --surface-raised: oklch(1 0 0);
-
-  --background: var(--paper);
-  --foreground: var(--ink);
-  --card: var(--surface-raised);
-  --card-foreground: var(--ink);
-  --popover: var(--surface-raised);
-  --popover-foreground: var(--ink);
-
-  --primary: oklch(0.52 0.16 235);
-  --primary-foreground: oklch(0.985 0.003 250);
-  --accent: oklch(0.52 0.16 235);
-  --accent-foreground: oklch(0.985 0.003 250);
-
-  --secondary: oklch(0.955 0.006 250);
-  --secondary-foreground: var(--ink);
-  --muted: oklch(0.955 0.006 250);
-  --muted-foreground: var(--ink-muted);
-
-  --destructive: oklch(0.55 0.20 27);
-  --destructive-foreground: oklch(0.985 0.003 250);
-
-  --border: var(--hairline);
-  --input: oklch(0.89 0.008 250);
-  --ring: oklch(0.52 0.16 235);
-
-  --positive: oklch(0.52 0.17 150);
-  --positive-soft: oklch(0.95 0.04 150);
-  --negative: oklch(0.55 0.20 27);
-  --negative-soft: oklch(0.96 0.04 27);
-  --neutral: oklch(0.55 0.12 235);
-  --neutral-soft: oklch(0.95 0.03 235);
-
-  --chart-1: oklch(0.52 0.16 235);
-  --chart-2: oklch(0.52 0.17 150);
-  --chart-3: oklch(0.55 0.20 27);
-  --chart-4: oklch(0.65 0.15 85);
-  --chart-5: oklch(0.50 0.15 280);
-
-  --sidebar: var(--paper);
-  --sidebar-foreground: var(--ink);
-  --sidebar-primary: var(--accent);
-  --sidebar-primary-foreground: var(--accent-foreground);
-  --sidebar-accent: oklch(0.955 0.006 250);
-  --sidebar-accent-foreground: var(--ink);
-  --sidebar-border: var(--hairline);
-  --sidebar-ring: var(--ring);
-
-  --shadow-color: 220 20% 50%;
-  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
-  --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.08), 0 1px 2px hsl(var(--shadow-color) / 0.06);
-  --shadow-md: 0 4px 6px -1px hsl(var(--shadow-color) / 0.1), 0 2px 4px -2px hsl(var(--shadow-color) / 0.08);
-  --shadow-lg: 0 10px 15px -3px hsl(var(--shadow-color) / 0.1), 0 4px 6px -4px hsl(var(--shadow-color) / 0.08);
-}
-
+:root,
 :root.dark,
 .dark {
+  --radius: 0.5rem;
+
   /*
-    Ultra-Premium Obsidian Trading Terminal Dark Theme
+    Ultra-Premium Obsidian Trading Terminal Dark Theme (Default)
     Deep, rich charcoal canvas with subtle blue undertone (not dull pitch-black, not muddy grey).
     Razor-sharp contrast and vibrant financial indicators.
   */
@@ -215,14 +152,79 @@
   --shadow-lg: 0 10px 15px -3px hsl(var(--shadow-color) / 0.35), 0 16px 40px -12px hsl(var(--shadow-color) / 0.65);
 }
 
+:root.light,
+.light {
+  /* Clean, crisp financial light theme */
+  --paper: oklch(0.985 0.003 250);
+  --ink: oklch(0.18 0.015 250);
+  --ink-muted: oklch(0.48 0.018 250);
+  --ink-subtle: oklch(0.64 0.015 250);
+  --hairline: oklch(0.89 0.008 250);
+  --hairline-strong: oklch(0.78 0.012 250);
+  --surface: oklch(1 0 0);
+  --surface-raised: oklch(1 0 0);
+
+  --background: var(--paper);
+  --foreground: var(--ink);
+  --card: var(--surface-raised);
+  --card-foreground: var(--ink);
+  --popover: var(--surface-raised);
+  --popover-foreground: var(--ink);
+
+  --primary: oklch(0.52 0.16 235);
+  --primary-foreground: oklch(0.985 0.003 250);
+  --accent: oklch(0.52 0.16 235);
+  --accent-foreground: oklch(0.985 0.003 250);
+
+  --secondary: oklch(0.955 0.006 250);
+  --secondary-foreground: var(--ink);
+  --muted: oklch(0.955 0.006 250);
+  --muted-foreground: var(--ink-muted);
+
+  --destructive: oklch(0.55 0.20 27);
+  --destructive-foreground: oklch(0.985 0.003 250);
+
+  --border: var(--hairline);
+  --input: oklch(0.89 0.008 250);
+  --ring: oklch(0.52 0.16 235);
+
+  --positive: oklch(0.52 0.17 150);
+  --positive-soft: oklch(0.95 0.04 150);
+  --negative: oklch(0.55 0.20 27);
+  --negative-soft: oklch(0.96 0.04 27);
+  --neutral: oklch(0.55 0.12 235);
+  --neutral-soft: oklch(0.95 0.03 235);
+
+  --chart-1: oklch(0.52 0.16 235);
+  --chart-2: oklch(0.52 0.17 150);
+  --chart-3: oklch(0.55 0.20 27);
+  --chart-4: oklch(0.65 0.15 85);
+  --chart-5: oklch(0.50 0.15 280);
+
+  --sidebar: var(--paper);
+  --sidebar-foreground: var(--ink);
+  --sidebar-primary: var(--accent);
+  --sidebar-primary-foreground: var(--accent-foreground);
+  --sidebar-accent: oklch(0.955 0.006 250);
+  --sidebar-accent-foreground: var(--ink);
+  --sidebar-border: var(--hairline);
+  --sidebar-ring: var(--ring);
+
+  --shadow-color: 220 20% 50%;
+  --shadow-xs: 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --shadow-sm: 0 1px 3px hsl(var(--shadow-color) / 0.08), 0 1px 2px hsl(var(--shadow-color) / 0.06);
+  --shadow-md: 0 4px 6px -1px hsl(var(--shadow-color) / 0.1), 0 2px 4px -2px hsl(var(--shadow-color) / 0.08);
+  --shadow-lg: 0 10px 15px -3px hsl(var(--shadow-color) / 0.1), 0 4px 6px -4px hsl(var(--shadow-color) / 0.08);
+}
+
 @layer base {
   * {
     border-color: var(--color-border);
   }
-  html.dark {
+  html:not(.light) {
     color-scheme: dark;
   }
-  html:not(.dark) {
+  html.light {
     color-scheme: light;
   }
   html,
