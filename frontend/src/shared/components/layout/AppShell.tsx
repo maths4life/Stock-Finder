@@ -47,12 +47,7 @@ export function AppShell({ children }: { children: ReactNode }) {
                   />
                 </svg>
               </div>
-              <div className="flex items-center gap-2">
-                <span className="font-semibold tracking-tight">Stock Finder</span>
-                <span className="font-mono text-[9px] uppercase tracking-wider px-1.5 py-0.5 rounded bg-accent/10 text-accent ring-1 ring-accent/30 font-bold">
-                  PRO
-                </span>
-              </div>
+              <span className="font-semibold tracking-tight text-[15px]">Stock Finder</span>
             </Link>
             <div className="hidden md:flex items-center gap-1">
               {nav.map((n) => (
