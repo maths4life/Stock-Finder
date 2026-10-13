@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   AlertTriangle,
   ArrowLeft,
@@ -74,7 +74,9 @@ export const Route = createFileRoute("/research/$symbol")({
 
 function ResearchDetail() {
   const { symbol } = Route.useParams();
+  console.log("[SSR/Client] symbol:", symbol);
   const { data: c, isPending, isError, error, refetch } = useCompany(symbol);
+  console.log("[SSR/Client] c exists:", Boolean(c), "isPending:", isPending);
   const [priceRange, setPriceRange] = useState<PriceRange>(DEFAULT_PRICE_RANGE);
   const { data: prices, isPending: pricesPending } = useCompanyPrices(symbol, priceRange);
   const { data: journalEntries = [] } = useJournalEntries();
@@ -82,7 +84,9 @@ function ResearchDetail() {
   const [thesisFormOpen, setThesisFormOpen] = useState(false);
   const { sentinelRef, stuck } = useStickySentinel();
 
-  const [activeTab, setActiveTab] = useState<ResearchTab>(() => {
+  const [activeTab, setActiveTab] = useState<ResearchTab>("overview");
+
+  useEffect(() => {
     if (typeof window !== "undefined" && window.location.hash) {
       const hash = window.location.hash.replace("#", "") as ResearchTab;
       if (
@@ -96,11 +100,10 @@ function ResearchDetail() {
           "scores",
         ].includes(hash)
       ) {
-        return hash;
+        setActiveTab(hash);
       }
     }
-    return "overview";
-  });
+  }, []);
 
   const handleTabChange = (tabId: ResearchTab) => {
     setActiveTab(tabId);
@@ -232,7 +235,7 @@ function ResearchDetail() {
                     Interactive technical price and volume action
                   </p>
                 </div>
-                {c.supportResistance.high52w !== null && c.supportResistance.low52w !== null && (
+                {c.supportResistance?.high52w != null && c.supportResistance?.low52w != null && (
                   <div className="hidden sm:flex items-center gap-3 text-[11px] font-mono text-ink-subtle">
                     <span>
                       52W L:{" "}
