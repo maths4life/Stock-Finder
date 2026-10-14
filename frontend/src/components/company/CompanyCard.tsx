@@ -40,7 +40,6 @@ export function CompanyCard({ company: c, footer, note, className }: Props) {
             {c.exchange}:{c.symbol} · {c.sector}
           </p>
         </div>
-        <VerdictBadge verdict={c.verdict} className="shrink-0" />
       </div>
 
       {note ?? (

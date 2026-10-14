@@ -331,8 +331,6 @@ def build_rationale(symbol: str, f: dict | None, t: dict | None) -> str:
     reliable enough to trust an LLM-generated summary against it."""
     parts = []
     if f:
-        if f.get("roe_pct") is not None:
-            parts.append(f"ROE at {f['roe_pct']:.1f}%")
         if f.get("profit_growth_pct") is not None:
             parts.append(f"profit growth {f['profit_growth_pct']:.1f}%")
     if t:

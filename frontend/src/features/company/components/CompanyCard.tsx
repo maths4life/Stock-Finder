@@ -52,7 +52,6 @@ export function CompanyCard({
               {c.exchange}:{c.symbol} · {c.sector}
             </p>
           </div>
-          <VerdictBadge verdict={c.verdict} className="shrink-0" />
         </div>
 
         {note !== undefined ? note : (

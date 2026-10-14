@@ -38,7 +38,7 @@ _GROUP_DEFS = [
     {
         "id": "qarp",
         "label": "Quality at a Reasonable Price",
-        "tagline": "High-ROE market leaders trading below sector median valuation with healthy macro trend.",
+        "tagline": "Quality market leaders trading below sector median valuation with healthy macro trend.",
         "layout": "list",
         "limit": 3,
         "query": text(
