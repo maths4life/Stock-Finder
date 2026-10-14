@@ -312,9 +312,9 @@ def _fetch_fii_dii_trend_batch(conn, symbols: List[str]) -> Dict[str, Dict[str, 
 
 _EARNINGS_QUALITY_BATCH_QUERY = text(
     """
-    select symbol, net_profit_cr
+    select symbol, net_profit_cr, free_cash_flow_cr
     from (
-        select symbol, net_profit_cr,
+        select symbol, net_profit_cr, free_cash_flow_cr,
                row_number() over (partition by symbol order by period_end desc) as rn
         from financial_statements
         where symbol in :symbols and period_type = 'quarterly'
@@ -336,31 +336,48 @@ def _fetch_earnings_quality_batch(conn, symbols: List[str]) -> Dict[str, Optiona
     for r in rows:
         sym = r["symbol"]
         if sym in by_symbol:
-            by_symbol[sym].append(float(r["net_profit_cr"]))
+            by_symbol[sym].append({
+                "net_profit": float(r["net_profit_cr"]) if r["net_profit_cr"] is not None else None,
+                "fcf": float(r["free_cash_flow_cr"]) if r["free_cash_flow_cr"] is not None else None,
+            })
 
     from services.financial_statements_service import _linear_direction
 
     out: Dict[str, Optional[Dict]] = {}
-    for sym, values in by_symbol.items():
-        n = len(values)
+    for sym, records in by_symbol.items():
+        profit_values = [rec["net_profit"] for rec in records if rec["net_profit"] is not None]
+        n = len(profit_values)
         if n < 2:
             out[sym] = None
             continue
 
-        direction = _linear_direction(values)
-        overall_slope = values[0] - values[-1]
-        pairs = [(values[i] - values[i + 1]) for i in range(n - 1)]
+        direction = _linear_direction(profit_values)
+        overall_slope = profit_values[0] - profit_values[-1]
+        pairs = [(profit_values[i] - profit_values[i + 1]) for i in range(n - 1)]
         if overall_slope >= 0:
             matching = sum(1 for d in pairs if d >= 0)
         else:
             matching = sum(1 for d in pairs if d < 0)
         consistency_score = round(matching / len(pairs), 3) if pairs else 0.0
 
+        # Cash conversion: cumulative Free Cash Flow vs. cumulative Net Profit
+        fcf_list = [rec["fcf"] for rec in records if rec["fcf"] is not None]
+        cum_pat = sum(profit_values)
+        cum_fcf = sum(fcf_list) if fcf_list else None
+        cfo_to_pat_ratio = (
+            round(cum_fcf / cum_pat, 2)
+            if cum_fcf is not None and cum_pat > 0
+            else None
+        )
+
         out[sym] = {
             "direction": direction,
             "consistency_score": consistency_score,
             "n_periods": n,
-            "profit_series": values,
+            "profit_series": profit_values,
+            "cfo_to_pat_ratio": cfo_to_pat_ratio,
+            "cum_fcf_cr": round(cum_fcf, 2) if cum_fcf is not None else None,
+            "cum_pat_cr": round(cum_pat, 2),
         }
     return out
 

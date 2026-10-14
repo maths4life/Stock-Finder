@@ -222,11 +222,11 @@ def fetch_fii_dii_trend(engine, symbol: str) -> dict | None:
 
 
 def compute_earnings_quality_for(engine, symbol: str) -> dict | None:
-    """Fetches up to 8 quarters of net_profit_cr and returns the quality dict
-    expected by scoring_engine._score_earnings_quality. Returns None when < 2 quarters."""
+    """Fetches up to 8 quarters of net_profit_cr and free_cash_flow_cr and returns
+    the quality dict expected by scoring_engine._score_earnings_quality."""
     query = text(
         """
-        select net_profit_cr
+        select net_profit_cr, free_cash_flow_cr
         from financial_statements
         where symbol = :symbol and period_type = 'quarterly'
           and net_profit_cr is not null
@@ -236,7 +236,7 @@ def compute_earnings_quality_for(engine, symbol: str) -> dict | None:
     )
     with engine.connect() as conn:
         rows = conn.execute(query, {"symbol": symbol}).mappings().all()
-    values = [float(r["net_profit_cr"]) for r in rows]
+    values = [float(r["net_profit_cr"]) for r in rows if r["net_profit_cr"] is not None]
     n = len(values)
     if n < 2:
         return None
@@ -246,7 +246,25 @@ def compute_earnings_quality_for(engine, symbol: str) -> dict | None:
     pairs = [values[i] - values[i + 1] for i in range(n - 1)]
     matching = sum(1 for d in pairs if (d >= 0 if overall_slope >= 0 else d < 0))
     consistency_score = round(matching / len(pairs), 3) if pairs else 0.0
-    return {"direction": direction, "consistency_score": consistency_score, "n_periods": n, "profit_series": values}
+
+    fcf_list = [float(r["free_cash_flow_cr"]) for r in rows if r["free_cash_flow_cr"] is not None]
+    cum_pat = sum(values)
+    cum_fcf = sum(fcf_list) if fcf_list else None
+    cfo_to_pat_ratio = (
+        round(cum_fcf / cum_pat, 2)
+        if cum_fcf is not None and cum_pat > 0
+        else None
+    )
+
+    return {
+        "direction": direction,
+        "consistency_score": consistency_score,
+        "n_periods": n,
+        "profit_series": values,
+        "cfo_to_pat_ratio": cfo_to_pat_ratio,
+        "cum_fcf_cr": round(cum_fcf, 2) if cum_fcf is not None else None,
+        "cum_pat_cr": round(cum_pat, 2),
+    }
 
 
 def build_metrics(f: dict | None, t: dict | None, promoter_pct: float | None,

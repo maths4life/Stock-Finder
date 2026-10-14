@@ -98,6 +98,8 @@ def _matches(
     volume_breakout: Optional[bool],
     min_market_cap: Optional[float],
     max_market_cap: Optional[float],
+    exclude_financials_from_de: bool = False,
+    max_pledge_pct: Optional[float] = None,
 ) -> bool:
     sec = _val(c, "sector")
     if sector and sector != "All" and sec != sector:
@@ -140,11 +142,18 @@ def _matches(
         return False
 
     de = _val(c, "debtToEquity")
-    if max_debt_to_equity is not None and (de is None or de > max_debt_to_equity):
-        return False
+    sec_str = (sec or "").lower()
+    is_financial = any(k in sec_str for k in ["financial", "bank", "nbfc", "insurance", "housing"])
+    if max_debt_to_equity is not None and not (exclude_financials_from_de and is_financial):
+        if de is None or de > max_debt_to_equity:
+            return False
 
     promoter = _val(c, "promoterHoldingPct")
     if min_promoter_holding is not None and (promoter is None or promoter < min_promoter_holding):
+        return False
+
+    pledge = _val(c, "pledgePct")
+    if max_pledge_pct is not None and pledge is not None and pledge > max_pledge_pct:
         return False
 
     if above_ema_200 and not _val(c, "aboveEma200"):
@@ -180,7 +189,9 @@ def screen_companies(
     min_pe: Optional[float] = None,
     max_pe: Optional[float] = None,
     max_debt_to_equity: Optional[float] = None,
+    exclude_financials_from_de: bool = False,
     min_promoter_holding: Optional[float] = None,
+    max_pledge_pct: Optional[float] = None,
     above_ema_200: Optional[bool] = None,
     above_ema_50: Optional[bool] = None,
     volume_breakout: Optional[bool] = None,
@@ -229,6 +240,8 @@ def screen_companies(
             volume_breakout=volume_breakout,
             min_market_cap=min_market_cap,
             max_market_cap=max_market_cap,
+            exclude_financials_from_de=exclude_financials_from_de,
+            max_pledge_pct=max_pledge_pct,
         )
     ]
 

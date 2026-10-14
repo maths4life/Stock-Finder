@@ -28,7 +28,9 @@ def companies(
     minPe: Optional[float] = Query(None),  # noqa: N803
     maxPe: Optional[float] = Query(None),  # noqa: N803
     maxDebtToEquity: Optional[float] = Query(None),  # noqa: N803
+    excludeFinancialsFromDe: bool = Query(False, description="Exclude banks/NBFCs from maxDebtToEquity filter"),  # noqa: N803
     minPromoterHolding: Optional[float] = Query(None),  # noqa: N803
+    maxPledgePct: Optional[float] = Query(None, description="Max promoter pledge percentage"),  # noqa: N803
     aboveEma200: Optional[bool] = Query(None),  # noqa: N803
     aboveEma50: Optional[bool] = Query(None),  # noqa: N803
     volumeBreakout: Optional[bool] = Query(None),  # noqa: N803
@@ -56,7 +58,9 @@ def companies(
         min_pe=minPe,
         max_pe=maxPe,
         max_debt_to_equity=maxDebtToEquity,
+        exclude_financials_from_de=excludeFinancialsFromDe,
         min_promoter_holding=minPromoterHolding,
+        max_pledge_pct=maxPledgePct,
         above_ema_200=aboveEma200,
         above_ema_50=aboveEma50,
         volume_breakout=volumeBreakout,

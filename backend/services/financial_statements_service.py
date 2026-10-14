@@ -188,6 +188,16 @@ _HISTORICAL_PE_QUERY = text(
     """
 )
 
+_QUARTERLY_PE_QUERY = text(
+    """
+    select period_end, eps
+    from financial_statements
+    where symbol = :symbol and period_type = 'quarterly' and eps is not null and eps > 0
+    order by period_end desc
+    limit 20
+    """
+)
+
 _ANNUAL_PRICES_QUERY = text(
     """
     select
@@ -205,12 +215,16 @@ _ANNUAL_PRICES_QUERY = text(
 
 def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optional[dict]:
     """Compute an approximate historical P/E range using annual EPS from
-    `financial_statements` and annual OHLC from `prices_daily`.
+    `financial_statements` and annual OHLC from `prices_daily`. Falls back to
+    summing 4 quarterly EPS figures when annual statements are unavailable.
 
     Returns a dict with:
       pe_min        — lowest approximate P/E over the window
-      pe_max        — highest approximate P/E over the window
+      pe_25th       — 25th percentile P/E
       pe_median     — median P/E over the window
+      pe_75th       — 75th percentile P/E
+      pe_max        — highest approximate P/E over the window
+      pe_mean       — average P/E over the window
       current_pe    — forwarded through (the snapshot P/E from financials_quarterly)
       percentile    — where current_pe sits in the historical distribution (0-100)
       years         — how many annual periods were used
@@ -218,16 +232,26 @@ def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optiona
     """
     with engine.connect() as conn:
         eps_rows = conn.execute(_HISTORICAL_PE_QUERY, {"symbol": symbol.upper()}).mappings().all()
+        # Fall back to quarterly statements if annual EPS has < 2 rows
+        if len(eps_rows) < 2:
+            q_rows = conn.execute(_QUARTERLY_PE_QUERY, {"symbol": symbol.upper()}).mappings().all()
+            # Aggregate quarterly EPS into year sums
+            q_by_year: dict[int, list[float]] = {}
+            for r in q_rows:
+                yr = r["period_end"].year
+                q_by_year.setdefault(yr, []).append(float(r["eps"]))
+            eps_by_year: dict[int, float] = {
+                yr: sum(vals) for yr, vals in q_by_year.items() if len(vals) >= 2 and sum(vals) > 0
+            }
+        else:
+            eps_by_year: dict[int, float] = {
+                row["period_end"].year: float(row["eps"]) for row in eps_rows
+            }
+
         price_rows = conn.execute(_ANNUAL_PRICES_QUERY, {"symbol": symbol.upper()}).mappings().all()
 
-    if not eps_rows or not price_rows:
+    if not eps_by_year or not price_rows:
         return None
-
-    # Build a year -> EPS lookup (period_end is a date, take its year)
-    eps_by_year: dict[int, float] = {}
-    for row in eps_rows:
-        year = row["period_end"].year
-        eps_by_year[year] = float(row["eps"])
 
     # Compute a mid-price P/E per year using (high+low)/2 as the representative price
     pe_vals: list[float] = []
@@ -252,16 +276,27 @@ def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optiona
     n = len(pe_sorted)
     mid = n // 2
     pe_median = pe_sorted[mid] if n % 2 else (pe_sorted[mid - 1] + pe_sorted[mid]) / 2
+    pe_mean = sum(pe_sorted) / n
+
+    # Interpolated 25th and 75th percentiles
+    pe_25th = pe_min + 0.25 * (pe_max - pe_min) if n < 4 else (pe_sorted[int(0.25 * (n - 1))] + pe_sorted[int(0.25 * n)]) / 2
+    pe_75th = pe_min + 0.75 * (pe_max - pe_min) if n < 4 else (pe_sorted[int(0.75 * (n - 1))] + pe_sorted[int(0.75 * n)]) / 2
 
     percentile: Optional[int] = None
     if current_pe is not None and current_pe > 0:
-        below = sum(1 for v in pe_sorted if v <= current_pe)
-        percentile = round((below / n) * 100)
+        if pe_max > pe_min:
+            raw_pct = (current_pe - pe_min) / (pe_max - pe_min) * 100.0
+            percentile = max(0, min(100, round(raw_pct)))
+        else:
+            percentile = 50
 
     return {
         "pe_min": round(pe_min, 1),
-        "pe_max": round(pe_max, 1),
+        "pe_25th": round(pe_25th, 1),
         "pe_median": round(pe_median, 1),
+        "pe_75th": round(pe_75th, 1),
+        "pe_max": round(pe_max, 1),
+        "pe_mean": round(pe_mean, 1),
         "current_pe": round(current_pe, 1) if current_pe else None,
         "percentile": percentile,
         "years": n,

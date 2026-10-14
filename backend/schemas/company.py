@@ -241,6 +241,9 @@ class HistoricalPeRange(BaseModel):
     pe_min: Optional[float] = None
     pe_max: Optional[float] = None
     pe_median: Optional[float] = None
+    pe_25th: Optional[float] = None
+    pe_75th: Optional[float] = None
+    pe_mean: Optional[float] = None
     current_pe: Optional[float] = None
     percentile: Optional[int] = None
     years: int = 0

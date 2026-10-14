@@ -76,7 +76,9 @@ type FilterState = {
   minRevenueGrowth?: number;
   maxRevenueGrowth?: number;
   maxDebtToEquity?: number;
+  excludeFinancialsFromDe: boolean;
   minPromoterHolding?: number;
+  maxPledgePct?: number;
   minMarketCap?: number; // Crores
   maxMarketCap?: number; // Crores
   aboveEma200: boolean;
@@ -90,6 +92,7 @@ type FilterState = {
 
 const DEFAULT_FILTERS: FilterState = {
   sector: "All",
+  excludeFinancialsFromDe: true,
   aboveEma200: false,
   aboveEma50: false,
   volumeBreakout: false,
@@ -100,18 +103,34 @@ const DEFAULT_FILTERS: FilterState = {
 };
 
 const PRESETS: { id: string; label: string; filters: Partial<FilterState> }[] = [
-  { id: "quality", label: "Quality", filters: { minRoe: 20, minRoce: 15, maxDebtToEquity: 0.5 } },
-  { id: "growth", label: "Growth", filters: { minProfitGrowth: 20, minRevenueGrowth: 15 } },
-  { id: "value", label: "Value", filters: { maxPe: 20 } },
   {
-    id: "momentum",
-    label: "Momentum",
+    id: "coffee-can",
+    label: "☕ Coffee Can Compounders",
+    filters: { minRoce: 20, minRevenueGrowth: 12, maxDebtToEquity: 0.5, excludeFinancialsFromDe: true },
+  },
+  {
+    id: "zero-pledge",
+    label: "🛡️ Zero Pledge & Clean Sheet",
+    filters: { maxDebtToEquity: 0.3, minPromoterHolding: 50, maxPledgePct: 5, excludeFinancialsFromDe: true },
+  },
+  {
+    id: "bull-momentum",
+    label: "🚀 Bull Momentum",
     filters: { aboveEma200: true, aboveEma50: true, volumeBreakout: true },
   },
-  { id: "low-risk", label: "Low Risk", filters: { riskLevel: "Low" } },
-  { id: "largecap", label: "Large Cap", filters: { minMarketCap: 20000 } },
-  { id: "midcap", label: "Mid Cap", filters: { minMarketCap: 5000, maxMarketCap: 20000 } },
-  { id: "smallcap", label: "Small Cap", filters: { maxMarketCap: 5000 } },
+  {
+    id: "banking-leaders",
+    label: "🏦 Banking & NBFC Leaders",
+    filters: { sector: "Financial Services", minRoe: 15, maxPe: 25 },
+  },
+  {
+    id: "quality-value",
+    label: "💎 Quality at Fair Value",
+    filters: { minRoe: 18, maxPe: 32, maxDebtToEquity: 0.8, excludeFinancialsFromDe: true },
+  },
+  { id: "largecap", label: "Large Cap (>₹20k Cr)", filters: { minMarketCap: 20000 } },
+  { id: "midcap", label: "Mid Cap (₹5k-20k Cr)", filters: { minMarketCap: 5000, maxMarketCap: 20000 } },
+  { id: "smallcap", label: "Small Cap (<₹5k Cr)", filters: { maxMarketCap: 5000 } },
 ];
 
 function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
@@ -130,7 +149,9 @@ function toQueryParams(filters: FilterState, page: number): CompanyQueryParams {
     minSalesGrowth: filters.minRevenueGrowth,
     maxSalesGrowth: filters.maxRevenueGrowth,
     maxDebtToEquity: filters.maxDebtToEquity,
+    excludeFinancialsFromDe: filters.excludeFinancialsFromDe,
     minPromoterHolding: filters.minPromoterHolding,
+    maxPledgePct: filters.maxPledgePct,
     minMarketCap: filters.minMarketCap,
     maxMarketCap: filters.maxMarketCap,
     aboveEma200: filters.aboveEma200,
@@ -456,7 +477,7 @@ function Screener() {
               onMinChange={(v) => update("minProfitGrowth", v)}
               onMaxChange={(v) => update("maxProfitGrowth", v)}
             />
-            <div className="w-28">
+            <div className="w-32">
               <FieldLabel>Max D/E</FieldLabel>
               <Input
                 type="number"
@@ -473,6 +494,14 @@ function Screener() {
                 }
                 className="mt-1.5"
               />
+              <label className="flex items-center gap-1.5 mt-1.5 cursor-pointer select-none text-[11px] text-ink-muted hover:text-ink">
+                <Checkbox
+                  checked={filters.excludeFinancialsFromDe}
+                  onCheckedChange={(v) => update("excludeFinancialsFromDe", Boolean(v))}
+                  className="size-3.5"
+                />
+                <span className="truncate" title="Exclude Banks & NBFCs from D/E threshold">Excl. Banks</span>
+              </label>
             </div>
           </div>
 
@@ -514,6 +543,24 @@ function Screener() {
                     onChange={(e) =>
                       update(
                         "minPromoterHolding",
+                        e.target.value === "" ? undefined : Number(e.target.value),
+                      )
+                    }
+                    className="mt-1.5"
+                  />
+                </div>
+                <div className="w-40">
+                  <FieldLabel>Max promoter pledge %</FieldLabel>
+                  <Input
+                    type="number"
+                    inputMode="decimal"
+                    min={0}
+                    max={100}
+                    placeholder="e.g. 0 or 10"
+                    value={filters.maxPledgePct ?? ""}
+                    onChange={(e) =>
+                      update(
+                        "maxPledgePct",
                         e.target.value === "" ? undefined : Number(e.target.value),
                       )
                     }

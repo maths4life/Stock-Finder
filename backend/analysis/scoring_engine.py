@@ -426,49 +426,117 @@ def _score_promoter_holding(m: Dict) -> ScoreMetric:
 
 
 def _score_earnings_quality(m: Dict) -> ScoreMetric:
-    """Multi-quarter earnings consistency from `financial_statements`.
+    """Multi-quarter earnings consistency and Cash Flow (CFO / FCF vs PAT) conversion quality.
 
-    Pre-computed by company_service/_compute_earnings_quality before the
-    engine runs, so no DB call happens here. Scores direction + consistency:
-    - Consistent growth (positive direction, low stddev) = full marks.
-    - Improving but volatile = partial.
-    - Declining or contracting = penalty.
-    Only evaluated when ≥3 quarterly periods exist (fewer periods can't
-    meaningfully distinguish trend from noise)."""
+    Scores direction + consistency of earnings alongside real cash conversion:
+    - High cash conversion (FCF/PAT >= 0.75) confirms genuine accounting earnings.
+    - Financial institutions are judged on profit consistency/NPA trajectory without
+      cash-flow distortion (loans disbursed are operating outflows under Indian GAAP).
+    - Poor/Negative cash conversion (<0 or <0.40) penalizes aggressive accruals
+      or working capital blockage (the classic Indian forensic red flag).
+    """
     eq = m.get("earningsQuality")
     if not eq or eq.get("n_periods", 0) < 3:
         return _unavailable(
-            "Earnings Quality",
+            "Earnings Quality & Cash Flow",
             "Fewer than 3 quarters of financial history are available — trend cannot be assessed yet.",
         )
 
     direction = eq.get("direction", "Insufficient")
     n = eq.get("n_periods", 0)
     consistency = eq.get("consistency_score", 0.0)  # 0-1, higher = more consistent
+    cfo_pat = eq.get("cfo_to_pat_ratio")
+    is_fin = _is_financial_sector(m)
 
     period_note = f"({n} quarters)"
 
+    # Base score from trend & consistency
     if direction == "Accelerating" and consistency >= 0.7:
-        return _metric("Earnings Quality", direction, 10, 10, True,
-                        f"Earnings are accelerating with high consistency {period_note} — a strong quality signal.")
-    if direction == "Accelerating":
-        return _metric("Earnings Quality", direction, 8, 10, True,
-                        f"Earnings are accelerating {period_note} but with some quarter-to-quarter volatility.")
-    if direction == "Improving" and consistency >= 0.6:
-        return _metric("Earnings Quality", direction, 7, 10, True,
-                        f"Earnings are improving steadily {period_note}.")
-    if direction == "Improving":
-        return _metric("Earnings Quality", direction, 5, 10, True,
-                        f"Earnings are improving {period_note} but the trend is uneven.")
-    if direction == "Steady":
-        return _metric("Earnings Quality", direction, 4, 10, False,
-                        f"Earnings are flat {period_note} — no growth momentum, but no deterioration either.")
-    if direction == "Decelerating":
-        return _metric("Earnings Quality", direction, 2, 10, False,
-                        f"Earnings growth is decelerating {period_note} — watch for further weakness.")
-    # Contracting or Insufficient
-    return _metric("Earnings Quality", direction, 0, 10, False,
-                   f"Earnings are contracting {period_note} — a material fundamental headwind.")
+        base_score = 10.0
+        reason = f"Earnings are accelerating with high consistency {period_note}"
+    elif direction == "Accelerating":
+        base_score = 8.0
+        reason = f"Earnings are accelerating {period_note} with modest volatility"
+    elif direction == "Improving" and consistency >= 0.6:
+        base_score = 7.0
+        reason = f"Earnings are improving steadily {period_note}"
+    elif direction == "Improving":
+        base_score = 5.0
+        reason = f"Earnings are improving {period_note} but trend is uneven"
+    elif direction == "Steady":
+        base_score = 4.0
+        reason = f"Earnings are steady {period_note}"
+    elif direction == "Decelerating":
+        base_score = 2.0
+        reason = f"Earnings growth is decelerating {period_note}"
+    else:
+        base_score = 0.0
+        reason = f"Earnings are contracting {period_note}"
+
+    # If banking/financial institution: cash flow statements do not reflect operating earnings
+    if is_fin:
+        passed = base_score >= 5.0
+        return _metric(
+            "Earnings Quality (Financials)",
+            direction,
+            base_score,
+            10,
+            passed,
+            f"{reason} — evaluated on banking earnings stability (cash flows excluded per RBI lending norms).",
+        )
+
+    # For non-financials: Cash flow conversion (CFO/FCF vs PAT) audit
+    if cfo_pat is not None:
+        if cfo_pat >= 0.75:
+            final_score = min(10.0, base_score + 1.0) if base_score >= 7.0 else base_score
+            return _metric(
+                "Earnings Quality & Cash Conversion",
+                f"{direction} (FCF/PAT: {cfo_pat:.2f}x)",
+                final_score,
+                10,
+                final_score >= 5.0,
+                f"{reason}. Excellent cash conversion (FCF/PAT: {cfo_pat:.2f}x) confirms profits are backed by real free cash.",
+            )
+        elif cfo_pat >= 0.40:
+            return _metric(
+                "Earnings Quality & Cash Conversion",
+                f"{direction} (FCF/PAT: {cfo_pat:.2f}x)",
+                base_score,
+                10,
+                base_score >= 5.0,
+                f"{reason}. Healthy cash conversion (FCF/PAT: {cfo_pat:.2f}x) supports reported earnings.",
+            )
+        elif cfo_pat >= 0.0:
+            penalized = max(2.0, base_score - 2.5)
+            return _metric(
+                "Earnings Quality & Cash Conversion",
+                f"{direction} (FCF/PAT: {cfo_pat:.2f}x)",
+                penalized,
+                10,
+                penalized >= 5.0,
+                f"{reason}, but cash conversion is low (FCF/PAT: {cfo_pat:.2f}x), suggesting working capital or reinvestment drag.",
+            )
+        else:
+            # Negative cash conversion while reporting positive profits: classic accruals red flag
+            penalized = min(3.0, max(0.0, base_score - 5.0))
+            return _metric(
+                "Earnings Quality & Cash Conversion",
+                f"{direction} (FCF/PAT: {cfo_pat:.2f}x)",
+                penalized,
+                10,
+                False,
+                f"{reason}. Warning: Cash flow is negative despite positive accounting profits (FCF/PAT: {cfo_pat:.2f}x) — significant working capital/accrual divergence.",
+            )
+
+    passed = base_score >= 5.0
+    return _metric(
+        "Earnings Quality",
+        direction,
+        base_score,
+        10,
+        passed,
+        f"{reason} (cash flow statement data unavailable).",
+    )
 
 
 def _score_institutional_trend(m: Dict) -> ScoreMetric:

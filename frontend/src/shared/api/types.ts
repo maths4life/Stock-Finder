@@ -150,8 +150,11 @@ export type ScoreWeighting = {
  * and annual OHLC (prices_daily). See backend get_historical_pe_range(). */
 export type HistoricalPeRange = {
   pe_min: number | null;
-  pe_max: number | null;
+  pe_25th?: number | null;
   pe_median: number | null;
+  pe_75th?: number | null;
+  pe_max: number | null;
+  pe_mean?: number | null;
   current_pe: number | null;
   percentile: number | null;
   years: number;
@@ -300,7 +303,9 @@ export type CompanyQueryParams = {
   minPe?: number;
   maxPe?: number;
   maxDebtToEquity?: number;
+  excludeFinancialsFromDe?: boolean;
   minPromoterHolding?: number;
+  maxPledgePct?: number;
   aboveEma200?: boolean;
   aboveEma50?: boolean;
   volumeBreakout?: boolean;

@@ -1123,7 +1123,7 @@ function TrendSignals({ signals }: { signals: TrendSignal[] }) {
 // ---------------------------------------------------------------------------
 
 function HistoricalPeBand({ range }: { range: HistoricalPeRange }) {
-  const { pe_min, pe_max, pe_median, current_pe, percentile, years } = range;
+  const { pe_min, pe_25th, pe_median, pe_75th, pe_max, current_pe, percentile, years } = range;
   if (pe_min === null || pe_max === null) return null;
 
   const span = pe_max - pe_min;
@@ -1132,69 +1132,210 @@ function HistoricalPeBand({ range }: { range: HistoricalPeRange }) {
   const pct = (v: number) =>
     span === 0 ? 50 : Math.max(0, Math.min(100, ((v - pe_min) / span) * 100));
 
+  const p25 = pe_25th ?? Number((pe_min + 0.25 * span).toFixed(1));
+  const p75 = pe_75th ?? Number((pe_min + 0.75 * span).toFixed(1));
+
+  // Compute discount/premium vs historical median
+  const vsMedianPct =
+    current_pe && pe_median && pe_median > 0
+      ? Math.round(((current_pe - pe_median) / pe_median) * 100)
+      : null;
+
   const verdict =
     percentile === null
       ? null
-      : percentile >= 75
-        ? { label: "Expensive vs. own history", className: "text-negative" }
-        : percentile >= 40
-          ? { label: "Fairly valued vs. own history", className: "text-ink-muted" }
-          : { label: "Below historical median", className: "text-positive" };
+      : percentile <= 25
+        ? {
+            label: "Historically Undervalued",
+            sub: "Bottom 25% of 5-year valuation",
+            tagClass: "bg-emerald-500/10 text-emerald-400 border border-emerald-500/25",
+            dotClass: "bg-emerald-400 ring-emerald-500/40",
+          }
+        : percentile <= 65
+          ? {
+              label: "Fair Value Band",
+              sub: "Within standard historical trading corridor",
+              tagClass: "bg-primary/10 text-primary-light border border-primary/25",
+              dotClass: "bg-primary ring-primary/40",
+            }
+          : percentile <= 85
+            ? {
+                label: "Elevated Valuation",
+                sub: "Trading in upper 35% of historical band",
+                tagClass: "bg-amber-500/10 text-amber-400 border border-amber-500/25",
+                dotClass: "bg-amber-400 ring-amber-500/40",
+              }
+            : {
+                label: "Historically Stretched",
+                sub: "Above 85th percentile of 5Y valuation",
+                tagClass: "bg-rose-500/10 text-rose-400 border border-rose-500/25",
+                dotClass: "bg-rose-400 ring-rose-500/40",
+              };
 
   return (
-    <div className="mt-8 pt-6 hairline-t">
-      <div className="flex items-baseline justify-between mb-3">
-        <p className="text-[12px] font-medium text-ink-muted">
-          Historical P/E Range ({years}Y)
-        </p>
+    <div className="space-y-5">
+      {/* Top Header */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+        <div>
+          <div className="flex items-center gap-2">
+            <h4 className="text-sm font-semibold text-ink">
+              Historical {years}-Year P/E Percentile Bands
+            </h4>
+            {verdict && (
+              <span className={`text-[11px] font-medium px-2 py-0.5 rounded-full ${verdict.tagClass}`}>
+                {verdict.label}
+              </span>
+            )}
+          </div>
+          <p className="text-[12px] text-ink-muted mt-0.5">
+            {current_pe !== null && percentile !== null ? (
+              <>
+                Current multiple of <span className="font-semibold text-ink font-mono">{current_pe.toFixed(1)}x</span> sits at the{" "}
+                <span className="font-semibold text-ink font-mono">{percentile}th percentile</span> of its {years}Y range.
+                {vsMedianPct !== null && (
+                  <span className={vsMedianPct <= 0 ? " text-emerald-400 font-mono ml-1" : " text-amber-400 font-mono ml-1"}>
+                    ({vsMedianPct <= 0 ? `${Math.abs(vsMedianPct)}% discount` : `${vsMedianPct}% premium`} to 5Y median)
+                  </span>
+                )}
+              </>
+            ) : (
+              `Historical distribution based on ${years} annual periods`
+            )}
+          </p>
+        </div>
+
+        {/* Quant summary chips */}
+        <div className="flex items-center gap-3 text-xs font-mono">
+          <div className="bg-surface/60 rounded px-2 py-1 border border-hairline">
+            <span className="text-ink-muted text-[10px] block">5Y MEDIAN</span>
+            <span className="font-medium text-ink">{pe_median ?? "—"}x</span>
+          </div>
+          <div className="bg-surface/60 rounded px-2 py-1 border border-hairline">
+            <span className="text-ink-muted text-[10px] block">PERCENTILE</span>
+            <span className="font-medium text-ink">{percentile !== null ? `${percentile}%` : "—"}</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Multi-Zone Percentile Visual Track */}
+      <div className="pt-6 pb-2 px-1">
+        <div className="relative">
+          {/* Current Multiple Floating Pin Indicator */}
+          {current_pe !== null && (
+            <div
+              className="absolute -top-7 -translate-x-1/2 flex flex-col items-center pointer-events-none transition-all duration-300 z-10"
+              style={{ left: `${pct(current_pe)}%` }}
+            >
+              <span className="text-[10px] font-mono font-bold px-1.5 py-0.5 rounded bg-ink text-surface shadow-md whitespace-nowrap">
+                {current_pe.toFixed(1)}x
+              </span>
+              <div className="w-1.5 h-1.5 bg-ink rotate-45 -mt-0.5" />
+            </div>
+          )}
+
+          {/* Multi-zone background bar */}
+          <div className="relative h-3 w-full rounded-full overflow-hidden flex bg-surface-muted border border-hairline">
+            {/* Undervalued Zone (Min to 25th %ile) */}
+            <div
+              className="h-full bg-emerald-500/25 border-r border-emerald-500/40"
+              style={{ width: `${pct(p25)}%` }}
+              title={`Undervalued zone (< 25th %ile: ${p25}x)`}
+            />
+            {/* Core Fair Value Zone (25th to 75th %ile) */}
+            <div
+              className="h-full bg-primary/20 border-r border-primary/30"
+              style={{ width: `${Math.max(0, pct(p75) - pct(p25))}%` }}
+              title={`Fair value zone (25th-75th %ile: ${p25}x - ${p75}x)`}
+            />
+            {/* Elevated / Stretched Zone (75th to Max) */}
+            <div
+              className="h-full bg-rose-500/20"
+              style={{ width: `${Math.max(0, 100 - pct(p75))}%` }}
+              title={`Elevated zone (> 75th %ile: > ${p75}x)`}
+            />
+          </div>
+
+          {/* Median Anchor Needle */}
+          {pe_median !== null && (
+            <div
+              className="absolute top-1/2 -translate-y-1/2 w-0.5 h-6 bg-ink shadow-sm z-10"
+              style={{ left: `${pct(pe_median)}%` }}
+              title={`5-Year Median: ${pe_median}x`}
+            />
+          )}
+
+          {/* Current Multiple Dot with Glow */}
+          {current_pe !== null && (
+            <div
+              className={`absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3.5 h-3.5 rounded-full ring-4 shadow-lg z-20 ${verdict?.dotClass || "bg-ink ring-ink/30"}`}
+              style={{ left: `${pct(current_pe)}%` }}
+              title={`Current P/E: ${current_pe}x (${percentile ?? 50}th percentile)`}
+            />
+          )}
+        </div>
+
+        {/* Notches & Scale Labels */}
+        <div className="relative flex justify-between font-mono text-[11px] tabular-nums mt-3 text-ink-muted">
+          <div className="text-left">
+            <span className="block text-[9px] uppercase tracking-wider text-ink-subtle">5Y Min</span>
+            <span className="font-medium text-ink">{pe_min}x</span>
+          </div>
+
+          <div
+            className="absolute -translate-x-1/2 text-center"
+            style={{ left: `${pct(p25)}%` }}
+          >
+            <span className="block text-[9px] uppercase tracking-wider text-emerald-400/80">25th %ile</span>
+            <span className="text-ink-muted">{p25}x</span>
+          </div>
+
+          {pe_median !== null && (
+            <div
+              className="absolute -translate-x-1/2 text-center"
+              style={{ left: `${pct(pe_median)}%` }}
+            >
+              <span className="block text-[9px] uppercase tracking-wider font-semibold text-ink">5Y Median</span>
+              <span className="font-semibold text-ink">{pe_median}x</span>
+            </div>
+          )}
+
+          <div
+            className="absolute -translate-x-1/2 text-center"
+            style={{ left: `${pct(p75)}%` }}
+          >
+            <span className="block text-[9px] uppercase tracking-wider text-amber-400/80">75th %ile</span>
+            <span className="text-ink-muted">{p75}x</span>
+          </div>
+
+          <div className="text-right">
+            <span className="block text-[9px] uppercase tracking-wider text-ink-subtle">5Y Max</span>
+            <span className="font-medium text-ink">{pe_max}x</span>
+          </div>
+        </div>
+      </div>
+
+      {/* Legend & Valuation Commentary */}
+      <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-hairline/60 text-[11px] text-ink-muted">
+        <div className="flex items-center gap-4">
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-emerald-500/60" />
+            <span>0–25% (Value zone)</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-primary/60" />
+            <span>25–75% (Fair value)</span>
+          </span>
+          <span className="flex items-center gap-1.5">
+            <span className="size-2 rounded-full bg-rose-500/60" />
+            <span>75–100% (Premium zone)</span>
+          </span>
+        </div>
         {verdict && (
-          <p className={`text-[12px] font-medium ${verdict.className}`}>{verdict.label}</p>
-        )}
-      </div>
-
-      {/* Range bar */}
-      <div className="relative h-2 w-full rounded-full bg-secondary overflow-visible mb-3">
-        {/* Median marker */}
-        {pe_median !== null && (
-          <div
-            className="absolute top-1/2 -translate-y-1/2 w-px h-4 bg-ink-subtle"
-            style={{ left: `${pct(pe_median)}%` }}
-            title={`Median: ${pe_median}x`}
-          />
-        )}
-        {/* Filled bar from min to current */}
-        {current_pe !== null && (
-          <div
-            className="absolute top-0 left-0 h-full rounded-full bg-accent/40"
-            style={{ width: `${pct(current_pe)}%` }}
-          />
-        )}
-        {/* Current P/E dot */}
-        {current_pe !== null && (
-          <div
-            className="absolute top-1/2 -translate-y-1/2 -translate-x-1/2 w-3 h-3 rounded-full bg-accent ring-2 ring-surface"
-            style={{ left: `${pct(current_pe)}%` }}
-            title={`Current: ${current_pe}x`}
-          />
-        )}
-      </div>
-
-      {/* Labels */}
-      <div className="flex items-baseline justify-between font-mono text-[11px] tabular-nums">
-        <span className="text-ink-subtle">{pe_min}x</span>
-        {pe_median !== null && (
-          <span className="text-ink-subtle">
-            Med {pe_median}x
+          <span className="text-ink-subtle italic">
+            {verdict.sub}
           </span>
         )}
-        <span className="text-ink-subtle">{pe_max}x</span>
       </div>
-
-      {percentile !== null && current_pe !== null && (
-        <p className="mt-2 text-[11px] text-ink-subtle font-mono">
-          Current {current_pe}x · {percentile}th percentile of {years}-year range
-        </p>
-      )}
     </div>
   );
 }

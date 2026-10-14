@@ -267,8 +267,11 @@ function getMockCompany(symbol: string): Company {
     ],
     historicalPeRange: {
       pe_min: Number((pe * 0.65).toFixed(1)),
-      pe_max: Number((pe * 1.45).toFixed(1)),
+      pe_25th: Number((pe * 0.80).toFixed(1)),
       pe_median: Number((pe * 0.95).toFixed(1)),
+      pe_75th: Number((pe * 1.20).toFixed(1)),
+      pe_max: Number((pe * 1.45).toFixed(1)),
+      pe_mean: Number((pe * 1.02).toFixed(1)),
       current_pe: pe,
       percentile: 65,
       years: 5,
@@ -370,7 +373,9 @@ export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<P
   if (params.maxPe !== undefined) qs.set("maxPe", String(params.maxPe));
   if (params.maxDebtToEquity !== undefined)
     qs.set("maxDebtToEquity", String(params.maxDebtToEquity));
+  if (params.excludeFinancialsFromDe) qs.set("excludeFinancialsFromDe", "true");
   if (params.minPromoterHolding) qs.set("minPromoterHolding", String(params.minPromoterHolding));
+  if (params.maxPledgePct !== undefined) qs.set("maxPledgePct", String(params.maxPledgePct));
   if (params.aboveEma200) qs.set("aboveEma200", "true");
   if (params.aboveEma50) qs.set("aboveEma50", "true");
   if (params.volumeBreakout) qs.set("volumeBreakout", "true");
