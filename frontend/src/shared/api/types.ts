@@ -230,6 +230,10 @@ export type Company = {
   spark: number[];
 
   // Deep research extras
+  pros?: string[];
+  cons?: string[];
+  businessSummary?: string;
+  verdictSummary?: string;
   shareholdingTrend: ShareholdingRow[];
   shareholdingSummary: ShareholdingSummary;
   quarterlyFinancials: QuarterlyFinancial[];

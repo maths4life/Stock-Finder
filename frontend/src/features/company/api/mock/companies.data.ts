@@ -6,7 +6,7 @@ import type { Company } from "@/shared/api/types";
  * replace `lib/api/companies.ts` internals with real queries — this file
  * disappears, nothing else changes.
  */
-export const companyRecords: Record<string, Company> = {
+export const companyRecords: Record<string, any> = {
   POLYCAB: {
     symbol: "POLYCAB",
     exchange: "NSE",

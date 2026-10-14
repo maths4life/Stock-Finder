@@ -86,6 +86,9 @@ function ResearchDetail() {
 
   const [activeTab, setActiveTab] = useState<ResearchTab>("overview");
 
+  const latestPrice = prices && prices.length > 0 ? prices[prices.length - 1].close : c?.price;
+  const company = c ? (latestPrice != null ? { ...c, price: latestPrice } : c) : undefined;
+
   useEffect(() => {
     if (typeof window !== "undefined" && window.location.hash) {
       const hash = window.location.hash.replace("#", "") as ResearchTab;
@@ -146,7 +149,7 @@ function ResearchDetail() {
           )}
         </div>
 
-        {c && <StickyCompanyHeader company={c} visible={stuck} />}
+        {company && <StickyCompanyHeader company={company} visible={stuck} />}
 
         {isPending && <ResearchDetailSkeleton />}
 
@@ -166,7 +169,7 @@ function ResearchDetail() {
           </div>
         )}
 
-        {c && (
+        {c && company && (
           <>
             {/* Header / Identity Hero */}
             <header className="animate-fade-up">
@@ -205,9 +208,9 @@ function ResearchDetail() {
               <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-y-6 gap-x-4 hairline-t hairline-b py-6">
                 <StatMetric
                   label="Price"
-                  value={`₹${c.price.toLocaleString("en-IN")}`}
-                  sub={`${c.changePct >= 0 ? "+" : ""}${c.changePct.toFixed(2)}%`}
-                  tone={c.changePct >= 0 ? "positive" : "negative"}
+                  value={`₹${company.price.toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`}
+                  sub={`${company.changePct >= 0 ? "+" : ""}${company.changePct.toFixed(2)}%`}
+                  tone={company.changePct >= 0 ? "positive" : "negative"}
                   size="lg"
                 />
                 <StatMetric label="Market Cap" value={c.marketCap} size="lg" />

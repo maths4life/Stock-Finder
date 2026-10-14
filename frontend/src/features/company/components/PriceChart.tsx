@@ -86,7 +86,7 @@ export function PriceChart({ data, range, onRangeChange, isLoading, symbol }: Pr
             </DialogTitle>
           </DialogHeader>
           <div className="flex-1 min-h-0 px-2 pt-3 sm:px-4">
-            {data.length >= 2 && <PriceChartPanel data={data} heightClassName="h-full" />}
+            {data.length >= 2 && <PriceChartPanel data={data} heightClassName="h-full" isModal />}
           </div>
           <div className="flex items-center justify-center gap-1 px-5 py-3.5 hairline-t">
             {RANGES.map((r) => (
@@ -118,7 +118,15 @@ type PanelHandle = {
 /** Legend + toolbar + the actual chart canvas. Used both inline on the
  * research page and inside the fullscreen dialog — each mounts its own
  * lightweight-charts instance since Radix only mounts DialogContent while open. */
-function PriceChartPanel({ data, heightClassName }: { data: PriceBar[]; heightClassName: string }) {
+function PriceChartPanel({
+  data,
+  heightClassName,
+  isModal = false,
+}: {
+  data: PriceBar[];
+  heightClassName: string;
+  isModal?: boolean;
+}) {
   const [showVolume, setShowVolume] = useState(true);
   const [showMa50, setShowMa50] = useState(true);
   const [showMa200, setShowMa200] = useState(true);
@@ -229,6 +237,7 @@ function PriceChartPanel({ data, heightClassName }: { data: PriceBar[]; heightCl
         showMa200={showMa200}
         className="w-full flex-1 min-h-0"
         onCrosshairMove={setHovered}
+        isModal={isModal}
       />
     </div>
   );
@@ -307,8 +316,12 @@ const CandlestickChart = forwardRef<
     showMa200: boolean;
     className: string;
     onCrosshairMove: (bar: PriceBar | null) => void;
+    isModal?: boolean;
   }
->(function CandlestickChart({ data, showVolume, showMa50, showMa200, className, onCrosshairMove }, ref) {
+>(function CandlestickChart(
+  { data, showVolume, showMa50, showMa200, className, onCrosshairMove, isModal = false },
+  ref,
+) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartApiRef = useRef<IChartApi | null>(null);
   const candleSeriesRef = useRef<ISeriesApi<"Candlestick"> | null>(null);
@@ -347,6 +360,29 @@ const CandlestickChart = forwardRef<
     if (!el) return;
     let cancelled = false;
 
+    // If inline, normal wheel scrolling passes through to scroll the page uninterrupted.
+    // If the user holds Ctrl or Cmd while scrolling, zoom the chart's visible logical range.
+    const onWheel = (e: WheelEvent) => {
+      if (!isModal && (e.ctrlKey || e.metaKey)) {
+        e.preventDefault();
+        const chart = chartApiRef.current;
+        if (!chart) return;
+        const timeScale = chart.timeScale();
+        const range = timeScale.getVisibleLogicalRange();
+        if (!range) return;
+        const span = range.to - range.from;
+        const zoomFactor = e.deltaY > 0 ? 1.15 : 0.85;
+        const newSpan = Math.max(5, Math.min(span * zoomFactor, dataRef.current.length * 2));
+        const delta = (newSpan - span) / 2;
+        timeScale.setVisibleLogicalRange({
+          from: range.from - delta,
+          to: range.to + delta,
+        });
+      }
+    };
+
+    el.addEventListener("wheel", onWheel, { passive: false });
+
     import("lightweight-charts").then(
       ({ createChart, CandlestickSeries, HistogramSeries, LineSeries, ColorType, CrosshairMode }) => {
         if (cancelled || !el) return;
@@ -380,8 +416,18 @@ const CandlestickChart = forwardRef<
             rightOffset: 4,
             fixLeftEdge: true,
           },
-          handleScroll: true,
-          handleScale: true,
+          handleScroll: {
+            mouseWheel: false,
+            pressedMouseMove: true,
+            horzTouchDrag: true,
+            vertTouchDrag: false,
+          },
+          handleScale: {
+            mouseWheel: isModal,
+            pinch: true,
+            axisPressedMouseMove: true,
+            axisDoubleClickReset: true,
+          },
         });
 
         const candleSeries = chart.addSeries(CandlestickSeries, {
@@ -446,6 +492,7 @@ const CandlestickChart = forwardRef<
 
     return () => {
       cancelled = true;
+      el.removeEventListener("wheel", onWheel);
       chartApiRef.current?.remove();
       chartApiRef.current = null;
       candleSeriesRef.current = null;
@@ -454,7 +501,7 @@ const CandlestickChart = forwardRef<
       ma200SeriesRef.current = null;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- chart is created once after mount; data/theme are pushed via the effects below
-  }, [mounted]);
+  }, [mounted, isModal]);
 
   // Push data whenever it changes (range switch, refetch).
   useEffect(() => {
