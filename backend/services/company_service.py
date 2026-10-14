@@ -59,7 +59,7 @@ BASE_QUERY = """
         f.revenue_growth_pct, f.profit_growth_pct, f.dividend_yield_pct,
         f.current_ratio, f.book_value,
         de.debt_to_equity,
-        sh.promoter_pct, sh.fii_pct, sh.dii_pct,
+        sh.promoter_pct, sh.fii_pct, sh.dii_pct, sh.pledge_pct,
         t.close, t.change_pct, t.rsi_14, t.above_50dma, t.above_200dma,
         t.golden_cross, t.death_cross, t.avg_volume_20, t.high_52w, t.low_52w,
         s.verdict, s.rationale
@@ -74,10 +74,10 @@ BASE_QUERY = """
         limit 1
     ) de on true
     left join lateral (
-        select promoter_pct, fii_pct, dii_pct
+        select promoter_pct, fii_pct, dii_pct, pledge_pct
         from shareholding_pattern
         where symbol = c.symbol
-        order by quarter desc
+        order by period_end desc nulls last, quarter desc
         limit 1
     ) sh on true
     left join technical_snapshot t on t.symbol = c.symbol
@@ -421,6 +421,7 @@ def _company_fields(row, spark: list, latest_volume: Optional[int],
 
     score_result = compute_scores(
         {
+            "sector": row.get("sector"),
             "roe": float(roe) if roe is not None else None,
             "roce": float(row["roce_pct"]) if row["roce_pct"] is not None else None,
             "salesGrowthPct": float(row["revenue_growth_pct"]) if row["revenue_growth_pct"] is not None else None,
@@ -432,7 +433,10 @@ def _company_fields(row, spark: list, latest_volume: Optional[int],
             "peg": float(row["peg"]) if row["peg"] is not None else None,
             "sectorAvgPe": sector_avg_pe,
             "divYield": float(row["dividend_yield_pct"]) if row["dividend_yield_pct"] is not None else None,
-            "promoterHoldingPct": float(row["promoter_pct"]) if row["promoter_pct"] is not None else None,
+            "promoterHoldingPct": float(row["promoter_pct"]) if row.get("promoter_pct") is not None else None,
+            "pledgePct": float(row["pledge_pct"]) if row.get("pledge_pct") is not None else None,
+            "fiiPct": float(row["fii_pct"]) if row.get("fii_pct") is not None else None,
+            "diiPct": float(row["dii_pct"]) if row.get("dii_pct") is not None else None,
             # Sprint 3 (v2) additions:
             "earningsQuality": earnings_quality,
             "fiiTrendPct": (fii_dii_trend or {}).get("fiiTrendPct"),

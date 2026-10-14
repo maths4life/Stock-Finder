@@ -185,8 +185,27 @@ def _score_profit_growth(m: Dict) -> ScoreMetric:
     return _metric("Profit Growth (YoY)", g, 0, 12, False, f"Profit contracted {abs(g):.1f}% YoY, an earnings headwind.{note}")
 
 
+def _is_financial_sector(m: Dict) -> bool:
+    sec = (m.get("sector") or "").strip().lower()
+    return any(k in sec for k in ["financial", "bank", "nbfc", "insurance", "housing", "lending", "fintech"])
+
+
 def _score_debt_to_equity(m: Dict) -> ScoreMetric:
     de = m.get("debtToEquity")
+    is_fin = _is_financial_sector(m)
+
+    if is_fin:
+        # Banks & NBFCs borrow to lend — leverage is raw operating material, not distress risk.
+        if de is None:
+            return _metric("Debt / Equity (Financials)", None, 10, 12, True, "Financial institution leverage governed by RBI capital adequacy norms.")
+        if de <= 6.5:
+            return _metric("Debt / Equity (Financials)", de, 12, 12, True, f"Operating leverage of {de:.2f}x reflects a well-capitalized banking/lending balance sheet.")
+        if de <= 8.5:
+            return _metric("Debt / Equity (Financials)", de, 10, 12, True, f"Operating leverage of {de:.2f}x is standard operating capital structure for Indian financials.")
+        if de <= 10.5:
+            return _metric("Debt / Equity (Financials)", de, 6, 12, True, f"Operating leverage of {de:.2f}x is elevated even for a lending institution.")
+        return _metric("Debt / Equity (Financials)", de, 2, 12, False, f"Operating leverage of {de:.2f}x indicates aggressive balance sheet gearing.")
+
     if de is None:
         return _unavailable("Debt / Equity", "Debt-to-equity data is not available for this company.")
     if de <= 0.3:
@@ -201,6 +220,11 @@ def _score_debt_to_equity(m: Dict) -> ScoreMetric:
 
 
 def _score_current_ratio(m: Dict) -> ScoreMetric:
+    if _is_financial_sector(m):
+        # Commercial Current Ratio (Current Assets / Current Liabilities) is not applicable to banks.
+        # ALM duration matching and LCR (Liquidity Coverage Ratio) are used instead.
+        return _unavailable("Current Ratio", "Current ratio is not applicable to banks and financial institutions (ALM / LCR used instead).")
+
     cr = m.get("currentRatio")
     if cr is None or cr <= 0:
         return _unavailable("Current Ratio", "Current ratio data is not available for this company.")
@@ -297,15 +321,94 @@ def _score_dividend_yield(m: Dict) -> ScoreMetric:
 
 def _score_promoter_holding(m: Dict) -> ScoreMetric:
     p = m.get("promoterHoldingPct")
-    if p is None or p <= 0:
+    pledge = m.get("pledgePct")
+    fii = m.get("fiiPct") or 0.0
+    dii = m.get("diiPct") or 0.0
+    inst_total = fii + dii
+
+    if p is None:
+        # Check if company is an institutionally sponsored company with zero/minimal promoter holding
+        if inst_total >= 50:
+            return _metric(
+                "Promoter Holding & Governance",
+                0.0,
+                6,
+                8,
+                True,
+                f"Widely held institutionally managed structure ({inst_total:.1f}% FII+DII) — clean governance typical of index bluechips (e.g. L&T, ITC, ICICI Bank).",
+            )
         return _unavailable("Promoter Holding", "Promoter shareholding data is not available for this company.")
-    if p >= 60:
-        return _metric("Promoter Holding", p, 8, 8, True, f"Promoter holding of {p:.1f}% signals strong skin-in-the-game.")
-    if p >= 50:
-        return _metric("Promoter Holding", p, 6, 8, True, f"Promoter holding of {p:.1f}% is above the 50% majority-control threshold.")
-    if p >= 30:
-        return _metric("Promoter Holding", p, 3, 8, False, f"Promoter holding of {p:.1f}% is moderate.")
-    return _metric("Promoter Holding", p, 0, 8, False, f"Promoter holding of {p:.1f}% is low.")
+
+    # Base scoring on ownership level
+    if p < 30 and inst_total >= 45:
+        base_score = 6.0
+        base_passed = True
+        base_reason = f"Widely held / professionally managed ownership (Promoter {p:.1f}%, Institutional {inst_total:.1f}% FII+DII) — clean institutional sponsorship."
+    elif p >= 60:
+        base_score = 8.0
+        base_passed = True
+        base_reason = f"Promoter holding of {p:.1f}% signals strong skin-in-the-game."
+    elif p >= 50:
+        base_score = 6.0
+        base_passed = True
+        base_reason = f"Promoter holding of {p:.1f}% provides majority control."
+    elif p >= 30:
+        base_score = 3.0
+        base_passed = False
+        base_reason = f"Promoter holding of {p:.1f}% is moderate."
+    else:
+        base_score = 0.0
+        base_passed = False
+        base_reason = f"Promoter holding of {p:.1f}% is low."
+
+    # Factor in Promoter Pledging (the primary solvency headwind in Indian equities)
+    if pledge is not None and pledge > 0:
+        if pledge >= 50:
+            return _metric(
+                "Promoter Holding & Governance",
+                p,
+                0,
+                8,
+                False,
+                f"Promoter holding of {p:.1f}% has severe encumbrance ({pledge:.1f}% of promoter shares are pledged) — critical margin-call and solvency risk.",
+            )
+        if pledge >= 20:
+            penalized = max(1.0, base_score - 4.0)
+            return _metric(
+                "Promoter Holding & Governance",
+                p,
+                penalized,
+                8,
+                False,
+                f"{base_reason} Caution: {pledge:.1f}% of promoter shares are pledged, indicating promoter financial leverage.",
+            )
+        if pledge >= 5:
+            penalized = max(2.0, base_score - 2.0)
+            return _metric(
+                "Promoter Holding & Governance",
+                p,
+                penalized,
+                8,
+                base_passed,
+                f"{base_reason} Note: {pledge:.1f}% of promoter holding is pledged.",
+            )
+        return _metric(
+            "Promoter Holding & Governance",
+            p,
+            base_score,
+            8,
+            base_passed,
+            f"{base_reason} (Pledge is minimal at {pledge:.1f}%).",
+        )
+
+    return _metric(
+        "Promoter Holding & Governance",
+        p,
+        base_score,
+        8,
+        base_passed,
+        f"{base_reason} Clean promoter balance sheet (0% pledged).",
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -406,7 +509,10 @@ def _score_institutional_trend(m: Dict) -> ScoreMetric:
                         f"Both FII and DII holdings increased this quarter ({detail}) — strong institutional buying signal.")
     if combined >= 0.3:
         return _metric("Institutional Trend (FII + DII)", combined, 6, 8, True,
-                        f"Net institutional buying ({detail}) — modest positive signal.")
+                        f"Net institutional buying ({detail}) — positive institutional interest.")
+    if dii >= 0.4 and fii < 0:
+        return _metric("Institutional Trend (FII + DII)", combined, 5, 8, True,
+                        f"Domestic institutions accumulating ({dii_str}) counterbalancing foreign selling ({fii_str}) — supported by Indian mutual fund/SIP liquidity.")
     if combined >= -0.3:
         return _metric("Institutional Trend (FII + DII)", combined, 4, 8, True,
                         f"Institutional holdings were broadly stable ({detail}) — no clear directional signal.")
@@ -543,19 +649,25 @@ def _score_rsi(m: Dict) -> ScoreMetric:
     rsi = m.get("rsi")
     if rsi is None or rsi <= 0:
         return _unavailable("RSI (14)", "RSI data is not available for this company.")
-    # Bands: >70 overbought, <30 oversold, 55-70 constructive, 45-55 neutral.
-    # Max raised to 25 pts from 20 — most nuanced single technical indicator.
-    if rsi >= 80:
-        return _metric("RSI (14)", rsi, 8, 25, False, f"RSI of {rsi:.0f} is extremely overbought — momentum is stretched, elevated reversal risk.")
+    # Indian market momentum calibration:
+    # In sustained market rallies, strong compounders often sustain an RSI of 65-78 without breaking.
+    # >=82: stretched / blow-off risk
+    # 70-82: strong bullish momentum continuation
+    # 55-70: constructive sweet spot
+    # 45-55: neutral / consolidation
+    # 35-45: cooling / weak
+    # <35: oversold
+    if rsi >= 82:
+        return _metric("RSI (14)", rsi, 8, 25, False, f"RSI of {rsi:.0f} is extremely overbought — momentum is stretched, elevated mean-reversion risk.")
     if rsi >= 70:
-        return _metric("RSI (14)", rsi, 13, 25, False, f"RSI of {rsi:.0f} is overbought.")
+        return _metric("RSI (14)", rsi, 20, 25, True, f"RSI of {rsi:.0f} reflects strong bullish momentum continuation (upper power zone).")
     if rsi >= 55:
         return _metric("RSI (14)", rsi, 25, 25, True, f"RSI of {rsi:.0f} shows healthy, constructive momentum.")
     if rsi >= 45:
-        return _metric("RSI (14)", rsi, 18, 25, True, f"RSI of {rsi:.0f} is neutral — no strong momentum signal.")
-    if rsi >= 30:
+        return _metric("RSI (14)", rsi, 18, 25, True, f"RSI of {rsi:.0f} is neutral — no strong momentum bias.")
+    if rsi >= 35:
         return _metric("RSI (14)", rsi, 10, 25, False, f"RSI of {rsi:.0f} shows cooling momentum.")
-    return _metric("RSI (14)", rsi, 5, 25, False, f"RSI of {rsi:.0f} is oversold — momentum is negative regardless of price level.")
+    return _metric("RSI (14)", rsi, 5, 25, False, f"RSI of {rsi:.0f} is oversold — negative momentum trend.")
 
 
 def _score_above_50dma(m: Dict) -> ScoreMetric:

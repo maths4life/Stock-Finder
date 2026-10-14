@@ -69,8 +69,18 @@ function getMockCompany(symbol: string): Company {
   const fundamentalScore = cached?.fundamentalScore ?? (h % 25) + 70;
   const technicalScore = cached?.technicalScore ?? (h % 25) + 60;
   const trend = cached?.trend ?? (changePct >= 0 ? "Uptrend" : "Sideways");
+  const isFinancial = /financial|bank|nbfc|insurance|housing/i.test(sector);
   const riskLevel =
-    cached?.riskLevel ?? (debtToEquity > 0.8 ? "High" : debtToEquity < 0.3 ? "Low" : "Moderate");
+    cached?.riskLevel ??
+    (isFinancial
+      ? roe > 14
+        ? "Low"
+        : "Moderate"
+      : debtToEquity > 0.8
+        ? "High"
+        : debtToEquity < 0.3
+          ? "Low"
+          : "Moderate");
 
   // Proportional financials scaled to company scale
   const revCr = Math.round(marketCapCr * 0.26);
@@ -189,11 +199,16 @@ function getMockCompany(symbol: string): Company {
     verdict: overallScore >= 75 ? "Strong Conviction" : overallScore >= 65 ? "Watch" : "Under Review",
     rationale: `Strong market presence in the Indian ${sector} space with disciplined capital allocation and positive earnings visibility.`,
     checklist: [
-      { label: "Operating cash flow exceeds net profit", done: true },
-      { label: "Promoter pledge below 5%", done: true },
-      { label: `Debt to equity below 0.5x (current: ${debtToEquity})`, done: debtToEquity < 0.5 },
-      { label: `Industry demand secular growth trend in ${sector}`, done: true },
-      { label: `Reasonable historical valuation multiple (P/E: ${pe}x)`, done: pe < 38 },
+      { label: "Operating cash flow exceeds net profit (strong cash conversion)", done: true },
+      { label: "Promoter pledge below 5% (unencumbered promoter equity)", done: true },
+      {
+        label: isFinancial
+          ? "Adequate regulatory capital (CAR > 15%)"
+          : `Debt to equity below 0.5x (current: ${debtToEquity})`,
+        done: isFinancial ? true : debtToEquity < 0.5,
+      },
+      { label: `Industry secular growth tailwinds in ${sector}`, done: true },
+      { label: `Reasonable historical valuation multiple (P/E: ${pe}x)`, done: pe < 42 },
     ],
     quarterlyFinancials: [
       { quarter: "Q3FY25", revenueCr: Math.round(marketCapCr * 0.08), netProfitCr: Math.round(marketCapCr * 0.01), ebitdaMarginPct: 14.5 },
@@ -260,10 +275,34 @@ function getMockCompany(symbol: string): Company {
     },
     scoreBreakdown: {
       fundamental: [
-        { metric: "RoE > 15%", value: roe, score: roe > 15 ? 15 : 8, maxScore: 15, passed: roe > 15, reason: `RoE of ${roe.toFixed(1)}% vs 15% threshold` },
+        { metric: "RoE > 15%", value: roe, score: roe > 15 ? 15 : 8, maxScore: 15, passed: roe > 15, reason: `RoE of ${roe.toFixed(1)}% vs 15% quality threshold` },
         { metric: "ROCE > 18%", value: roce, score: roce > 18 ? 15 : 9, maxScore: 15, passed: roce > 18, reason: `ROCE of ${roce.toFixed(1)}% demonstrates capital efficiency` },
-        { metric: "Debt to Equity < 0.5", value: debtToEquity, score: debtToEquity < 0.5 ? 15 : 7, maxScore: 15, passed: debtToEquity < 0.5, reason: `D/E ratio of ${debtToEquity.toFixed(2)}` },
+        isFinancial
+          ? {
+              metric: "Capital Structure (Financials)",
+              value: "Compliant",
+              score: 14,
+              maxScore: 15,
+              passed: true,
+              reason: "Lending institution operating leverage within standard RBI capital adequacy guidelines",
+            }
+          : {
+              metric: "Debt to Equity < 0.5",
+              value: debtToEquity,
+              score: debtToEquity < 0.5 ? 15 : 7,
+              maxScore: 15,
+              passed: debtToEquity < 0.5,
+              reason: `D/E ratio of ${debtToEquity.toFixed(2)}`,
+            },
         { metric: "Sales Growth > 12%", value: 15.4, score: 12, maxScore: 15, passed: true, reason: "Consistent double-digit topline expansion" },
+        {
+          metric: "Promoter Holding & Governance",
+          value: `${promoterHolding.toFixed(1)}%`,
+          score: 8,
+          maxScore: 8,
+          passed: true,
+          reason: "Clean promoter shareholding with 0% promoter pledge",
+        },
       ],
       technical: [
         { metric: "Above 50 DMA", value: changePct >= 0, score: changePct >= 0 ? 10 : 3, maxScore: 10, passed: changePct >= 0, reason: changePct >= 0 ? "Trading above 50-day moving average" : "Consolidating below 50 DMA" },
