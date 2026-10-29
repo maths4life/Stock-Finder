@@ -27,6 +27,7 @@ import { fetchCompanies } from "@/features/company/api/companies";
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { Company, CompanyQueryParams, RiskLevel } from "@/shared/api/types";
 import { AddToIdeasButton } from "@/shared/components/common/AddToIdeasButton";
+import { DataFreshness } from "@/shared/components/common/DataFreshness";
 
 const PAGE_SIZE = 10;
 
@@ -404,8 +405,9 @@ function Screener() {
           eyebrow="Screener"
           title="Set your criteria. See only what qualifies."
           description="No lists of hundreds. High-conviction names, ranked by a transparent score — not a black box."
-          className="mb-8"
+          className="mb-3"
         />
+        <DataFreshness className="mb-8" />
 
         {/* Presets */}
         <div className="flex flex-wrap items-center gap-2 mb-6">

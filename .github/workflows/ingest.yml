@@ -83,3 +83,33 @@ jobs:
       - name: Compute scores
         working-directory: backend
         run: python -m ingest.compute_scores
+
+  # ---------------------------------------------------------------------------
+  # Failure alert — runs only when the refresh job fails.
+  # Set the ALERT_WEBHOOK_URL secret to a Slack/Discord/generic webhook URL
+  # to receive a notification. If the secret is not set, this step skips
+  # silently (the `if: secrets.ALERT_WEBHOOK_URL != ''` guard below).
+  # The payload is Slack-compatible (attachments with color).
+  # For Discord: change `text` to `content` in the JSON body.
+  # ---------------------------------------------------------------------------
+  notify-failure:
+    runs-on: ubuntu-latest
+    needs: refresh
+    if: failure()
+    steps:
+      - name: Send failure alert
+        if: ${{ secrets.ALERT_WEBHOOK_URL != '' }}
+        run: |
+          curl -s -X POST "${{ secrets.ALERT_WEBHOOK_URL }}" \
+            -H "Content-Type: application/json" \
+            -d '{
+              "text": "⚠️ *Stock Finder ingest failed*",
+              "attachments": [{
+                "color": "danger",
+                "fields": [
+                  {"title": "Workflow", "value": "${{ github.workflow }}", "short": true},
+                  {"title": "Trigger", "value": "${{ github.event_name }}", "short": true},
+                  {"title": "Run URL", "value": "${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}"}
+                ]
+              }]
+            }'

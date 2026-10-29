@@ -11,6 +11,12 @@ import { UNIVERSE_MAP } from "@/features/company/data/universe";
 
 const API_URL = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
 
+// 8 seconds: generous enough for Supabase cold starts and large 500-company
+// screener queries, tight enough to fail fast if the backend is truly down.
+// The old 2.5s value caused legitimate requests to abort and silently fall
+// back to hash-generated mock data.
+const FETCH_TIMEOUT_MS = 8_000;
+
 // In-memory cache of companies seen so far (from API or mock)
 const knownCompanies = new Map<string, Company>();
 
@@ -388,7 +394,7 @@ export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<P
 
   try {
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
+    const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
     const response = await fetch(`${API_URL}/companies?${qs.toString()}`, {
       signal: controller.signal,
     });
@@ -405,8 +411,20 @@ export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<P
       }
       return data;
     }
-  } catch {
-    // Fallback to local mock / universe items
+
+    // Non-OK HTTP status from the backend (e.g. 503 from the DB error handler)
+    throw new ApiError(
+      `Backend returned ${response.status}. Please try again.`,
+      response.status,
+    );
+  } catch (err) {
+    // Re-throw ApiErrors (from above) so the caller sees a real error state.
+    // Network failures (backend offline, DNS failure, AbortError from timeout)
+    // fall through to the offline mock below — the screener is the one place
+    // where a full offline fallback is acceptable because the page shows an
+    // "Offline / Demo Mode" banner (see screener.tsx error handling).
+    if (err instanceof ApiError) throw err;
+    // Otherwise: offline fallback continues below.
   }
 
   // Fallback handling when backend is offline
@@ -453,22 +471,41 @@ export async function fetchCompanies(params: CompanyQueryParams = {}): Promise<P
  */
 export async function fetchCompany(symbol: string): Promise<Company> {
   const sym = symbol.toUpperCase();
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-    const response = await fetch(`${API_URL}/company/${sym}`, { signal: controller.signal });
-    clearTimeout(timeoutId);
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
 
-    if (response.ok) {
-      const data = await response.json();
-      knownCompanies.set(sym, data);
-      return data;
-    }
-  } catch {
-    // Backend offline / network timeout fallback
+  let response: Response;
+  try {
+    response = await fetch(`${API_URL}/company/${sym}`, { signal: controller.signal });
+  } catch (err) {
+    clearTimeout(timeoutId);
+    // Network error or timeout — do NOT fall back to mock data on the detail
+    // page. Hash-generated fake P/E, ROE, and shareholding figures could lead
+    // to real investment decisions based on made-up numbers.
+    const isAbort = err instanceof DOMException && err.name === "AbortError";
+    throw new ApiError(
+      isAbort
+        ? `Request timed out after ${FETCH_TIMEOUT_MS / 1000}s. The backend may be starting up — please retry.`
+        : "Could not reach the backend. Check that the server is running.",
+      503,
+    );
+  }
+  clearTimeout(timeoutId);
+
+  if (response.ok) {
+    const data = await response.json();
+    knownCompanies.set(sym, data);
+    return data;
   }
 
-  return getMockCompany(sym);
+  if (response.status === 404) {
+    throw new ApiError(`No company found for symbol "${sym}".`, 404);
+  }
+
+  throw new ApiError(
+    `Backend returned ${response.status}. Please try again.`,
+    response.status,
+  );
 }
 
 /**
@@ -479,34 +516,49 @@ export async function fetchCompanyPrices(
   range: PriceRange = "6M",
 ): Promise<PriceBar[]> {
   const sym = symbol.toUpperCase();
+  const qs = new URLSearchParams({ range });
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+
+  let response: Response;
   try {
-    const qs = new URLSearchParams({ range });
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-    const response = await fetch(`${API_URL}/company/${sym}/prices?${qs.toString()}`, {
+    response = await fetch(`${API_URL}/company/${sym}/prices?${qs.toString()}`, {
       signal: controller.signal,
     });
+  } catch (err) {
     clearTimeout(timeoutId);
+    // Throw on network error / timeout — random generated OHLCV bars on the
+    // price chart look real but are meaningless for research purposes.
+    const isAbort = err instanceof DOMException && err.name === "AbortError";
+    throw new ApiError(
+      isAbort
+        ? `Price data request timed out. Please retry.`
+        : "Could not reach the backend for price data.",
+      503,
+    );
+  }
+  clearTimeout(timeoutId);
 
-    if (response.ok) {
-      const data = await response.json();
-      if (Array.isArray(data) && data.length > 0) {
-        const latest = data[data.length - 1];
-        if (latest?.close) {
-          const cached = knownCompanies.get(sym);
-          if (cached) {
-            cached.price = latest.close;
-          }
+  if (response.ok) {
+    const data = await response.json();
+    if (Array.isArray(data) && data.length > 0) {
+      const latest = data[data.length - 1];
+      if (latest?.close) {
+        const cached = knownCompanies.get(sym);
+        if (cached) {
+          cached.price = latest.close;
         }
-        return data;
       }
+      return data;
     }
-  } catch {
-    // Backend offline / network timeout fallback
+    // Backend returned OK but empty array — no prices yet for this symbol.
+    return [];
   }
 
-  const comp = getMockCompany(sym);
-  return generateMockPrices(comp.price);
+  throw new ApiError(
+    `Could not fetch prices (HTTP ${response.status}).`,
+    response.status,
+  );
 }
 
 /**

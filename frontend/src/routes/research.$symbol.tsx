@@ -27,6 +27,8 @@ import { JournalEntryForm } from "@/features/journal/components/JournalEntryForm
 import { queryKeys } from "@/shared/hooks/queryKeys";
 import type { Company, HistoricalPeRange, PriceRange, TrendSignal } from "@/shared/api/types";
 import { cn } from "@/shared/utils/utils";
+import { DataFreshness } from "@/shared/components/common/DataFreshness";
+
 
 const DEFAULT_PRICE_RANGE: PriceRange = "6M";
 
@@ -138,15 +140,18 @@ function ResearchDetail() {
           >
             <ArrowLeft className="size-3" /> Back to Discover
           </Link>
-          {c && (
-            <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-ink-subtle">
-              <span>MARKETS</span>
-              <span>/</span>
-              <span>SECTOR : {c.sector}</span>
-              <span>/</span>
-              <span className="text-ink font-semibold">{c.symbol}</span>
-            </div>
-          )}
+          <div className="flex items-center gap-4">
+            {c && (
+              <div className="hidden sm:flex items-center gap-1.5 text-[11px] font-mono uppercase tracking-wider text-ink-subtle">
+                <span>MARKETS</span>
+                <span>/</span>
+                <span>SECTOR : {c.sector}</span>
+                <span>/</span>
+                <span className="text-ink font-semibold">{c.symbol}</span>
+              </div>
+            )}
+            <DataFreshness />
+          </div>
         </div>
 
         {company && <StickyCompanyHeader company={company} visible={stuck} />}
