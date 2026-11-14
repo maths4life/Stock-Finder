@@ -51,13 +51,28 @@ def ensure_company_rows(engine):
     name/sector/ticker in the CSV (e.g. the TATAMOTORS -> TMPV rename
     after Tata Motors' Oct 2025 demerger) gets its row updated in place,
     same as before this milestone."""
-    with engine.begin() as conn:
-        for c in UNIVERSE:
-            conn.execute(
-                text(
+    rows = [
+        (
+            c["symbol"],
+            c["yahoo_ticker"],
+            c["exchange"],
+            c["name"],
+            c.get("sector") or None,
+            c.get("index_membership") or None,
+            c.get("is_active", True),
+        )
+        for c in UNIVERSE
+    ]
+    try:
+        raw_conn = engine.raw_connection()
+        try:
+            from psycopg2.extras import execute_values
+            with raw_conn.cursor() as cur:
+                execute_values(
+                    cur,
                     """
                     insert into companies (symbol, yahoo_ticker, exchange, name, sector, index_membership, is_active)
-                    values (:symbol, :yahoo_ticker, :exchange, :name, :sector, :index_membership, :is_active)
+                    values %s
                     on conflict (symbol) do update set
                         yahoo_ticker = excluded.yahoo_ticker,
                         exchange = excluded.exchange,
@@ -65,10 +80,34 @@ def ensure_company_rows(engine):
                         sector = excluded.sector,
                         index_membership = excluded.index_membership,
                         is_active = excluded.is_active
-                    """
-                ),
-                c,
-            )
+                    """,
+                    rows,
+                    page_size=1000,
+                )
+            raw_conn.commit()
+            return
+        finally:
+            raw_conn.close()
+    except Exception:
+        pass
+
+    with engine.begin() as conn:
+        conn.execute(
+            text(
+                """
+                insert into companies (symbol, yahoo_ticker, exchange, name, sector, index_membership, is_active)
+                values (:symbol, :yahoo_ticker, :exchange, :name, :sector, :index_membership, :is_active)
+                on conflict (symbol) do update set
+                    yahoo_ticker = excluded.yahoo_ticker,
+                    exchange = excluded.exchange,
+                    name = excluded.name,
+                    sector = excluded.sector,
+                    index_membership = excluded.index_membership,
+                    is_active = excluded.is_active
+                """
+            ),
+            list(UNIVERSE),
+        )
 
 
 def get_price_date_ranges(engine, symbols: list) -> dict:
