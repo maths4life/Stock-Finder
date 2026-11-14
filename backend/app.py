@@ -125,6 +125,20 @@ def test_db():
         return {"server_time": str(result.scalar())}
 
 
+@app.get("/admin/sync-universe")
+def sync_universe():
+    """Syncs the universe CSV (including all newly classified sectors)
+    directly into the companies table."""
+    from ingest.fetch_prices import ensure_company_rows
+    ensure_company_rows(engine)
+    with engine.connect() as conn:
+        unclassified = conn.execute(
+            text("select count(*) from companies where sector is null or sector = '' or sector = 'Unclassified'")
+        ).scalar()
+        total = conn.execute(text("select count(*) from companies")).scalar()
+    return {"status": "ok", "total_companies": total, "unclassified_count": unclassified}
+
+
 @app.get("/healthz")
 def healthz():
     """Structured health check for monitoring and debugging.
