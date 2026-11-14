@@ -1,3 +1,6 @@
+import logging
+import traceback
+
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
@@ -14,14 +17,27 @@ from routes.news import router as news_router
 from routes.pipeline import router as pipeline_router
 from routes.weekly_intelligence import router as weekly_intelligence_router
 
+logger = logging.getLogger("stock_finder")
+
 app = FastAPI(title="Stock Finder API")
 
-# Dev-only permissive CORS so the Vite frontend (localhost, any port) can
-# call this API. Tighten to specific origins before deploying anywhere
-# public.
+# CORS configuration — allow the production frontend and any localhost dev
+# server.  Using explicit origins (not "*") so browsers that send
+# credentials still work, and we get a predictable
+# Access-Control-Allow-Origin on every response — including error responses
+# from the catch-all handler below.
+_ALLOWED_ORIGINS = [
+    "https://mjtradingtrackr.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+    "http://127.0.0.1:5173",
+    "http://127.0.0.1:3000",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=_ALLOWED_ORIGINS,
+    allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -66,9 +82,65 @@ async def operational_exception_handler(request: Request, exc: OperationalError)
     )
 
 
+# ---------------------------------------------------------------------------
+# Catch-all handler for any unhandled exception.
+#
+# Without this, a bug in service code (TypeError, KeyError, ValueError, etc.)
+# produces a bare "Internal Server Error" text/plain response from Uvicorn's
+# default handler — which does NOT pass through Starlette's CORS middleware,
+# so the browser sees no Access-Control-Allow-Origin header and reports a
+# misleading "CORS error" instead of the actual 500.
+#
+# By catching Exception here and returning a JSONResponse, the response goes
+# back through the middleware stack normally, CORS headers are attached, and
+# the frontend receives a structured JSON error it can display.
+# ---------------------------------------------------------------------------
+@app.exception_handler(Exception)
+async def catch_all_exception_handler(request: Request, exc: Exception):
+    logger.error(
+        "Unhandled exception on %s %s: %s\n%s",
+        request.method,
+        request.url.path,
+        exc,
+        traceback.format_exc(),
+    )
+    return JSONResponse(
+        status_code=500,
+        content={
+            "detail": "An internal error occurred. Please try again or contact support.",
+            "error_type": "internal_server_error",
+        },
+    )
+
+
 @app.get("/")
 def home():
     return {"message": "Stock Finder Backend Running"}
+
+
+@app.get("/debug/company/{symbol}")
+def debug_company(symbol: str):
+    """Temporary debug endpoint: returns the company detail or a full
+    traceback, so we can diagnose 500 errors on the hosted instance
+    without SSH access to the Render logs."""
+    import traceback as tb
+    try:
+        from services.company_service import get_company_by_symbol
+        result = get_company_by_symbol(symbol)
+        if result is None:
+            return {"status": "not_found", "symbol": symbol}
+        return {"status": "ok", "symbol": symbol, "keys": list(result.keys())}
+    except Exception as e:
+        return JSONResponse(
+            status_code=500,
+            content={
+                "status": "error",
+                "symbol": symbol,
+                "error_type": type(e).__name__,
+                "error": str(e),
+                "traceback": tb.format_exc(),
+            },
+        )
 
 
 @app.get("/test-db")

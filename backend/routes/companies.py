@@ -1,3 +1,4 @@
+import logging
 from typing import Optional
 
 from fastapi import APIRouter, HTTPException, Query
@@ -6,6 +7,8 @@ from schemas.company import PaginatedCompanies
 from services.company_service import get_company_by_symbol
 from services.screener_service import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, screen_companies
 from services.technical_service import DEFAULT_RANGE, get_price_history
+
+logger = logging.getLogger("stock_finder")
 
 router = APIRouter()
 
@@ -75,7 +78,11 @@ def companies(
 
 @router.get("/company/{symbol}")
 def company(symbol: str):
-    result = get_company_by_symbol(symbol)
+    try:
+        result = get_company_by_symbol(symbol)
+    except Exception:
+        logger.exception("Failed to build company detail for %s", symbol)
+        raise
     if result is None:
         raise HTTPException(status_code=404, detail=f'No company found for symbol "{symbol}"')
     return result
