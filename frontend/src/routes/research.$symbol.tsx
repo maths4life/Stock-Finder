@@ -17,6 +17,7 @@ import { useCompany, useCompanyPrices } from "@/features/company/hooks/useCompan
 import { fetchCompany, fetchCompanyPrices } from "@/features/company/api/companies";
 import { PriceChart } from "@/features/company/components/PriceChart";
 import { FinancialComparisonTable } from "@/features/company/components/FinancialComparisonTable";
+import { PeerComparisonTable } from "@/features/company/components/PeerComparisonTable";
 import { ScoreBreakdownPanel } from "@/features/company/components/ScoreBreakdown";
 import {
   StickyCompanyHeader,
@@ -34,6 +35,7 @@ const DEFAULT_PRICE_RANGE: PriceRange = "6M";
 
 type ResearchTab =
   | "overview"
+  | "peers"
   | "financials"
   | "fundamentals"
   | "valuation"
@@ -97,6 +99,7 @@ function ResearchDetail() {
       if (
         [
           "overview",
+          "peers",
           "financials",
           "fundamentals",
           "valuation",
@@ -120,6 +123,7 @@ function ResearchDetail() {
   const tabs: TabItem[] = c
     ? [
         { id: "overview", label: "Overview" },
+        { id: "peers", label: "Peers", badge: c.peers && c.peers.length > 0 ? `${c.peers.length}` : undefined },
         { id: "financials", label: "Financials" },
         { id: "fundamentals", label: "Fundamentals" },
         { id: "valuation", label: "Valuation" },
@@ -434,6 +438,17 @@ function ResearchDetail() {
                     </div>
                   </Section>
 
+                  {/* Sector Peer Comparison Preview in Overview */}
+                  {c.peers && c.peers.length > 0 && (
+                    <Section label="Sector Peer Comparison">
+                      <PeerComparisonTable
+                        peers={c.peers}
+                        sector={c.sector}
+                        currentSymbol={c.symbol}
+                      />
+                    </Section>
+                  )}
+
                   {/* Quick Score Highlight with Navigation Button */}
                   <div className="p-6 rounded-xl ring-1 ring-hairline bg-surface-raised flex flex-wrap items-center justify-between gap-6">
                     <div className="space-y-1">
@@ -454,6 +469,29 @@ function ResearchDetail() {
                       View Full Score Breakdown <ChevronRight className="size-3.5" />
                     </button>
                   </div>
+                </div>
+              )}
+
+              {/* TAB: PEER COMPARISON */}
+              {activeTab === "peers" && (
+                <div
+                  id="panel-peers"
+                  role="tabpanel"
+                  aria-labelledby="tab-peers"
+                  className="space-y-8 animate-fade-up"
+                >
+                  <Section label="Sector Peer Comparison">
+                    <p className="text-sm text-ink-muted mb-4 max-w-[75ch]">
+                      Direct comparison with the largest tracked companies in the{" "}
+                      <span className="text-ink font-semibold">{c.sector}</span> sector.
+                      Benchmark valuation multiples, returns on capital, leverage, and algorithmic scores side-by-side.
+                    </p>
+                    <PeerComparisonTable
+                      peers={c.peers ?? []}
+                      sector={c.sector}
+                      currentSymbol={c.symbol}
+                    />
+                  </Section>
                 </div>
               )}
 

@@ -174,6 +174,23 @@ export type TrendSignal = {
   series: (number | null)[];
 };
 
+export type PeerComparisonItem = {
+  symbol: string;
+  name: string;
+  price: number;
+  changePct: number;
+  marketCap: string;
+  marketCapCr: number;
+  pe: number;
+  pb: number;
+  roe: number;
+  roce: number;
+  debtToEquity: number;
+  overallScore: number;
+  verdict: string;
+  isCurrent?: boolean;
+};
+
 export type Company = {
   symbol: string;
   exchange: string;
@@ -255,6 +272,9 @@ export type Company = {
 
   // Historical P/E band — null when insufficient history (<2 annual periods).
   historicalPeRange: HistoricalPeRange | null;
+
+  // Sector peer comparison list
+  peers?: PeerComparisonItem[];
 };
 
 /** GET /company/{symbol}/prices row — mirrors backend/schemas/technical.py's PriceBar exactly. */

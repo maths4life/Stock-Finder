@@ -1,10 +1,10 @@
 import logging
-from typing import Optional
+from typing import List, Optional
 
 from fastapi import APIRouter, HTTPException, Query
 
-from schemas.company import PaginatedCompanies
-from services.company_service import get_company_by_symbol
+from schemas.company import PaginatedCompanies, PeerComparisonItem
+from services.company_service import get_company_by_symbol, get_sector_peers
 from services.screener_service import DEFAULT_PAGE_SIZE, MAX_PAGE_SIZE, screen_companies
 from services.technical_service import DEFAULT_RANGE, get_price_history
 
@@ -86,6 +86,11 @@ def company(symbol: str):
     if result is None:
         raise HTTPException(status_code=404, detail=f'No company found for symbol "{symbol}"')
     return result
+
+
+@router.get("/company/{symbol}/peers", response_model=List[PeerComparisonItem])
+def company_peers(symbol: str, limit: int = Query(7, ge=2, le=20)):
+    return get_sector_peers(symbol, limit=limit)
 
 
 @router.get("/company/{symbol}/prices")

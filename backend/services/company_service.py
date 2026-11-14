@@ -648,6 +648,109 @@ def get_all_companies(
         return items
 
 
+_PEERS_QUERY = text(
+    """
+    select
+        c.symbol, c.name, c.exchange, c.sector,
+        f.market_cap_cr, f.pe, f.pb, f.roe_pct, f.roce_pct,
+        de.debt_to_equity,
+        t.close, t.change_pct,
+        s.overall_score, s.verdict
+    from companies c
+    left join financials_quarterly f
+        on f.symbol = c.symbol and f.quarter = 'latest'
+    left join lateral (
+        select debt_to_equity
+        from financials_quarterly
+        where symbol = c.symbol and debt_to_equity is not null
+        order by fiscal_year_end desc nulls last
+        limit 1
+    ) de on true
+    left join technical_snapshot t on t.symbol = c.symbol
+    left join scores s on s.symbol = c.symbol
+    where c.sector = :sector and c.is_active
+    order by f.market_cap_cr desc nulls last
+    limit :limit
+    """
+)
+
+
+def get_sector_peers(symbol: str, sector: Optional[str] = None, limit: int = 7) -> List[dict]:
+    """Returns top peer companies in the same sector ranked by market cap.
+    Guarantees the target company is included in the list and flagged with isCurrent=True."""
+    sym_upper = symbol.upper()
+    with engine.connect() as conn:
+        if not sector:
+            sec_row = conn.execute(
+                text("select sector from companies where symbol = :sym"),
+                {"sym": sym_upper},
+            ).mappings().first()
+            sector = sec_row["sector"] if sec_row else None
+
+        if not sector:
+            return []
+
+        rows = conn.execute(
+            _PEERS_QUERY,
+            {"sector": sector, "limit": limit},
+        ).mappings().all()
+
+        current_included = any(r["symbol"] == sym_upper for r in rows)
+        peer_list = list(rows)
+
+        if not current_included:
+            cur_query = text(
+                """
+                select
+                    c.symbol, c.name, c.exchange, c.sector,
+                    f.market_cap_cr, f.pe, f.pb, f.roe_pct, f.roce_pct,
+                    de.debt_to_equity,
+                    t.close, t.change_pct,
+                    s.overall_score, s.verdict
+                from companies c
+                left join financials_quarterly f
+                    on f.symbol = c.symbol and f.quarter = 'latest'
+                left join lateral (
+                    select debt_to_equity
+                    from financials_quarterly
+                    where symbol = c.symbol and debt_to_equity is not null
+                    order by fiscal_year_end desc nulls last
+                    limit 1
+                ) de on true
+                left join technical_snapshot t on t.symbol = c.symbol
+                left join scores s on s.symbol = c.symbol
+                where c.symbol = :sym
+                """
+            )
+            cur_row = conn.execute(cur_query, {"sym": sym_upper}).mappings().first()
+            if cur_row:
+                peer_list.append(cur_row)
+                peer_list.sort(key=lambda r: float(r["market_cap_cr"] or 0.0), reverse=True)
+
+    results = []
+    for r in peer_list:
+        mcap_cr = float(r["market_cap_cr"]) if r["market_cap_cr"] is not None else 0.0
+        results.append(
+            {
+                "symbol": r["symbol"],
+                "name": r["name"],
+                "price": float(r["close"]) if r["close"] is not None else 0.0,
+                "changePct": float(r["change_pct"]) if r["change_pct"] is not None else 0.0,
+                "marketCap": _format_market_cap(mcap_cr),
+                "marketCapCr": mcap_cr,
+                "pe": float(r["pe"]) if r["pe"] is not None else 0.0,
+                "pb": float(r["pb"]) if r["pb"] is not None else 0.0,
+                "roe": float(r["roe_pct"]) if r["roe_pct"] is not None else 0.0,
+                "roce": float(r["roce_pct"]) if r["roce_pct"] is not None else 0.0,
+                "debtToEquity": float(r["debt_to_equity"]) if r["debt_to_equity"] is not None else 0.0,
+                "overallScore": float(r["overall_score"]) if r["overall_score"] is not None else 0.0,
+                "verdict": r["verdict"] or "Under Review",
+                "isCurrent": r["symbol"] == sym_upper,
+            }
+        )
+    return results
+
+
 def get_company_by_symbol(symbol: str) -> Optional[dict]:
     """GET /company/{symbol} — the complete object (Company), including
     the deep-research fields Module 3 will fill in. Scoped to one symbol,
@@ -700,5 +803,6 @@ def get_company_by_symbol(symbol: str) -> Optional[dict]:
         fields["historicalPeRange"] = get_historical_pe_range(
             symbol_upper, fields.get("pe") or None
         )
+        fields["peers"] = get_sector_peers(symbol_upper, row["sector"])
 
         return Company(**fields).model_dump()

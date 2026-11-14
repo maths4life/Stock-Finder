@@ -42,8 +42,7 @@ from ingest.db import get_engine
 from ingest.resilience import ConcurrentRunner, assert_healthy, retry
 from ingest.universe import UNIVERSE
 
-HISTORY_PERIOD = "2y"   # enough for MA200 / 52w stats to be accurate — used
-                          # for a symbol's first-ever fetch (full backfill).
+HISTORY_PERIOD = "max"   # Pull full available price history from yfinance for complete multi-year charts
 
 
 def ensure_company_rows(engine):

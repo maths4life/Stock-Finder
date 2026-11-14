@@ -249,6 +249,25 @@ class HistoricalPeRange(BaseModel):
     years: int = 0
 
 
+class PeerComparisonItem(BaseModel):
+    """One company row in the Sector Peer Comparison table."""
+
+    symbol: str
+    name: str
+    price: float
+    changePct: float
+    marketCap: str
+    marketCapCr: float
+    pe: float
+    pb: float
+    roe: float
+    roce: float
+    debtToEquity: float
+    overallScore: float
+    verdict: str
+    isCurrent: bool = False
+
+
 class Company(CompanyBase):
     """Returned by GET /company/{symbol} — the complete object, including
     the deep-research fields Module 3 will populate."""
@@ -264,6 +283,7 @@ class Company(CompanyBase):
     annualComparison: ComparisonTable = Field(default_factory=ComparisonTable)
     trendSignals: List[TrendSignal] = Field(default_factory=list)
     historicalPeRange: Optional[HistoricalPeRange] = None
+    peers: List[PeerComparisonItem] = Field(default_factory=list)
 
     # "Why this score?" — full transparency for fundamentalScore /
     # technicalScore / overallScore above. Every entry traces back to a
