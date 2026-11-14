@@ -71,8 +71,8 @@ def ensure_company_rows(engine):
             )
 
 
-def get_latest_price_dates(engine, symbols: list) -> dict:
-    """One batched query returning {symbol: latest_date_in_prices_daily}
+def get_price_date_ranges(engine, symbols: list) -> dict:
+    """One batched query returning {symbol: (earliest_date, latest_date)}
     for every symbol that has at least one row already. Symbols with no
     rows yet are simply absent from the returned dict — treat that as
     'needs a full backfill'."""
@@ -80,7 +80,7 @@ def get_latest_price_dates(engine, symbols: list) -> dict:
         return {}
     query = text(
         """
-        select symbol, max(date) as latest_date
+        select symbol, min(date) as earliest_date, max(date) as latest_date
         from prices_daily
         where symbol in :symbols
         group by symbol
@@ -88,7 +88,7 @@ def get_latest_price_dates(engine, symbols: list) -> dict:
     ).bindparams(bindparam("symbols", expanding=True))
     with engine.connect() as conn:
         rows = conn.execute(query, {"symbols": symbols}).mappings().all()
-    return {row["symbol"]: row["latest_date"] for row in rows}
+    return {row["symbol"]: (row["earliest_date"], row["latest_date"]) for row in rows}
 
 
 @retry(times=3, base_delay_seconds=2.0)
@@ -222,15 +222,21 @@ def main():
 
     universe = UNIVERSE[: args.limit] if args.limit else UNIVERSE
     symbols = [c["symbol"] for c in universe]
-    latest_dates = {} if args.full_refetch else get_latest_price_dates(engine, symbols)
+    date_ranges = {} if args.full_refetch else get_price_date_ranges(engine, symbols)
 
     counts = {"full_backfill": 0, "incremental": 0, "already_current": 0, "no_data": 0}
 
     def plan_for(company: dict):
         symbol = company["symbol"]
-        latest = latest_dates.get(symbol)
-        if latest is None:
-            return None, "full backfill"
+        earliest, latest = date_ranges.get(symbol, (None, None))
+        if earliest is None:
+            return None, "full backfill (new symbol)"
+
+        # If earliest date is within the past 4 years, it only has the legacy 2-year window.
+        # Pull the full max history to backfill all available past years.
+        if earliest > date.today() - timedelta(days=365 * 4):
+            return None, "full backfill (expand legacy 2y history)"
+
         next_day = latest + timedelta(days=1)
         if next_day > date.today():
             return "skip", f"already up to date as of {latest}"
