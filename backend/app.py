@@ -118,31 +118,6 @@ def home():
     return {"message": "Stock Finder Backend Running"}
 
 
-@app.get("/debug/company/{symbol}")
-def debug_company(symbol: str):
-    """Temporary debug endpoint: returns the company detail or a full
-    traceback, so we can diagnose 500 errors on the hosted instance
-    without SSH access to the Render logs."""
-    import traceback as tb
-    try:
-        from services.company_service import get_company_by_symbol
-        result = get_company_by_symbol(symbol)
-        if result is None:
-            return {"status": "not_found", "symbol": symbol}
-        return {"status": "ok", "symbol": symbol, "keys": list(result.keys())}
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "error",
-                "symbol": symbol,
-                "error_type": type(e).__name__,
-                "error": str(e),
-                "traceback": tb.format_exc(),
-            },
-        )
-
-
 @app.get("/test-db")
 def test_db():
     with engine.connect() as conn:
