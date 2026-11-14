@@ -130,20 +130,50 @@ def fetch_one(yahoo_ticker: str, start: date | None = None) -> pd.DataFrame | No
 
 
 def upsert_prices(engine, symbol: str, df: pd.DataFrame):
+    if df is None or df.empty:
+        return
     rows = [
-        {
-            "symbol": symbol,
-            "date": row.date,
-            "open": float(row.Open),
-            "high": float(row.High),
-            "low": float(row.Low),
-            "close": float(row.Close),
-            "volume": int(row.Volume),
-        }
+        (
+            symbol,
+            row.date,
+            float(row.Open),
+            float(row.High),
+            float(row.Low),
+            float(row.Close),
+            int(row.Volume) if pd.notna(row.Volume) else 0,
+        )
         for row in df.itertuples(index=False)
     ]
     if not rows:
         return
+
+    # High-throughput batch insert via psycopg2 execute_values (single round trip)
+    try:
+        raw_conn = engine.raw_connection()
+        try:
+            from psycopg2.extras import execute_values
+            with raw_conn.cursor() as cur:
+                execute_values(
+                    cur,
+                    """
+                    insert into prices_daily (symbol, date, open, high, low, close, volume)
+                    values %s
+                    on conflict (symbol, date) do update set
+                        open = excluded.open,
+                        high = excluded.high,
+                        low = excluded.low,
+                        close = excluded.close,
+                        volume = excluded.volume
+                    """,
+                    rows,
+                    page_size=3000,
+                )
+            raw_conn.commit()
+            return
+        finally:
+            raw_conn.close()
+    except Exception:
+        pass
 
     with engine.begin() as conn:
         conn.execute(
@@ -159,7 +189,18 @@ def upsert_prices(engine, symbol: str, df: pd.DataFrame):
                     volume = excluded.volume
                 """
             ),
-            rows,
+            [
+                {
+                    "symbol": r[0],
+                    "date": r[1],
+                    "open": r[2],
+                    "high": r[3],
+                    "low": r[4],
+                    "close": r[5],
+                    "volume": r[6],
+                }
+                for r in rows
+            ],
         )
 
 
