@@ -230,6 +230,12 @@ def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optiona
       years         — how many annual periods were used
     Returns None when fewer than 2 annual periods of EPS exist or prices are missing.
     """
+    if current_pe is not None:
+        try:
+            current_pe = float(current_pe)
+        except (ValueError, TypeError):
+            current_pe = None
+
     with engine.connect() as conn:
         eps_rows = conn.execute(_HISTORICAL_PE_QUERY, {"symbol": symbol.upper()}).mappings().all()
         # Fall back to quarterly statements if annual EPS has < 2 rows
@@ -259,13 +265,13 @@ def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optiona
         year = int(row["year"].year)
         if year not in eps_by_year:
             continue
-        eps = eps_by_year[year]
+        eps = float(eps_by_year[year])
         if eps <= 0:
             continue
         mid_price = (float(row["annual_high"]) + float(row["annual_low"])) / 2
         pe = mid_price / eps
         if 0 < pe < 500:  # sanity cap — extremely high P/E is usually a transient loss year
-            pe_vals.append(pe)
+            pe_vals.append(float(pe))
 
     if len(pe_vals) < 2:
         return None
@@ -297,7 +303,7 @@ def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optiona
         "pe_75th": round(pe_75th, 1),
         "pe_max": round(pe_max, 1),
         "pe_mean": round(pe_mean, 1),
-        "current_pe": round(current_pe, 1) if current_pe else None,
+        "current_pe": round(current_pe, 1) if current_pe is not None else None,
         "percentile": percentile,
         "years": n,
     }

@@ -483,28 +483,28 @@ def _company_fields(row, spark: list, latest_volume: Optional[int],
         exchange=row["exchange"] or "NSE",
         name=row["name"],
         sector=row["sector"] or "Unclassified",
-        marketCap=_format_market_cap(market_cap_cr),
-        marketCapCr=market_cap_cr or 0.0,
-        price=row["close"] or 0.0,
-        changePct=row["change_pct"] or 0.0,
-        pe=row["pe"] or 0.0,
-        pb=row["pb"] or 0.0,
-        peg=row["peg"] or 0.0,
-        roe=roe or 0.0,
-        roce=row["roce_pct"] or 0.0,
-        eps=row["eps"] or 0.0,
+        marketCap=_format_market_cap(float(market_cap_cr) if market_cap_cr is not None else None),
+        marketCapCr=float(market_cap_cr) if market_cap_cr is not None else 0.0,
+        price=float(row["close"]) if row["close"] is not None else 0.0,
+        changePct=float(row["change_pct"]) if row["change_pct"] is not None else 0.0,
+        pe=float(row["pe"]) if row["pe"] is not None else 0.0,
+        pb=float(row["pb"]) if row["pb"] is not None else 0.0,
+        peg=float(row["peg"]) if row["peg"] is not None else 0.0,
+        roe=float(roe) if roe is not None else 0.0,
+        roce=float(row["roce_pct"]) if row["roce_pct"] is not None else 0.0,
+        eps=float(row["eps"]) if row["eps"] is not None else 0.0,
         # No dedicated EPS-growth column in the schema — proxying with
         # profit growth. See API_CONTRACT.md "Known approximations".
-        epsGrowthPct=row["profit_growth_pct"] or 0.0,
-        salesGrowthPct=row["revenue_growth_pct"] or 0.0,
-        profitGrowthPct=row["profit_growth_pct"] or 0.0,
-        debtToEquity=debt_to_equity or 0.0,
-        currentRatio=row["current_ratio"] or 0.0,
-        divYield=row["dividend_yield_pct"] or 0.0,
-        promoterHoldingPct=row["promoter_pct"] or 0.0,
-        fiiHoldingPct=row["fii_pct"] or 0.0,
-        diiHoldingPct=row["dii_pct"] or 0.0,
-        rsi=row["rsi_14"] or 0.0,
+        epsGrowthPct=float(row["profit_growth_pct"]) if row["profit_growth_pct"] is not None else 0.0,
+        salesGrowthPct=float(row["revenue_growth_pct"]) if row["revenue_growth_pct"] is not None else 0.0,
+        profitGrowthPct=float(row["profit_growth_pct"]) if row["profit_growth_pct"] is not None else 0.0,
+        debtToEquity=float(debt_to_equity) if debt_to_equity is not None else 0.0,
+        currentRatio=float(row["current_ratio"]) if row["current_ratio"] is not None else 0.0,
+        divYield=float(row["dividend_yield_pct"]) if row["dividend_yield_pct"] is not None else 0.0,
+        promoterHoldingPct=float(row["promoter_pct"]) if row.get("promoter_pct") is not None else 0.0,
+        fiiHoldingPct=float(row["fii_pct"]) if row.get("fii_pct") is not None else 0.0,
+        diiHoldingPct=float(row["dii_pct"]) if row.get("dii_pct") is not None else 0.0,
+        rsi=float(row["rsi_14"]) if row["rsi_14"] is not None else 0.0,
         aboveEma200=bool(row["above_200dma"]),
         aboveEma50=bool(row["above_50dma"]),
         goldenCross=bool(row["golden_cross"]),
@@ -546,16 +546,16 @@ def _valuation_metrics(fields: dict, row) -> dict:
       price series exists anywhere in the schema, so these stay None
       (N/A) rather than being invented.
     """
-    market_cap_cr = fields.get("marketCapCr") or None
-    price = fields.get("price") or None
+    market_cap_cr = float(fields["marketCapCr"]) if fields.get("marketCapCr") else None
+    price = float(fields["price"]) if fields.get("price") else None
     shares_outstanding = (
-    float(market_cap_cr) * 10_000_000 / float(price)
-    if market_cap_cr is not None and price not in (None, 0)
-    else None
-)
+        float(market_cap_cr) * 10_000_000 / float(price)
+        if market_cap_cr is not None and price not in (None, 0)
+        else None
+    )
 
-    promoter = fields.get("promoterHoldingPct")
-    free_float_pct = (100 - promoter) if promoter else None
+    promoter = float(fields["promoterHoldingPct"]) if fields.get("promoterHoldingPct") is not None else None
+    free_float_pct = (100.0 - promoter) if promoter is not None else None
 
     book_value = row["book_value"]
 
@@ -563,12 +563,12 @@ def _valuation_metrics(fields: dict, row) -> dict:
         marketCap=fields.get("marketCap"),
         marketCapCr=market_cap_cr,
         enterpriseValueCr=None,
-        pe=fields.get("pe") or None,
+        pe=float(fields["pe"]) if fields.get("pe") else None,
         forwardPe=None,
-        peg=fields.get("peg") or None,
-        pb=fields.get("pb") or None,
+        peg=float(fields["peg"]) if fields.get("peg") else None,
+        pb=float(fields["pb"]) if fields.get("pb") else None,
         evEbitda=None,
-        divYield=fields.get("divYield") or None,
+        divYield=float(fields["divYield"]) if fields.get("divYield") else None,
         beta=None,
         sharesOutstanding=shares_outstanding,
         freeFloatPct=free_float_pct,

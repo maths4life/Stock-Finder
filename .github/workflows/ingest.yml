@@ -76,6 +76,7 @@ jobs:
       - name: Weekly market intelligence (news) refresh
         working-directory: backend
         run: python -m ingest.weekly_news_refresh
+        continue-on-error: true
 
       # Always last: scores are derived from the fundamentals, financial
       # statements, prices, and technicals refreshed above, so recomputing
@@ -88,7 +89,7 @@ jobs:
   # Failure alert — runs only when the refresh job fails.
   # Set the ALERT_WEBHOOK_URL secret to a Slack/Discord/generic webhook URL
   # to receive a notification. If the secret is not set, this step skips
-  # silently (the `if: secrets.ALERT_WEBHOOK_URL != ''` guard below).
+  # silently.
   # The payload is Slack-compatible (attachments with color).
   # For Discord: change `text` to `content` in the JSON body.
   # ---------------------------------------------------------------------------
@@ -98,9 +99,11 @@ jobs:
     if: failure()
     steps:
       - name: Send failure alert
-        if: ${{ secrets.ALERT_WEBHOOK_URL != '' }}
+        env:
+          ALERT_WEBHOOK_URL: ${{ secrets.ALERT_WEBHOOK_URL }}
+        if: env.ALERT_WEBHOOK_URL != ''
         run: |
-          curl -s -X POST "${{ secrets.ALERT_WEBHOOK_URL }}" \
+          curl -s -X POST "${{ env.ALERT_WEBHOOK_URL }}" \
             -H "Content-Type: application/json" \
             -d '{
               "text": "⚠️ *Stock Finder ingest failed*",

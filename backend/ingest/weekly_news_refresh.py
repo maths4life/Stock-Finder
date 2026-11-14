@@ -25,14 +25,19 @@ from services.weekly_market_intelligence import refresh_weekly_intelligence
 
 
 def main() -> None:
-    result = refresh_weekly_intelligence()
-    print(
-        f"Weekly Market Intelligence refresh complete "
-        f"({result['weekStartDate']} to {result['weekEndDate']}):"
-    )
-    print(f"  Articles fetched: {result['articlesFetched']}")
-    print(f"  Articles kept (deduped, in-window): {result['articlesKept']}")
-    print(f"  Sectors updated: {', '.join(result['sectorsUpdated']) or '(none)'}")
+    try:
+        result = refresh_weekly_intelligence()
+        print(
+            f"Weekly Market Intelligence refresh complete "
+            f"({result['weekStartDate']} to {result['weekEndDate']}):"
+        )
+        print(f"  Articles fetched: {result['articlesFetched']}")
+        print(f"  Articles kept (deduped, in-window): {result['articlesKept']}")
+        print(f"  Sectors updated: {', '.join(result['sectorsUpdated']) or '(none)'}")
+    except Exception as exc:
+        print(f"⚠️ Weekly Market Intelligence refresh encountered an error: {exc}")
+        import traceback
+        traceback.print_exc()
 
 
 if __name__ == "__main__":

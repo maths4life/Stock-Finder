@@ -17,8 +17,9 @@ from __future__ import annotations
 
 from typing import Dict, List, Set, Tuple
 
+from sqlalchemy import text
 from config.sectors import MACRO_KEYWORDS, NEGATIVE_WORDS, POSITIVE_WORDS, SECTOR_KEYWORDS
-from services.company_service import get_all_companies
+from db.db import engine
 from services.news_provider import RawArticle
 
 
@@ -28,20 +29,22 @@ def _article_text(article: RawArticle) -> str:
 
 def _known_sectors_and_company_lexicon() -> Tuple[List[str], Dict[str, List[str]]]:
     """Pulls the real, current sector list + a company-name/symbol -> sector
-    lookup straight from the database (via the same company_service
-    function every other module uses) -- never hardcoded, so a new
-    company/sector added to the DB is classifiable immediately."""
-    companies = get_all_companies(limit=2000)
-    sectors = sorted({c["sector"] for c in companies if c.get("sector")})
+    lookup straight from the database (via companies table) -- never hardcoded,
+    so a new company/sector added to the DB is classifiable immediately."""
+    query = text("select symbol, name, sector from companies where is_active and sector is not null")
+    with engine.connect() as conn:
+        rows = conn.execute(query).mappings().all()
+
+    sectors = sorted({r["sector"] for r in rows if r["sector"]})
 
     company_lexicon: Dict[str, List[str]] = {}
-    for c in companies:
-        sector = c.get("sector")
-        if not sector:
-            continue
+    for r in rows:
+        sector = r["sector"]
         company_lexicon.setdefault(sector, [])
-        company_lexicon[sector].append(c["name"].lower())
-        company_lexicon[sector].append(c["symbol"].lower())
+        if r.get("name"):
+            company_lexicon[sector].append(r["name"].lower())
+        if r.get("symbol"):
+            company_lexicon[sector].append(r["symbol"].lower())
 
     return sectors, company_lexicon
 
