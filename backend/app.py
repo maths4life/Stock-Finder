@@ -128,10 +128,24 @@ def test_db():
 @app.get("/admin/sync-universe")
 def sync_universe():
     """Syncs the universe CSV (including all newly classified sectors & industries)
-    directly into the companies table."""
+    directly into the companies table and migrates journal schema."""
     from ingest.fetch_prices import ensure_company_rows
     ensure_company_rows(engine)
-    with engine.connect() as conn:
+    with engine.begin() as conn:
+        # Ensure entry_price column exists on journal_entries
+        try:
+            conn.execute(text("alter table journal_entries add column if not exists entry_price numeric"))
+            conn.execute(text("""
+                update journal_entries j
+                set entry_price = coalesce(
+                    (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= j.created_at::date order by p.date desc limit 1),
+                    (select t.close from technical_snapshot t where t.symbol = j.symbol limit 1)
+                )
+                where entry_price is null
+            """))
+        except Exception as e:
+            logger.warning("Could not migrate journal_entries: %s", e)
+
         unclassified = conn.execute(
             text("select count(*) from companies where sector is null or sector = '' or sector = 'Unclassified'")
         ).scalar()

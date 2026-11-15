@@ -26,6 +26,7 @@ class JournalEntryBase(BaseModel):
     risksAccepted: Optional[str] = None
     targetPrice: Optional[float] = None
     expectedReturnPct: Optional[float] = None
+    entryPrice: Optional[float] = None
     horizonMonths: Optional[int] = None
     confidenceLevel: Optional[int] = Field(None, ge=1, le=5)
 

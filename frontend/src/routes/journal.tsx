@@ -176,7 +176,27 @@ function Journal() {
       avgUpside = (totalUpside / targetsWithPrice.length).toFixed(1);
     }
 
-    return { totalCount, dueCount, avgConviction, avgUpside };
+    // Actual Profit or Loss right now:
+    // Calculated using the price at the day of writing thesis vs the latest price
+    const entriesWithPerformance = entries.filter((e) => {
+      const c = companyBySymbol.get(e.symbol.toUpperCase());
+      const basePrice = e.entryPrice || (c?.price && c.price > 0 ? c.price : null);
+      return basePrice && basePrice > 0 && c?.price && c.price > 0;
+    });
+
+    let avgActualPnl: string | null = null;
+    let avgActualPnlNumeric: number | null = null;
+    if (entriesWithPerformance.length > 0) {
+      const totalActualPnl = entriesWithPerformance.reduce((sum, e) => {
+        const c = companyBySymbol.get(e.symbol.toUpperCase())!;
+        const basePrice = e.entryPrice || c.price;
+        return sum + ((c.price - basePrice) / basePrice) * 100;
+      }, 0);
+      avgActualPnlNumeric = totalActualPnl / entriesWithPerformance.length;
+      avgActualPnl = (avgActualPnlNumeric >= 0 ? "+" : "") + avgActualPnlNumeric.toFixed(1) + "%";
+    }
+
+    return { totalCount, dueCount, avgConviction, avgUpside, avgActualPnl, avgActualPnlNumeric };
   }, [entries, dueEntries, companyBySymbol]);
 
   // Filtered & Sorted Entries
@@ -329,7 +349,7 @@ function Journal() {
 
         {/* 2. EXECUTIVE METRICS KPI BAR */}
         {!isPending && !isError && entries.length > 0 && (
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 animate-fade-in">
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 animate-fade-in">
             {/* Card 1: Covered Stocks */}
             <div className="p-4 rounded-xl ring-1 ring-hairline bg-surface-raised flex items-center justify-between">
               <div>
@@ -387,7 +407,57 @@ function Journal() {
               </div>
             </div>
 
-            {/* Card 3: Avg Conviction */}
+            {/* Card 3: Actual P&L Right Now (Price on day of writing thesis vs latest price) */}
+            <div className="p-4 rounded-xl ring-1 ring-hairline bg-surface-raised flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-mono text-ink-subtle uppercase tracking-wider">
+                  Actual P&L Right Now
+                </p>
+                <p
+                  className={cn(
+                    "text-2xl font-bold mt-0.5 font-mono",
+                    (stats.avgActualPnlNumeric ?? 0) >= 0 ? "text-positive" : "text-negative",
+                  )}
+                >
+                  {stats.avgActualPnl ?? "0.0%"}
+                </p>
+                <p className="text-[11px] text-ink-subtle mt-1 font-mono">
+                  Price then vs latest CMP
+                </p>
+              </div>
+              <div
+                className={cn(
+                  "size-10 rounded-lg flex items-center justify-center",
+                  (stats.avgActualPnlNumeric ?? 0) >= 0 ? "bg-positive/10 text-positive" : "bg-negative/10 text-negative",
+                )}
+              >
+                {(stats.avgActualPnlNumeric ?? 0) >= 0 ? (
+                  <TrendingUp className="size-5" />
+                ) : (
+                  <TrendingDown className="size-5" />
+                )}
+              </div>
+            </div>
+
+            {/* Card 4: Avg Target Upside */}
+            <div className="p-4 rounded-xl ring-1 ring-hairline bg-surface-raised flex items-center justify-between">
+              <div>
+                <p className="text-[11px] font-mono text-ink-subtle uppercase tracking-wider">
+                  Avg Target Upside
+                </p>
+                <p className="text-2xl font-bold text-positive mt-0.5 font-mono">
+                  {stats.avgUpside ? `+${stats.avgUpside}%` : "—"}
+                </p>
+                <p className="text-[11px] text-ink-subtle mt-1 font-mono">
+                  Based on target vs CMP
+                </p>
+              </div>
+              <div className="size-10 rounded-lg bg-positive/10 text-positive flex items-center justify-center">
+                <Target className="size-5" />
+              </div>
+            </div>
+
+            {/* Card 5: Avg Conviction */}
             <div className="p-4 rounded-xl ring-1 ring-hairline bg-surface-raised flex items-center justify-between">
               <div>
                 <p className="text-[11px] font-mono text-ink-subtle uppercase tracking-wider">
@@ -413,24 +483,6 @@ function Journal() {
               </div>
               <div className="size-10 rounded-lg bg-secondary text-ink flex items-center justify-center">
                 <Star className="size-5 text-accent" />
-              </div>
-            </div>
-
-            {/* Card 4: Avg Target Upside */}
-            <div className="p-4 rounded-xl ring-1 ring-hairline bg-surface-raised flex items-center justify-between">
-              <div>
-                <p className="text-[11px] font-mono text-ink-subtle uppercase tracking-wider">
-                  Avg Target Upside
-                </p>
-                <p className="text-2xl font-bold text-positive mt-0.5 font-mono">
-                  {stats.avgUpside ? `+${stats.avgUpside}%` : "—"}
-                </p>
-                <p className="text-[11px] text-ink-subtle mt-1 font-mono">
-                  Based on target vs CMP
-                </p>
-              </div>
-              <div className="size-10 rounded-lg bg-positive/10 text-positive flex items-center justify-center">
-                <Target className="size-5" />
               </div>
             </div>
           </div>
@@ -689,6 +741,13 @@ function Journal() {
                 const isSelected = activeEntry?.id === e.id;
                 const isDue = e.reviewDueAt && new Date(e.reviewDueAt).getTime() <= now;
 
+                // Actual P&L calculation: price then vs latest CMP
+                const basePrice = e.entryPrice || (c?.price && c.price > 0 ? c.price : null);
+                let actualPnlPct: number | null = null;
+                if (basePrice && c?.price && c.price > 0 && basePrice > 0) {
+                  actualPnlPct = Number((((c.price - basePrice) / basePrice) * 100).toFixed(1));
+                }
+
                 // Upside calculation
                 let upsidePct: number | null = null;
                 if (e.targetPrice && c?.price && c.price > 0) {
@@ -727,7 +786,7 @@ function Journal() {
                       )}
                     </div>
 
-                    {/* Price & Target Upside */}
+                    {/* Price, Actual P&L & Target Upside */}
                     <div className="flex items-center justify-between text-xs mt-2 pt-2 border-t border-hairline/60">
                       <div className="font-mono text-ink-muted text-[11px]">
                         {c?.price ? (
@@ -742,17 +801,25 @@ function Journal() {
                         )}
                       </div>
 
-                      {upsidePct != null && (
-                        <div
-                          className={cn(
-                            "font-mono text-[11px] font-semibold flex items-center gap-0.5",
-                            upsidePct >= 0 ? "text-positive" : "text-negative",
-                          )}
-                        >
-                          {upsidePct >= 0 ? <TrendingUp className="size-3" /> : <TrendingDown className="size-3" />}
-                          {upsidePct >= 0 ? `+${upsidePct}%` : `${upsidePct}%`} target
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2 font-mono text-[11px]">
+                        {actualPnlPct != null && (
+                          <span
+                            className={cn(
+                              "font-semibold flex items-center gap-0.5",
+                              actualPnlPct >= 0 ? "text-positive" : "text-negative",
+                            )}
+                            title={e.entryPrice ? `Entry: ₹${e.entryPrice} → CMP: ₹${c?.price}` : undefined}
+                          >
+                            {actualPnlPct >= 0 ? <TrendingUp className="size-2.5" /> : <TrendingDown className="size-2.5" />}
+                            {actualPnlPct >= 0 ? `+${actualPnlPct}%` : `${actualPnlPct}%`} P&L
+                          </span>
+                        )}
+                        {upsidePct != null && (
+                          <span className="text-ink-subtle hidden sm:inline">
+                            ({upsidePct >= 0 ? `+${upsidePct}%` : `${upsidePct}%`} target)
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Thesis Excerpt */}
@@ -792,6 +859,13 @@ function Journal() {
                     const isDue =
                       activeEntry.reviewDueAt &&
                       new Date(activeEntry.reviewDueAt).getTime() <= now;
+
+                    // Actual P&L calculation: price then vs latest CMP
+                    const basePrice = activeEntry.entryPrice || (c?.price && c.price > 0 ? c.price : null);
+                    let actualPnlPct: number | null = null;
+                    if (basePrice && c?.price && c.price > 0 && basePrice > 0) {
+                      actualPnlPct = Number((((c.price - basePrice) / basePrice) * 100).toFixed(1));
+                    }
 
                     let upsidePct: number | null = null;
                     if (activeEntry.targetPrice && c?.price && c.price > 0) {
@@ -860,11 +934,11 @@ function Journal() {
                           </div>
                         </div>
 
-                        {/* Metric Strip: Price, Target, Conviction, Horizon */}
-                        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 p-4 rounded-xl ring-1 ring-hairline bg-surface/50">
+                        {/* Metric Strip: Current Price, Entry Price, Actual P&L, Target, Conviction */}
+                        <div className="grid grid-cols-2 sm:grid-cols-5 gap-4 p-4 rounded-xl ring-1 ring-hairline bg-surface/50">
                           <div>
                             <p className="text-[11px] font-mono text-ink-subtle uppercase">
-                              Current Price
+                              Current CMP
                             </p>
                             <p className="font-mono text-base font-bold text-ink mt-0.5">
                               {c?.price
@@ -886,6 +960,46 @@ function Journal() {
 
                           <div>
                             <p className="text-[11px] font-mono text-ink-subtle uppercase">
+                              Price When Written
+                            </p>
+                            <p className="font-mono text-base font-bold text-ink mt-0.5">
+                              {basePrice
+                                ? `₹${basePrice.toLocaleString("en-IN", { maximumFractionDigits: 1 })}`
+                                : "—"}
+                            </p>
+                            <p className="text-[10px] text-ink-subtle font-mono">
+                              Logged {formatDate(activeEntry.createdAt)}
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-mono text-ink-subtle uppercase">
+                              Actual P&L
+                            </p>
+                            <p
+                              className={cn(
+                                "font-mono text-base font-bold mt-0.5 flex items-center gap-1",
+                                (actualPnlPct ?? 0) >= 0 ? "text-positive" : "text-negative",
+                              )}
+                            >
+                              {(actualPnlPct ?? 0) >= 0 ? (
+                                <TrendingUp className="size-4" />
+                              ) : (
+                                <TrendingDown className="size-4" />
+                              )}
+                              <span>
+                                {actualPnlPct != null
+                                  ? `${actualPnlPct >= 0 ? "+" : ""}${actualPnlPct}%`
+                                  : "0.0%"}
+                              </span>
+                            </p>
+                            <p className="text-[10px] text-ink-subtle font-mono">
+                              Since thesis date
+                            </p>
+                          </div>
+
+                          <div>
+                            <p className="text-[11px] font-mono text-ink-subtle uppercase">
                               Target Valuation
                             </p>
                             <p className="font-mono text-base font-bold text-ink mt-0.5">
@@ -900,7 +1014,7 @@ function Journal() {
                                   upsidePct >= 0 ? "text-positive" : "text-negative",
                                 )}
                               >
-                                {upsidePct >= 0 ? `+${upsidePct}%` : `${upsidePct}%`} upside
+                                {upsidePct >= 0 ? `+${upsidePct}%` : `${upsidePct}%`} target
                               </p>
                             )}
                           </div>
@@ -915,29 +1029,7 @@ function Journal() {
                               <span className="text-xs text-ink-subtle font-normal">/ 5</span>
                             </p>
                             <p className="text-[10px] text-ink-subtle font-mono">
-                              {activeEntry.confidenceLevel === 5
-                                ? "Very High"
-                                : activeEntry.confidenceLevel === 4
-                                  ? "High Conviction"
-                                  : activeEntry.confidenceLevel === 3
-                                    ? "Moderate"
-                                    : "Speculative"}
-                            </p>
-                          </div>
-
-                          <div>
-                            <p className="text-[11px] font-mono text-ink-subtle uppercase">
-                              Horizon & Schedule
-                            </p>
-                            <p className="text-base font-bold text-ink mt-0.5 font-mono">
-                              {activeEntry.horizonMonths
-                                ? `${activeEntry.horizonMonths}M`
-                                : "12M"}
-                            </p>
-                            <p className="text-[10px] text-ink-subtle font-mono">
-                              {activeEntry.reviewDueAt
-                                ? `Due ${formatDate(activeEntry.reviewDueAt)}`
-                                : `Logged ${formatDate(activeEntry.createdAt)}`}
+                              {activeEntry.horizonMonths ? `${activeEntry.horizonMonths}M horizon` : "12M horizon"}
                             </p>
                           </div>
                         </div>
@@ -1099,6 +1191,13 @@ function Journal() {
               const c = companyBySymbol.get(e.symbol.toUpperCase());
               const isDue = e.reviewDueAt && new Date(e.reviewDueAt).getTime() <= now;
 
+              // Actual P&L calculation: price then vs latest CMP
+              const basePrice = e.entryPrice || (c?.price && c.price > 0 ? c.price : null);
+              let actualPnlPct: number | null = null;
+              if (basePrice && c?.price && c.price > 0 && basePrice > 0) {
+                actualPnlPct = Number((((c.price - basePrice) / basePrice) * 100).toFixed(1));
+              }
+
               let upsidePct: number | null = null;
               if (e.targetPrice && c?.price && c.price > 0) {
                 upsidePct = Number((((e.targetPrice - c.price) / c.price) * 100).toFixed(1));
@@ -1151,7 +1250,7 @@ function Journal() {
                       </div>
                     </div>
 
-                    {/* Price & Target Bar */}
+                    {/* Price, Actual P&L & Target Bar */}
                     <div className="flex items-center justify-between p-2.5 rounded-lg bg-surface ring-1 ring-hairline text-xs font-mono mb-3">
                       <div>
                         <span className="text-ink-subtle text-[10px]">CMP: </span>
@@ -1161,17 +1260,25 @@ function Journal() {
                             : "—"}
                         </span>
                       </div>
-                      {upsidePct != null && (
-                        <div
-                          className={cn(
-                            "font-semibold flex items-center gap-0.5",
-                            upsidePct >= 0 ? "text-positive" : "text-negative",
-                          )}
-                        >
-                          {upsidePct >= 0 ? "+" : ""}
-                          {upsidePct}% target
-                        </div>
-                      )}
+                      <div className="flex items-center gap-2">
+                        {actualPnlPct != null && (
+                          <span
+                            className={cn(
+                              "font-semibold flex items-center gap-0.5",
+                              actualPnlPct >= 0 ? "text-positive" : "text-negative",
+                            )}
+                            title={e.entryPrice ? `Entry: ₹${e.entryPrice} → CMP: ₹${c?.price}` : undefined}
+                          >
+                            {actualPnlPct >= 0 ? "+" : ""}
+                            {actualPnlPct}% P&L
+                          </span>
+                        )}
+                        {upsidePct != null && (
+                          <span className="text-ink-subtle">
+                            ({upsidePct >= 0 ? `+${upsidePct}%` : `${upsidePct}%`} target)
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     {/* Thesis Excerpt */}

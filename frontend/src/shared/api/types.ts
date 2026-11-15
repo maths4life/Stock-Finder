@@ -434,6 +434,7 @@ export type JournalEntry = {
   risksAccepted: string | null;
   targetPrice: number | null;
   expectedReturnPct: number | null;
+  entryPrice?: number | null;
   horizonMonths: number | null;
   confidenceLevel: number | null; // 1-5
   createdAt: string; // ISO datetime
@@ -455,6 +456,7 @@ export type JournalEntryInput = {
   risksAccepted?: string | null;
   targetPrice?: number | null;
   expectedReturnPct?: number | null;
+  entryPrice?: number | null;
   horizonMonths?: number | null;
   confidenceLevel?: number | null;
 };

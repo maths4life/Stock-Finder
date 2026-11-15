@@ -206,6 +206,7 @@ export function JournalEntryForm({
       risksAccepted: toNullableString(values.risksAccepted),
       targetPrice: toNullableNumber(values.targetPrice),
       expectedReturnPct: toNullableNumber(values.expectedReturnPct),
+      entryPrice: isEditing ? (entry?.entryPrice ?? null) : (selectedCompany?.price || null),
       horizonMonths: toNullableInt(values.horizonMonths),
       confidenceLevel: toNullableInt(values.confidenceLevel),
     };

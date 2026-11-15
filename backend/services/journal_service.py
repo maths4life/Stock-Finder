@@ -27,7 +27,7 @@ _SELECT_COLUMNS = """
     id, symbol, title, thesis, fundamental_reasons, technical_reasons,
     sector_reasons, macro_reasons, personal_notes, sell_trigger,
     assumptions, risks_accepted, target_price, expected_return_pct,
-    horizon_months, confidence_level, created_at, review_due_at
+    entry_price, horizon_months, confidence_level, created_at, review_due_at
 """
 
 
@@ -47,6 +47,7 @@ def _row_to_dict(row) -> dict:
         "risksAccepted": row["risks_accepted"],
         "targetPrice": row["target_price"],
         "expectedReturnPct": row["expected_return_pct"],
+        "entryPrice": float(row["entry_price"]) if ("entry_price" in row and row["entry_price"] is not None) else None,
         "horizonMonths": row["horizon_months"],
         "confidenceLevel": row["confidence_level"],
         "createdAt": row["created_at"],
@@ -71,84 +72,134 @@ def _symbol_exists(conn, symbol: str) -> bool:
 
 
 def get_journal_entries() -> List[dict]:
-    """GET /journal-entries — all entries, newest first. One query."""
-    query = text(f"select {_SELECT_COLUMNS} from journal_entries order by created_at desc")
+    """GET /journal-entries — all entries, newest first. One query.
+    Calculates or coalesces entry_price from prices_daily on creation date."""
+    query = text("""
+        select
+            j.id, j.symbol, j.title, j.thesis, j.fundamental_reasons, j.technical_reasons,
+            j.sector_reasons, j.macro_reasons, j.personal_notes, j.sell_trigger,
+            j.assumptions, j.risks_accepted, j.target_price, j.expected_return_pct,
+            coalesce(
+                j.entry_price,
+                (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= j.created_at::date order by p.date desc limit 1),
+                (select t.close from technical_snapshot t where t.symbol = j.symbol limit 1)
+            ) as entry_price,
+            j.horizon_months, j.confidence_level, j.created_at, j.review_due_at
+        from journal_entries j
+        order by j.created_at desc
+    """)
+    fallback_query = text("""
+        select
+            id, symbol, title, thesis, fundamental_reasons, technical_reasons,
+            sector_reasons, macro_reasons, personal_notes, sell_trigger,
+            assumptions, risks_accepted, target_price, expected_return_pct,
+            horizon_months, confidence_level, created_at, review_due_at
+        from journal_entries order by created_at desc
+    """)
     with engine.connect() as conn:
-        rows = conn.execute(query).mappings().all()
+        try:
+            rows = conn.execute(query).mappings().all()
+        except Exception:
+            rows = conn.execute(fallback_query).mappings().all()
         return [_row_to_dict(row) for row in rows]
 
 
 def get_journal_entry(entry_id: str) -> Optional[dict]:
     """GET /journal-entries/{id}."""
-    query = text(f"select {_SELECT_COLUMNS} from journal_entries where id = :id")
+    query = text("""
+        select
+            j.id, j.symbol, j.title, j.thesis, j.fundamental_reasons, j.technical_reasons,
+            j.sector_reasons, j.macro_reasons, j.personal_notes, j.sell_trigger,
+            j.assumptions, j.risks_accepted, j.target_price, j.expected_return_pct,
+            coalesce(
+                j.entry_price,
+                (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= j.created_at::date order by p.date desc limit 1),
+                (select t.close from technical_snapshot t where t.symbol = j.symbol limit 1)
+            ) as entry_price,
+            j.horizon_months, j.confidence_level, j.created_at, j.review_due_at
+        from journal_entries j where j.id = :id
+    """)
     with engine.connect() as conn:
-        row = conn.execute(query, {"id": entry_id}).mappings().first()
+        try:
+            row = conn.execute(query, {"id": entry_id}).mappings().first()
+        except Exception:
+            fallback = text("select * from journal_entries where id = :id")
+            row = conn.execute(fallback, {"id": entry_id}).mappings().first()
         return _row_to_dict(row) if row else None
 
 
 def create_journal_entry(data: JournalEntryCreate) -> dict:
     """POST /journal-entries. Raises SymbolNotFoundError for an unknown
-    symbol (checked explicitly for a clean 400 instead of surfacing a raw
-    FK-violation error). review_due_at is auto-set from horizon_months, as
-    documented on the column in schema.sql."""
+    symbol. Automatically captures the current closing price as entry_price
+    if not explicitly passed."""
     now = datetime.now(timezone.utc)
     review_due_at = _add_months(now, data.horizonMonths) if data.horizonMonths else None
-
-    insert = text(
-        """
-        insert into journal_entries (
-            symbol, title, thesis, fundamental_reasons, technical_reasons,
-            sector_reasons, macro_reasons, personal_notes, sell_trigger,
-            assumptions, risks_accepted, target_price, expected_return_pct,
-            horizon_months, confidence_level, created_at, review_due_at
-        ) values (
-            :symbol, :title, :thesis, :fundamentalReasons, :technicalReasons,
-            :sectorReasons, :macroReasons, :personalNotes, :sellTrigger,
-            :assumptions, :risksAccepted, :targetPrice, :expectedReturnPct,
-            :horizonMonths, :confidenceLevel, :createdAt, :reviewDueAt
-        )
-        returning """
-        + _SELECT_COLUMNS
-    )
-
-    params = {**data.model_dump(), "createdAt": now, "reviewDueAt": review_due_at}
 
     with engine.begin() as conn:
         if not _symbol_exists(conn, data.symbol):
             raise SymbolNotFoundError(f'No company found for symbol "{data.symbol}"')
-        row = conn.execute(insert, params).mappings().first()
-        return _row_to_dict(row)
+
+        # Auto-fetch entry price from snapshot or prices_daily if not given
+        entry_price = data.entryPrice
+        if entry_price is None:
+            price_row = conn.execute(
+                text("select close from technical_snapshot where symbol = :sym limit 1"),
+                {"sym": data.symbol},
+            ).first()
+            if price_row and price_row[0] is not None:
+                entry_price = float(price_row[0])
+
+        params = {
+            **data.model_dump(),
+            "createdAt": now,
+            "reviewDueAt": review_due_at,
+            "entryPrice": entry_price,
+        }
+
+        try:
+            insert = text("""
+                insert into journal_entries (
+                    symbol, title, thesis, fundamental_reasons, technical_reasons,
+                    sector_reasons, macro_reasons, personal_notes, sell_trigger,
+                    assumptions, risks_accepted, target_price, expected_return_pct,
+                    entry_price, horizon_months, confidence_level, created_at, review_due_at
+                ) values (
+                    :symbol, :title, :thesis, :fundamentalReasons, :technicalReasons,
+                    :sectorReasons, :macroReasons, :personalNotes, :sellTrigger,
+                    :assumptions, :risksAccepted, :targetPrice, :expectedReturnPct,
+                    :entryPrice, :horizonMonths, :confidenceLevel, :createdAt, :reviewDueAt
+                )
+                returning """ + _SELECT_COLUMNS)
+            row = conn.execute(insert, params).mappings().first()
+        except Exception:
+            # Fallback if entry_price column is not yet present on table
+            fallback_insert = text("""
+                insert into journal_entries (
+                    symbol, title, thesis, fundamental_reasons, technical_reasons,
+                    sector_reasons, macro_reasons, personal_notes, sell_trigger,
+                    assumptions, risks_accepted, target_price, expected_return_pct,
+                    horizon_months, confidence_level, created_at, review_due_at
+                ) values (
+                    :symbol, :title, :thesis, :fundamentalReasons, :technicalReasons,
+                    :sectorReasons, :macroReasons, :personalNotes, :sellTrigger,
+                    :assumptions, :risksAccepted, :targetPrice, :expectedReturnPct,
+                    :horizonMonths, :confidenceLevel, :createdAt, :reviewDueAt
+                )
+                returning id, symbol, title, thesis, fundamental_reasons, technical_reasons,
+                sector_reasons, macro_reasons, personal_notes, sell_trigger,
+                assumptions, risks_accepted, target_price, expected_return_pct,
+                horizon_months, confidence_level, created_at, review_due_at
+            """)
+            row = conn.execute(fallback_insert, params).mappings().first()
+
+        res = _row_to_dict(row)
+        if res.get("entryPrice") is None and entry_price is not None:
+            res["entryPrice"] = entry_price
+        return res
 
 
 def update_journal_entry(entry_id: str, data: JournalEntryUpdate) -> Optional[dict]:
-    """PUT /journal-entries/{id}. Full replacement of editable fields.
-    review_due_at is recomputed from created_at + the (possibly changed)
-    horizon_months, keeping the auto-set invariant true after an edit.
-    Returns None if the entry doesn't exist (route raises 404)."""
-    update = text(
-        """
-        update journal_entries set
-            symbol = :symbol,
-            title = :title,
-            thesis = :thesis,
-            fundamental_reasons = :fundamentalReasons,
-            technical_reasons = :technicalReasons,
-            sector_reasons = :sectorReasons,
-            macro_reasons = :macroReasons,
-            personal_notes = :personalNotes,
-            sell_trigger = :sellTrigger,
-            assumptions = :assumptions,
-            risks_accepted = :risksAccepted,
-            target_price = :targetPrice,
-            expected_return_pct = :expectedReturnPct,
-            horizon_months = :horizonMonths,
-            confidence_level = :confidenceLevel,
-            review_due_at = :reviewDueAt
-        where id = :id
-        returning """
-        + _SELECT_COLUMNS
-    )
-
+    """PUT /journal-entries/{id}. Full replacement of editable fields."""
     with engine.begin() as conn:
         existing = conn.execute(
             text("select created_at from journal_entries where id = :id"), {"id": entry_id}
@@ -162,8 +213,62 @@ def update_journal_entry(entry_id: str, data: JournalEntryUpdate) -> Optional[di
         review_due_at = (
             _add_months(existing["created_at"], data.horizonMonths) if data.horizonMonths else None
         )
-        params = {**data.model_dump(), "id": entry_id, "reviewDueAt": review_due_at}
-        row = conn.execute(update, params).mappings().first()
+        params = {
+            **data.model_dump(),
+            "id": entry_id,
+            "reviewDueAt": review_due_at,
+        }
+
+        try:
+            update = text("""
+                update journal_entries set
+                    symbol = :symbol,
+                    title = :title,
+                    thesis = :thesis,
+                    fundamental_reasons = :fundamentalReasons,
+                    technical_reasons = :technicalReasons,
+                    sector_reasons = :sectorReasons,
+                    macro_reasons = :macroReasons,
+                    personal_notes = :personalNotes,
+                    sell_trigger = :sellTrigger,
+                    assumptions = :assumptions,
+                    risks_accepted = :risksAccepted,
+                    target_price = :targetPrice,
+                    expected_return_pct = :expectedReturnPct,
+                    entry_price = coalesce(:entryPrice, entry_price),
+                    horizon_months = :horizonMonths,
+                    confidence_level = :confidenceLevel,
+                    review_due_at = :reviewDueAt
+                where id = :id
+                returning """ + _SELECT_COLUMNS)
+            row = conn.execute(update, params).mappings().first()
+        except Exception:
+            fallback_update = text("""
+                update journal_entries set
+                    symbol = :symbol,
+                    title = :title,
+                    thesis = :thesis,
+                    fundamental_reasons = :fundamentalReasons,
+                    technical_reasons = :technicalReasons,
+                    sector_reasons = :sectorReasons,
+                    macro_reasons = :macroReasons,
+                    personal_notes = :personalNotes,
+                    sell_trigger = :sellTrigger,
+                    assumptions = :assumptions,
+                    risks_accepted = :risksAccepted,
+                    target_price = :targetPrice,
+                    expected_return_pct = :expectedReturnPct,
+                    horizon_months = :horizonMonths,
+                    confidence_level = :confidenceLevel,
+                    review_due_at = :reviewDueAt
+                where id = :id
+                returning id, symbol, title, thesis, fundamental_reasons, technical_reasons,
+                sector_reasons, macro_reasons, personal_notes, sell_trigger,
+                assumptions, risks_accepted, target_price, expected_return_pct,
+                horizon_months, confidence_level, created_at, review_due_at
+            """)
+            row = conn.execute(fallback_update, params).mappings().first()
+
         return _row_to_dict(row)
 
 
