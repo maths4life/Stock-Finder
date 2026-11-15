@@ -27,6 +27,7 @@ import {
   SelectValue,
 } from "@/shared/components/ui/select";
 import { Textarea } from "@/shared/components/ui/textarea";
+import { CompanySearchSelect } from "@/features/company/components/CompanySearchSelect";
 import { useAllCompanies } from "@/features/company/hooks/useCompanies";
 import {
   useCreatePipelineItem,
@@ -135,20 +136,13 @@ export function PipelineItemForm({
               render={({ field }) => (
                 <FormItem>
                   <FormLabel>Company</FormLabel>
-                  <Select onValueChange={field.onChange} value={field.value} disabled={isEditing}>
-                    <FormControl>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Pick a company" />
-                      </SelectTrigger>
-                    </FormControl>
-                    <SelectContent>
-                      {companies.map((c) => (
-                        <SelectItem key={c.symbol} value={c.symbol}>
-                          {c.name} ({c.symbol})
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
+                  <FormControl>
+                    <CompanySearchSelect
+                      value={field.value}
+                      onChange={field.onChange}
+                      disabled={isEditing}
+                    />
+                  </FormControl>
                   <FormMessage />
                 </FormItem>
               )}
