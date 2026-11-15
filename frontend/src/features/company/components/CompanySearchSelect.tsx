@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo } from "react";
-import { Search, X, Check, Building2, TrendingUp, TrendingDown } from "lucide-react";
+import { Search, X, Check, Building2 } from "lucide-react";
 import { useAllCompanies } from "@/features/company/hooks/useCompanies";
+import { UNIVERSE_MAP } from "@/features/company/data/universe";
 import type { Company } from "@/shared/api/types";
 import { cn } from "@/shared/utils/utils";
 
@@ -13,65 +14,106 @@ interface CompanySearchSelectProps {
   onCompanySelected?: (company: Company) => void;
 }
 
-const DEFAULT_POPULAR_SYMBOLS = [
-  "RELIANCE",
-  "TCS",
-  "HDFCBANK",
-  "INFY",
-  "TRENT",
-  "LENSKART",
-  "APOLLOHOSP",
-  "ICICIBANK",
-];
+interface BasicCompanyOption {
+  symbol: string;
+  name: string;
+  sector: string;
+  industry?: string;
+  exchange: string;
+  price?: number;
+}
 
 export function CompanySearchSelect({
   value,
   onChange,
   disabled = false,
   error,
-  placeholder = "Search by symbol or company name (e.g. TCS, Lenskart, Trent)...",
+  placeholder = "Search or type any stock symbol...",
   onCompanySelected,
 }: CompanySearchSelectProps) {
-  const { data: companies = [], isPending } = useAllCompanies();
+  const { data: companies = [] } = useAllCompanies();
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [highlightedIndex, setHighlightedIndex] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-  // Map of companies by symbol for quick lookup
-  const companyBySymbol = useMemo(() => {
-    const map = new Map<string, Company>();
-    for (const c of companies) {
-      map.set(c.symbol.toUpperCase(), c);
+  // Combine live companies with static UNIVERSE_MAP so all 845+ companies are always available immediately
+  const allAvailableCompanies = useMemo(() => {
+    const map = new Map<string, BasicCompanyOption>();
+
+    // 1. Seed from UNIVERSE_MAP
+    for (const [sym, data] of Object.entries(UNIVERSE_MAP)) {
+      map.set(sym.toUpperCase(), {
+        symbol: sym.toUpperCase(),
+        name: data.name,
+        sector: data.sector,
+        exchange: data.exchange || "NSE",
+      });
     }
-    return map;
+
+    // 2. Overlay live company data (prices, live sector/industry)
+    for (const c of companies) {
+      const sym = c.symbol.toUpperCase();
+      const existing = map.get(sym);
+      map.set(sym, {
+        symbol: sym,
+        name: c.name || existing?.name || sym,
+        sector: c.sector || existing?.sector || "Unclassified",
+        industry: c.industry || existing?.industry,
+        exchange: c.exchange || existing?.exchange || "NSE",
+        price: c.price > 0 ? c.price : existing?.price,
+      });
+    }
+
+    // Convert to sorted array by symbol
+    return Array.from(map.values()).sort((a, b) => a.symbol.localeCompare(b.symbol));
   }, [companies]);
 
+  // Selected company object lookup
   const selectedCompany = useMemo(() => {
     if (!value) return null;
-    return companyBySymbol.get(value.toUpperCase()) || null;
-  }, [value, companyBySymbol]);
+    const sym = value.trim().toUpperCase();
+    const live = companies.find((c) => c.symbol.toUpperCase() === sym);
+    if (live) return live;
+
+    const fromMap = allAvailableCompanies.find((c) => c.symbol === sym);
+    if (fromMap) {
+      return {
+        symbol: fromMap.symbol,
+        name: fromMap.name,
+        sector: fromMap.sector,
+        industry: fromMap.industry,
+        exchange: fromMap.exchange,
+        price: fromMap.price || 0,
+      } as Company;
+    }
+
+    // If custom symbol typed by user
+    return {
+      symbol: sym,
+      name: sym,
+      sector: "Custom",
+      exchange: "NSE",
+      price: 0,
+    } as Company;
+  }, [value, companies, allAvailableCompanies]);
 
   // Filter companies based on query
   const filteredCompanies = useMemo(() => {
     const q = query.trim().toUpperCase();
     if (!q) {
-      // Return popular or top companies when query is empty
-      const popular = DEFAULT_POPULAR_SYMBOLS.map((s) => companyBySymbol.get(s)).filter(
-        Boolean,
-      ) as Company[];
-      if (popular.length >= 6) return popular;
-      return companies.slice(0, 8);
+      // Return first 50 companies alphabetically so user can browse
+      return allAvailableCompanies.slice(0, 50);
     }
 
-    const exactSymbolMatches: Company[] = [];
-    const startsWithSymbolMatches: Company[] = [];
-    const containsSymbolMatches: Company[] = [];
-    const nameMatches: Company[] = [];
+    const exactSymbolMatches: BasicCompanyOption[] = [];
+    const startsWithSymbolMatches: BasicCompanyOption[] = [];
+    const containsSymbolMatches: BasicCompanyOption[] = [];
+    const nameMatches: BasicCompanyOption[] = [];
 
-    for (const c of companies) {
-      const sym = c.symbol.toUpperCase();
+    for (const c of allAvailableCompanies) {
+      const sym = c.symbol;
       const name = c.name.toUpperCase();
 
       if (sym === q) {
@@ -90,8 +132,12 @@ export function CompanySearchSelect({
       ...startsWithSymbolMatches,
       ...containsSymbolMatches,
       ...nameMatches,
-    ].slice(0, 10);
-  }, [query, companies, companyBySymbol]);
+    ].slice(0, 40);
+  }, [query, allAvailableCompanies]);
+
+  // Can the user select their raw query as a custom symbol?
+  const trimmedUpperQuery = query.trim().toUpperCase();
+  const hasExactMatch = trimmedUpperQuery && allAvailableCompanies.some((c) => c.symbol === trimmedUpperQuery);
 
   // Click outside to close
   useEffect(() => {
@@ -104,9 +150,13 @@ export function CompanySearchSelect({
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  function handleSelect(company: Company) {
-    onChange(company.symbol);
-    onCompanySelected?.(company);
+  function handleSelectSymbol(sym: string) {
+    const upper = sym.trim().toUpperCase();
+    onChange(upper);
+    const full = companies.find((c) => c.symbol.toUpperCase() === upper);
+    if (full) {
+      onCompanySelected?.(full);
+    }
     setIsOpen(false);
     setQuery("");
   }
@@ -139,7 +189,9 @@ export function CompanySearchSelect({
     } else if (e.key === "Enter") {
       e.preventDefault();
       if (filteredCompanies[highlightedIndex]) {
-        handleSelect(filteredCompanies[highlightedIndex]);
+        handleSelectSymbol(filteredCompanies[highlightedIndex].symbol);
+      } else if (trimmedUpperQuery) {
+        handleSelectSymbol(trimmedUpperQuery);
       }
     } else if (e.key === "Escape") {
       setIsOpen(false);
@@ -166,11 +218,11 @@ export function CompanySearchSelect({
                   {selectedCompany.symbol}
                 </span>
                 <span className="text-[11px] text-ink-subtle font-mono">
-                  {selectedCompany.exchange}
+                  {selectedCompany.exchange || "NSE"}
                 </span>
-                {selectedCompany.industry && (
+                {selectedCompany.sector && selectedCompany.sector !== "Custom" && (
                   <span className="hidden sm:inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-medium bg-secondary text-ink-muted ring-1 ring-hairline">
-                    {selectedCompany.industry}
+                    {selectedCompany.industry || selectedCompany.sector}
                   </span>
                 )}
               </div>
@@ -186,22 +238,6 @@ export function CompanySearchSelect({
                 <p className="font-mono font-semibold text-xs text-ink">
                   ₹{selectedCompany.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                 </p>
-                {selectedCompany.changePct != null && (
-                  <p
-                    className={cn(
-                      "text-[10px] font-mono flex items-center justify-end gap-0.5",
-                      selectedCompany.changePct >= 0 ? "text-positive" : "text-negative",
-                    )}
-                  >
-                    {selectedCompany.changePct >= 0 ? (
-                      <TrendingUp className="size-2.5" />
-                    ) : (
-                      <TrendingDown className="size-2.5" />
-                    )}
-                    {selectedCompany.changePct >= 0 ? "+" : ""}
-                    {selectedCompany.changePct.toFixed(2)}%
-                  </p>
-                )}
               </div>
             )}
 
@@ -258,29 +294,42 @@ export function CompanySearchSelect({
         </div>
       )}
 
-      {/* Dropdown Suggestions Menu */}
+      {/* Dropdown Menu */}
       {isOpen && !disabled && (
         <div className="absolute left-0 right-0 top-full mt-1.5 z-50 max-h-72 overflow-y-auto rounded-lg ring-1 ring-hairline-strong bg-surface-raised shadow-xl p-1.5 space-y-1 animate-fade-in">
-          <div className="px-2.5 py-1.5 text-[11px] font-mono uppercase tracking-wider text-ink-subtle flex items-center justify-between border-b border-hairline mb-1">
-            <span>{query ? "Matching Companies" : "Popular / Large-Cap Stocks"}</span>
-            <span>{filteredCompanies.length} results</span>
+          {/* Custom ticker option if user typed something not matching exactly */}
+          {trimmedUpperQuery && !hasExactMatch && (
+            <button
+              type="button"
+              onClick={() => handleSelectSymbol(trimmedUpperQuery)}
+              className="w-full text-left p-2.5 rounded-md flex items-center justify-between text-xs bg-accent/10 text-ink hover:bg-accent/20 transition-colors border-b border-hairline mb-1"
+            >
+              <span className="font-medium">
+                Use symbol <strong className="font-mono text-accent">"{trimmedUpperQuery}"</strong>
+              </span>
+              <span className="text-[11px] font-mono text-accent">Select →</span>
+            </button>
+          )}
+
+          <div className="px-2.5 py-1 text-[11px] font-mono uppercase tracking-wider text-ink-subtle flex items-center justify-between border-b border-hairline mb-1">
+            <span>{query ? `Matching Companies (${filteredCompanies.length})` : `All Companies (${allAvailableCompanies.length})`}</span>
           </div>
 
-          {filteredCompanies.length === 0 ? (
+          {filteredCompanies.length === 0 && !trimmedUpperQuery ? (
             <div className="p-4 text-center text-xs text-ink-muted">
-              {isPending ? "Loading universe..." : `No companies found for "${query}"`}
+              Type a symbol or company name to search
             </div>
           ) : (
             filteredCompanies.map((c, idx) => {
               const isHighlighted = idx === highlightedIndex;
-              const isSelected = value?.toUpperCase() === c.symbol.toUpperCase();
+              const isSelected = value?.toUpperCase() === c.symbol;
 
               return (
                 <button
                   key={c.symbol}
                   type="button"
                   onMouseEnter={() => setHighlightedIndex(idx)}
-                  onClick={() => handleSelect(c)}
+                  onClick={() => handleSelectSymbol(c.symbol)}
                   className={cn(
                     "w-full text-left p-2.5 rounded-md flex items-center justify-between gap-3 text-xs transition-colors",
                     isHighlighted ? "bg-accent/10 text-ink" : "text-ink hover:bg-secondary/60",
@@ -300,7 +349,7 @@ export function CompanySearchSelect({
                   </div>
 
                   <div className="text-right shrink-0 flex items-center gap-2">
-                    {c.price > 0 && (
+                    {c.price && c.price > 0 && (
                       <span className="font-mono text-ink font-semibold">
                         ₹{c.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                       </span>
@@ -316,4 +365,3 @@ export function CompanySearchSelect({
     </div>
   );
 }
-

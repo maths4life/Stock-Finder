@@ -638,24 +638,6 @@ function Journal() {
             >
               + Document Your First Thesis
             </Button>
-
-            <div className="pt-4 border-t border-hairline">
-              <p className="text-xs font-mono uppercase tracking-wider text-ink-subtle mb-3">
-                Quick start thesis for popular stocks:
-              </p>
-              <div className="flex flex-wrap items-center justify-center gap-2">
-                {["TRENT", "LENSKART", "TCS", "APOLLOHOSP", "RELIANCE"].map((sym) => (
-                  <button
-                    key={sym}
-                    type="button"
-                    onClick={() => openCreate(sym)}
-                    className="px-3 py-1 rounded-md text-xs font-mono font-medium bg-surface ring-1 ring-hairline text-ink hover:ring-hairline-strong hover:bg-secondary transition-all"
-                  >
-                    + {sym}
-                  </button>
-                ))}
-              </div>
-            </div>
           </div>
         )}
 

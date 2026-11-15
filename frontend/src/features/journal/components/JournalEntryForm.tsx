@@ -3,7 +3,6 @@ import { useEffect, useState, useMemo } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import {
-  Sparkles,
   TrendingUp,
   Target,
   ShieldAlert,
@@ -38,7 +37,7 @@ import {
   useCreateJournalEntry,
   useUpdateJournalEntry,
 } from "@/features/journal/hooks/useJournalEntries";
-import type { JournalEntry, Company } from "@/shared/api/types";
+import type { JournalEntry } from "@/shared/api/types";
 import { cn } from "@/shared/utils/utils";
 
 const formSchema = z.object({
@@ -60,34 +59,6 @@ const formSchema = z.object({
 });
 
 type FormValues = z.infer<typeof formSchema>;
-
-const THESIS_TEMPLATES = [
-  {
-    label: "Growth Compounder",
-    starter:
-      "Market leader benefiting from secular growth tailwinds. Strong return on capital (ROCE) with a high reinvestment runway and sustainable pricing power.",
-  },
-  {
-    label: "Operating Leverage",
-    starter:
-      "Recent capital expenditure and fixed cost discipline setting up inflection point. Operational leverage should cause net profit growth to significantly outpace top-line revenue.",
-  },
-  {
-    label: "Moat & Pricing Power",
-    starter:
-      "Dominant industry position with steep switching costs and premium brand equity. Resilient cash flow margins capable of passing on input cost inflation.",
-  },
-  {
-    label: "Deep Value & Safety",
-    starter:
-      "Trading at a steep discount to historical multiples and replacement cost, with a healthy balance sheet providing a strong margin of safety.",
-  },
-  {
-    label: "Cyclical Turnaround",
-    starter:
-      "Sector downcycle bottoming out; channel destocking is complete. Demand inflection and capacity consolidation expected to drive strong cyclical earnings recovery.",
-  },
-];
 
 const HORIZON_SHORTCUTS = [
   { label: "3M", months: 3 },
@@ -158,8 +129,22 @@ export function JournalEntryForm({
   const isEditing = Boolean(entry);
   const isSaving = createMutation.isPending || updateMutation.isPending;
 
-  const [showPillars, setShowPillars] = useState(Boolean(entry?.fundamentalReasons || entry?.technicalReasons || entry?.sectorReasons || entry?.macroReasons));
-  const [showPreMortem, setShowPreMortem] = useState(Boolean(entry?.sellTrigger || entry?.assumptions || entry?.risksAccepted || entry?.personalNotes));
+  const [showPillars, setShowPillars] = useState(
+    Boolean(
+      entry?.fundamentalReasons ||
+        entry?.technicalReasons ||
+        entry?.sectorReasons ||
+        entry?.macroReasons,
+    ),
+  );
+  const [showPreMortem, setShowPreMortem] = useState(
+    Boolean(
+      entry?.sellTrigger ||
+        entry?.assumptions ||
+        entry?.risksAccepted ||
+        entry?.personalNotes,
+    ),
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(formSchema),
@@ -168,8 +153,6 @@ export function JournalEntryForm({
 
   const currentSymbol = form.watch("symbol");
   const targetPriceValue = form.watch("targetPrice");
-  const confidenceValue = form.watch("confidenceLevel");
-  const horizonValue = form.watch("horizonMonths");
 
   // Lookup the selected company
   const selectedCompany = useMemo(() => {
@@ -189,8 +172,22 @@ export function JournalEntryForm({
   useEffect(() => {
     if (open) {
       form.reset(entryToFormValues(entry, defaultSymbol));
-      setShowPillars(Boolean(entry?.fundamentalReasons || entry?.technicalReasons || entry?.sectorReasons || entry?.macroReasons));
-      setShowPreMortem(Boolean(entry?.sellTrigger || entry?.assumptions || entry?.risksAccepted || entry?.personalNotes));
+      setShowPillars(
+        Boolean(
+          entry?.fundamentalReasons ||
+            entry?.technicalReasons ||
+            entry?.sectorReasons ||
+            entry?.macroReasons,
+        ),
+      );
+      setShowPreMortem(
+        Boolean(
+          entry?.sellTrigger ||
+            entry?.assumptions ||
+            entry?.risksAccepted ||
+            entry?.personalNotes,
+        ),
+      );
     }
   }, [open, entry, defaultSymbol, form]);
 
@@ -224,15 +221,6 @@ export function JournalEntryForm({
     });
   }
 
-  function applyTemplate(starter: string) {
-    const existing = form.getValues("thesis");
-    if (!existing || existing.trim().length === 0) {
-      form.setValue("thesis", starter, { shouldValidate: true });
-    } else {
-      form.setValue("thesis", `${existing}\n\n${starter}`, { shouldValidate: true });
-    }
-  }
-
   function applyImpliedReturn() {
     if (impliedReturn != null) {
       form.setValue("expectedReturnPct", String(impliedReturn), { shouldValidate: true });
@@ -253,7 +241,7 @@ export function JournalEntryForm({
               {isEditing ? "Edit Investment Thesis" : "Document New Thesis"}
             </DialogTitle>
             <DialogDescription className="text-xs text-ink-muted">
-              Record your hypothesis, target valuation, and exit conditions. You'll thank yourself during market volatility.
+              Record your hypothesis, target valuation, and exit conditions.
             </DialogDescription>
           </DialogHeader>
         </div>
@@ -266,11 +254,8 @@ export function JournalEntryForm({
               name="symbol"
               render={({ field, fieldState }) => (
                 <FormItem>
-                  <FormLabel className="text-xs font-semibold text-ink flex items-center justify-between">
-                    <span>Company / Stock *</span>
-                    <span className="text-[11px] font-normal text-ink-subtle">
-                      Search by symbol or company name
-                    </span>
+                  <FormLabel className="text-xs font-semibold text-ink">
+                    Company / Stock *
                   </FormLabel>
                   <FormControl>
                     <CompanySearchSelect
@@ -278,6 +263,7 @@ export function JournalEntryForm({
                       onChange={field.onChange}
                       disabled={isEditing}
                       error={fieldState.error?.message}
+                      placeholder="Type symbol or company name..."
                     />
                   </FormControl>
                   <FormMessage />
@@ -296,7 +282,7 @@ export function JournalEntryForm({
                   </FormLabel>
                   <FormControl>
                     <Input
-                      placeholder="e.g. Market leader at 3-year valuation low with 25%+ ROCE expansion"
+                      placeholder=""
                       className="bg-surface ring-1 ring-hairline text-sm"
                       {...field}
                     />
@@ -312,34 +298,13 @@ export function JournalEntryForm({
               name="thesis"
               render={({ field }) => (
                 <FormItem>
-                  <div className="flex items-center justify-between">
-                    <FormLabel className="text-xs font-semibold text-ink">
-                      Core Hypothesis & Why You Believe It *
-                    </FormLabel>
-                    <span className="text-[11px] font-mono text-ink-subtle">Primary conviction</span>
-                  </div>
-
-                  {/* Template Starters */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-1 pb-1">
-                    <span className="text-[11px] text-ink-subtle flex items-center gap-1 font-mono">
-                      <Sparkles className="size-3 text-accent" /> Starters:
-                    </span>
-                    {THESIS_TEMPLATES.map((tmpl) => (
-                      <button
-                        key={tmpl.label}
-                        type="button"
-                        onClick={() => applyTemplate(tmpl.starter)}
-                        className="px-2 py-0.5 rounded text-[11px] font-medium bg-secondary text-ink-muted hover:text-ink hover:bg-secondary/80 ring-1 ring-hairline transition-colors"
-                      >
-                        {tmpl.label}
-                      </button>
-                    ))}
-                  </div>
-
+                  <FormLabel className="text-xs font-semibold text-ink">
+                    Core Thesis *
+                  </FormLabel>
                   <FormControl>
                     <Textarea
-                      rows={4}
-                      placeholder="Why is the market mispricing this company? What is your variant perception that will drive superior returns over your investment horizon?"
+                      rows={5}
+                      placeholder=""
                       className="bg-surface ring-1 ring-hairline text-sm leading-relaxed"
                       {...field}
                     />
@@ -362,15 +327,7 @@ export function JournalEntryForm({
                       <FormLabel className="text-xs font-semibold text-ink flex items-center justify-between">
                         <span>Conviction Level</span>
                         <span className="text-accent font-mono text-[11px]">
-                          {currentLevel === 5
-                            ? "Top Conviction (5/5)"
-                            : currentLevel === 4
-                              ? "High (4/5)"
-                              : currentLevel === 3
-                                ? "Moderate (3/5)"
-                                : currentLevel === 2
-                                  ? "Low-Speculative (2/5)"
-                                  : "Speculative (1/5)"}
+                          {currentLevel}/5
                         </span>
                       </FormLabel>
                       <FormControl>
@@ -407,7 +364,7 @@ export function JournalEntryForm({
                   <FormItem>
                     <FormLabel className="text-xs font-semibold text-ink flex items-center justify-between">
                       <span className="flex items-center gap-1">
-                        <Clock className="size-3 text-ink-subtle" /> Investment Horizon
+                        <Clock className="size-3 text-ink-subtle" /> Horizon
                       </span>
                       <span className="text-ink-subtle font-mono text-[11px]">
                         {field.value ? `${field.value} Months` : "Flexible"}
@@ -444,14 +401,14 @@ export function JournalEntryForm({
                 <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
                   <Target className="size-3.5 text-accent" /> Valuation Targets
                 </span>
-                {selectedCompany?.price && (
+                {selectedCompany?.price ? (
                   <span className="text-[11px] font-mono text-ink-subtle">
-                    Current CMP:{" "}
+                    CMP:{" "}
                     <strong className="text-ink">
                       ₹{selectedCompany.price.toLocaleString("en-IN", { maximumFractionDigits: 2 })}
                     </strong>
                   </span>
-                )}
+                ) : null}
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
@@ -464,7 +421,7 @@ export function JournalEntryForm({
                       <FormControl>
                         <Input
                           inputMode="decimal"
-                          placeholder="e.g. 1250"
+                          placeholder=""
                           className="bg-surface ring-1 ring-hairline text-sm font-mono"
                           {...field}
                         />
@@ -483,7 +440,7 @@ export function JournalEntryForm({
                       <FormControl>
                         <Input
                           inputMode="decimal"
-                          placeholder="e.g. 35"
+                          placeholder=""
                           className="bg-surface ring-1 ring-hairline text-sm font-mono"
                           {...field}
                         />
@@ -516,15 +473,19 @@ export function JournalEntryForm({
               )}
             </div>
 
-            {/* 6. COLLAPSIBLE PILLARS (FUNDAMENTAL, TECHNICAL, SECTOR, MACRO) */}
+            {/* 6. PILLARS (FUNDAMENTAL, TECHNICAL, SECTOR, MACRO) */}
             <div className="border border-hairline rounded-xl overflow-hidden">
               <button
                 type="button"
                 onClick={() => setShowPillars((prev) => !prev)}
                 className="w-full p-3.5 flex items-center justify-between text-left bg-surface-raised/60 hover:bg-surface-raised transition-colors text-xs font-semibold text-ink"
               >
-                <span>Analysis Pillars & Catalysts (Fundamental, Technical, Sector, Macro)</span>
-                {showPillars ? <ChevronUp className="size-4 text-ink-subtle" /> : <ChevronDown className="size-4 text-ink-subtle" />}
+                <span>Analysis Pillars (Fundamental, Technical, Sector, Macro)</span>
+                {showPillars ? (
+                  <ChevronUp className="size-4 text-ink-subtle" />
+                ) : (
+                  <ChevronDown className="size-4 text-ink-subtle" />
+                )}
               </button>
 
               {showPillars && (
@@ -535,9 +496,14 @@ export function JournalEntryForm({
                       name="fundamentalReasons"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs text-ink-muted">Fundamental Catalysts</FormLabel>
+                          <FormLabel className="text-xs text-ink-muted">Fundamental Reasons</FormLabel>
                           <FormControl>
-                            <Textarea rows={2} placeholder="Earnings growth, balance sheet deleveraging, margin inflection..." className="bg-surface ring-1 ring-hairline text-xs" {...field} />
+                            <Textarea
+                              rows={3}
+                              placeholder=""
+                              className="bg-surface ring-1 ring-hairline text-xs"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -548,9 +514,14 @@ export function JournalEntryForm({
                       name="technicalReasons"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs text-ink-muted">Technical Setup</FormLabel>
+                          <FormLabel className="text-xs text-ink-muted">Technical Reasons</FormLabel>
                           <FormControl>
-                            <Textarea rows={2} placeholder="Price breakout, support base, moving averages alignment..." className="bg-surface ring-1 ring-hairline text-xs" {...field} />
+                            <Textarea
+                              rows={3}
+                              placeholder=""
+                              className="bg-surface ring-1 ring-hairline text-xs"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -561,9 +532,14 @@ export function JournalEntryForm({
                       name="sectorReasons"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs text-ink-muted">Sector / Peer Context</FormLabel>
+                          <FormLabel className="text-xs text-ink-muted">Sector Reasons</FormLabel>
                           <FormControl>
-                            <Textarea rows={2} placeholder="Industry tailwinds, competitor consolidation, market share shift..." className="bg-surface ring-1 ring-hairline text-xs" {...field} />
+                            <Textarea
+                              rows={3}
+                              placeholder=""
+                              className="bg-surface ring-1 ring-hairline text-xs"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -574,9 +550,14 @@ export function JournalEntryForm({
                       name="macroReasons"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs text-ink-muted">Macro Environment</FormLabel>
+                          <FormLabel className="text-xs text-ink-muted">Macro Reasons</FormLabel>
                           <FormControl>
-                            <Textarea rows={2} placeholder="Interest rate cycle, raw material inflation, policy support..." className="bg-surface ring-1 ring-hairline text-xs" {...field} />
+                            <Textarea
+                              rows={3}
+                              placeholder=""
+                              className="bg-surface ring-1 ring-hairline text-xs"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -587,7 +568,7 @@ export function JournalEntryForm({
               )}
             </div>
 
-            {/* 7. COLLAPSIBLE PRE-MORTEM & SELL RULES */}
+            {/* 7. PRE-MORTEM & SELL RULES */}
             <div className="border border-hairline rounded-xl overflow-hidden">
               <button
                 type="button"
@@ -596,9 +577,13 @@ export function JournalEntryForm({
               >
                 <span className="flex items-center gap-1.5">
                   <ShieldAlert className="size-3.5 text-accent" />
-                  Pre-Mortem & Sell Triggers (What would make you exit?)
+                  Pre-Mortem & Sell Triggers
                 </span>
-                {showPreMortem ? <ChevronUp className="size-4 text-ink-subtle" /> : <ChevronDown className="size-4 text-ink-subtle" />}
+                {showPreMortem ? (
+                  <ChevronUp className="size-4 text-ink-subtle" />
+                ) : (
+                  <ChevronDown className="size-4 text-ink-subtle" />
+                )}
               </button>
 
               {showPreMortem && (
@@ -609,12 +594,12 @@ export function JournalEntryForm({
                     render={({ field }) => (
                       <FormItem>
                         <FormLabel className="text-xs font-semibold text-ink">
-                          What would make you sell? <span className="text-ink-subtle font-normal">(Define your stop/exit condition now)</span>
+                          What would make you sell?
                         </FormLabel>
                         <FormControl>
                           <Textarea
-                            rows={2}
-                            placeholder="e.g. Operating margin falling below 12%, loss of key customer, promoter pledge increase, or thesis target reached."
+                            rows={3}
+                            placeholder=""
                             className="bg-surface ring-1 ring-hairline text-xs"
                             {...field}
                           />
@@ -630,9 +615,14 @@ export function JournalEntryForm({
                       name="assumptions"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs text-ink-muted">Critical Assumptions</FormLabel>
+                          <FormLabel className="text-xs text-ink-muted">Key Assumptions</FormLabel>
                           <FormControl>
-                            <Textarea rows={2} placeholder="Volume growth >= 15%, debt reduction on track..." className="bg-surface ring-1 ring-hairline text-xs" {...field} />
+                            <Textarea
+                              rows={3}
+                              placeholder=""
+                              className="bg-surface ring-1 ring-hairline text-xs"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -643,9 +633,14 @@ export function JournalEntryForm({
                       name="risksAccepted"
                       render={({ field }) => (
                         <FormItem>
-                          <FormLabel className="text-xs text-ink-muted">Known Risks Accepted</FormLabel>
+                          <FormLabel className="text-xs text-ink-muted">Risks Accepted</FormLabel>
                           <FormControl>
-                            <Textarea rows={2} placeholder="FX fluctuation, raw material price volatility..." className="bg-surface ring-1 ring-hairline text-xs" {...field} />
+                            <Textarea
+                              rows={3}
+                              placeholder=""
+                              className="bg-surface ring-1 ring-hairline text-xs"
+                              {...field}
+                            />
                           </FormControl>
                           <FormMessage />
                         </FormItem>
@@ -658,9 +653,14 @@ export function JournalEntryForm({
                     name="personalNotes"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel className="text-xs text-ink-muted">Personal Notes & Reflections</FormLabel>
+                        <FormLabel className="text-xs text-ink-muted">Personal Notes</FormLabel>
                         <FormControl>
-                          <Textarea rows={2} placeholder="Position sizing thoughts, portfolio allocation limits..." className="bg-surface ring-1 ring-hairline text-xs" {...field} />
+                          <Textarea
+                            rows={3}
+                            placeholder=""
+                            className="bg-surface ring-1 ring-hairline text-xs"
+                            {...field}
+                          />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
@@ -682,7 +682,7 @@ export function JournalEntryForm({
                 Cancel
               </Button>
               <Button type="submit" disabled={isSaving} className="text-xs font-semibold px-6">
-                {isSaving ? "Saving..." : isEditing ? "Save Changes" : "Save Thesis to Journal"}
+                {isSaving ? "Saving..." : isEditing ? "Save Changes" : "Save Thesis"}
               </Button>
             </DialogFooter>
           </form>
