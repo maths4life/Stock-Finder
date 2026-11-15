@@ -86,12 +86,13 @@ UNIVERSE_SIZE = int(os.environ["UNIVERSE_SIZE"]) if os.environ.get("UNIVERSE_SIZ
 REQUIRED_COLUMNS = {"symbol", "yahoo_ticker", "exchange", "name", "sector"}
 
 
-class UniverseRow(TypedDict):
+class UniverseRow(TypedDict, total=False):
     symbol: str
     yahoo_ticker: str
     exchange: str
     name: str
     sector: str
+    industry: str
     index_membership: str
     is_active: bool
 
@@ -149,6 +150,7 @@ def load_universe(
                 "exchange": (raw.get("exchange") or "NSE").strip().upper(),
                 "name": (raw.get("name") or "").strip(),
                 "sector": (raw.get("sector") or "").strip(),
+                "industry": (raw.get("industry") or "").strip(),
                 "index_membership": (raw.get("index_membership") or "").strip(),
                 "is_active": _parse_bool(raw.get("is_active", "true")),
             }

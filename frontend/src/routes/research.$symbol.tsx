@@ -190,6 +190,12 @@ function ResearchDetail() {
                     </span>
                     <span>·</span>
                     <span>{c.sector}</span>
+                    {c.industry && c.industry !== c.sector && (
+                      <>
+                        <span>·</span>
+                        <span className="text-ink font-medium">{c.industry}</span>
+                      </>
+                    )}
                     <span className="ml-1 inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-medium bg-secondary text-ink-muted ring-1 ring-hairline">
                       {c.riskLevel} Risk
                     </span>
@@ -444,6 +450,7 @@ function ResearchDetail() {
                       <PeerComparisonTable
                         peers={c.peers}
                         sector={c.sector}
+                        industry={c.industry}
                         currentSymbol={c.symbol}
                       />
                     </Section>
@@ -483,12 +490,13 @@ function ResearchDetail() {
                   <Section label="Sector Peer Comparison">
                     <p className="text-sm text-ink-muted mb-4 max-w-[75ch]">
                       Direct comparison with the largest tracked companies in the{" "}
-                      <span className="text-ink font-semibold">{c.sector}</span> sector.
+                      <span className="text-ink font-semibold">{c.industry || c.sector}</span> {c.industry ? "industry" : "sector"}.
                       Benchmark valuation multiples, returns on capital, leverage, and algorithmic scores side-by-side.
                     </p>
                     <PeerComparisonTable
                       peers={c.peers ?? []}
                       sector={c.sector}
+                      industry={c.industry}
                       currentSymbol={c.symbol}
                     />
                   </Section>

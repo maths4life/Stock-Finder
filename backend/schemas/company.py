@@ -163,6 +163,7 @@ class CompanyBase(BaseModel):
     exchange: str
     name: str
     sector: str
+    industry: Optional[str] = None
 
     marketCap: str
     marketCapCr: float
@@ -266,6 +267,7 @@ class PeerComparisonItem(BaseModel):
     overallScore: float
     verdict: str
     isCurrent: bool = False
+    industry: Optional[str] = None
 
 
 class Company(CompanyBase):

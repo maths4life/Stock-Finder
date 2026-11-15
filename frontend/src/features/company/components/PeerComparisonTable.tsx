@@ -6,18 +6,20 @@ import { ArrowUpRight, TrendingUp, TrendingDown, Award } from "lucide-react";
 interface PeerComparisonTableProps {
   peers: PeerComparisonItem[];
   sector?: string;
+  industry?: string;
   currentSymbol?: string;
 }
 
 export function PeerComparisonTable({
   peers,
   sector,
+  industry,
   currentSymbol,
 }: PeerComparisonTableProps) {
   if (!peers || peers.length === 0) {
     return (
       <div className="p-8 rounded-xl ring-1 ring-hairline bg-surface/30 text-center text-sm text-ink-muted">
-        No sector peer data available for this company.
+        No peer data available for this company.
       </div>
     );
   }
@@ -37,15 +39,20 @@ export function PeerComparisonTable({
 
   return (
     <div className="space-y-4">
-      {/* Sector Benchmark Summary Header */}
+      {/* Benchmark Summary Header */}
       <div className="flex flex-wrap items-center justify-between gap-3 p-4 rounded-xl ring-1 ring-hairline bg-surface/40">
         <div>
           <span className="text-[11px] font-mono uppercase tracking-widest text-ink-subtle">
             Industry Benchmark
           </span>
           <h3 className="text-sm font-semibold text-ink">
-            {sector || "Sector"} Peers Comparison
+            {industry || sector || "Industry"} Peers Comparison
           </h3>
+          {industry && sector && industry !== sector && (
+            <p className="text-[11px] text-ink-subtle font-mono mt-0.5">
+              Sector: {sector} · Sub-Industry: {industry}
+            </p>
+          )}
         </div>
         <div className="flex items-center gap-4 text-xs font-mono">
           {medianPe != null && (
@@ -240,3 +247,4 @@ export function PeerComparisonTable({
     </div>
   );
 }
+

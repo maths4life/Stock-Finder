@@ -58,6 +58,7 @@ def ensure_company_rows(engine):
             c["exchange"],
             c["name"],
             c.get("sector") or None,
+            c.get("industry") or None,
             c.get("index_membership") or None,
             c.get("is_active", True),
         )
@@ -71,13 +72,14 @@ def ensure_company_rows(engine):
                 execute_values(
                     cur,
                     """
-                    insert into companies (symbol, yahoo_ticker, exchange, name, sector, index_membership, is_active)
+                    insert into companies (symbol, yahoo_ticker, exchange, name, sector, industry, index_membership, is_active)
                     values %s
                     on conflict (symbol) do update set
                         yahoo_ticker = excluded.yahoo_ticker,
                         exchange = excluded.exchange,
                         name = excluded.name,
                         sector = excluded.sector,
+                        industry = excluded.industry,
                         index_membership = excluded.index_membership,
                         is_active = excluded.is_active
                     """,
@@ -95,13 +97,14 @@ def ensure_company_rows(engine):
         conn.execute(
             text(
                 """
-                insert into companies (symbol, yahoo_ticker, exchange, name, sector, index_membership, is_active)
-                values (:symbol, :yahoo_ticker, :exchange, :name, :sector, :index_membership, :is_active)
+                insert into companies (symbol, yahoo_ticker, exchange, name, sector, industry, index_membership, is_active)
+                values (:symbol, :yahoo_ticker, :exchange, :name, :sector, :industry, :index_membership, :is_active)
                 on conflict (symbol) do update set
                     yahoo_ticker = excluded.yahoo_ticker,
                     exchange = excluded.exchange,
                     name = excluded.name,
                     sector = excluded.sector,
+                    industry = excluded.industry,
                     index_membership = excluded.index_membership,
                     is_active = excluded.is_active
                 """

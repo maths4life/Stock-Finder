@@ -26,3 +26,4 @@ def test_peer_comparison_item_schema():
     assert item.symbol == "CHENNPETRO"
     assert item.pe == 5.4
     assert item.isCurrent is True
+

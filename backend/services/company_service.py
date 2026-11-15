@@ -54,7 +54,7 @@ def _format_market_cap(cr: Optional[float]) -> str:
 
 BASE_QUERY = """
     select
-        c.symbol, c.exchange, c.name, c.sector,
+        c.symbol, c.exchange, c.name, c.sector, c.industry,
         f.market_cap_cr, f.pe, f.pb, f.peg, f.roe_pct, f.roce_pct, f.eps,
         f.revenue_growth_pct, f.profit_growth_pct, f.dividend_yield_pct,
         f.current_ratio, f.book_value,
@@ -483,6 +483,7 @@ def _company_fields(row, spark: list, latest_volume: Optional[int],
         exchange=row["exchange"] or "NSE",
         name=row["name"],
         sector=row["sector"] or "Unclassified",
+        industry=row.get("industry"),
         marketCap=_format_market_cap(float(market_cap_cr) if market_cap_cr is not None else None),
         marketCapCr=float(market_cap_cr) if market_cap_cr is not None else 0.0,
         price=float(row["close"]) if row["close"] is not None else 0.0,
@@ -648,10 +649,36 @@ def get_all_companies(
         return items
 
 
-_PEERS_QUERY = text(
+_PEERS_BY_INDUSTRY_QUERY = text(
     """
     select
-        c.symbol, c.name, c.exchange, c.sector,
+        c.symbol, c.name, c.exchange, c.sector, c.industry,
+        f.market_cap_cr, f.pe, f.pb, f.roe_pct, f.roce_pct,
+        de.debt_to_equity,
+        t.close, t.change_pct,
+        s.overall_score, s.verdict
+    from companies c
+    left join financials_quarterly f
+        on f.symbol = c.symbol and f.quarter = 'latest'
+    left join lateral (
+        select debt_to_equity
+        from financials_quarterly
+        where symbol = c.symbol and debt_to_equity is not null
+        order by fiscal_year_end desc nulls last
+        limit 1
+    ) de on true
+    left join technical_snapshot t on t.symbol = c.symbol
+    left join scores s on s.symbol = c.symbol
+    where c.industry = :industry and c.is_active
+    order by f.market_cap_cr desc nulls last
+    limit :limit
+    """
+)
+
+_PEERS_BY_SECTOR_QUERY = text(
+    """
+    select
+        c.symbol, c.name, c.exchange, c.sector, c.industry,
         f.market_cap_cr, f.pe, f.pb, f.roe_pct, f.roce_pct,
         de.debt_to_equity,
         t.close, t.change_pct,
@@ -676,24 +703,36 @@ _PEERS_QUERY = text(
 
 
 def get_sector_peers(symbol: str, sector: Optional[str] = None, limit: int = 7) -> List[dict]:
-    """Returns top peer companies in the same sector ranked by market cap.
+    """Returns top peer companies in the same industry/sector ranked by market cap.
+    Prioritizes fine-grained industry peers (e.g. Speciality Retail, Refineries, Hospitals).
+    Falls back to broader sector if industry has fewer than 3 companies.
     Guarantees the target company is included in the list and flagged with isCurrent=True."""
     sym_upper = symbol.upper()
     with engine.connect() as conn:
-        if not sector:
-            sec_row = conn.execute(
-                text("select sector from companies where symbol = :sym"),
-                {"sym": sym_upper},
-            ).mappings().first()
-            sector = sec_row["sector"] if sec_row else None
+        meta_row = conn.execute(
+            text("select sector, industry from companies where symbol = :sym"),
+            {"sym": sym_upper},
+        ).mappings().first()
 
+        industry = meta_row["industry"] if meta_row else None
         if not sector:
+            sector = meta_row["sector"] if meta_row else None
+
+        rows = []
+        if industry:
+            rows = conn.execute(
+                _PEERS_BY_INDUSTRY_QUERY,
+                {"industry": industry, "limit": limit},
+            ).mappings().all()
+
+        if len(rows) < 3 and sector:
+            rows = conn.execute(
+                _PEERS_BY_SECTOR_QUERY,
+                {"sector": sector, "limit": limit},
+            ).mappings().all()
+
+        if not rows:
             return []
-
-        rows = conn.execute(
-            _PEERS_QUERY,
-            {"sector": sector, "limit": limit},
-        ).mappings().all()
 
         current_included = any(r["symbol"] == sym_upper for r in rows)
         peer_list = list(rows)
@@ -702,7 +741,7 @@ def get_sector_peers(symbol: str, sector: Optional[str] = None, limit: int = 7) 
             cur_query = text(
                 """
                 select
-                    c.symbol, c.name, c.exchange, c.sector,
+                    c.symbol, c.name, c.exchange, c.sector, c.industry,
                     f.market_cap_cr, f.pe, f.pb, f.roe_pct, f.roce_pct,
                     de.debt_to_equity,
                     t.close, t.change_pct,
@@ -746,6 +785,7 @@ def get_sector_peers(symbol: str, sector: Optional[str] = None, limit: int = 7) 
                 "overallScore": float(r["overall_score"]) if r["overall_score"] is not None else 0.0,
                 "verdict": r["verdict"] or "Under Review",
                 "isCurrent": r["symbol"] == sym_upper,
+                "industry": r.get("industry"),
             }
         )
     return results

@@ -189,6 +189,7 @@ export type PeerComparisonItem = {
   overallScore: number;
   verdict: string;
   isCurrent?: boolean;
+  industry?: string;
 };
 
 export type Company = {
@@ -196,6 +197,7 @@ export type Company = {
   exchange: string;
   name: string;
   sector: string;
+  industry?: string;
   marketCap: string; // display string, e.g. "₹1.84L Cr"
   marketCapCr: number; // numeric, for filtering/sorting
   price: number;
