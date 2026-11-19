@@ -55,7 +55,9 @@ def _backfill_symbol_if_needed(symbol: str, range_: str) -> Optional[List[dict]]
         min_date = row["min_date"] if row else None
 
         # If already has >= 900 trading days (~3.5+ years) and starts > 4 years ago, DB is already primed
-        if cnt >= 900 and min_date and min_date <= date.today() - timedelta(days=365 * 4):
+        cutoff = (date.today() - timedelta(days=365 * 4)).isoformat()
+        min_date_str = min_date.isoformat() if hasattr(min_date, "isoformat") else str(min_date) if min_date else None
+        if cnt >= 900 and min_date_str and min_date_str <= cutoff:
             return None
 
         import pandas as pd
