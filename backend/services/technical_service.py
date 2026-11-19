@@ -86,7 +86,8 @@ def _backfill_symbol_if_needed(symbol: str, range_: str) -> Optional[List[dict]]
         if not tuples:
             return None
 
-        # Bulk upsert in 1 network roundtrip using psycopg2 execute_values
+        # Bulk upsert in 1 network roundtrip using psycopg2 or Turso libSQL
+        saved = False
         try:
             raw_conn = engine.raw_connection()
             try:
@@ -108,11 +109,29 @@ def _backfill_symbol_if_needed(symbol: str, range_: str) -> Optional[List[dict]]
                         page_size=3000,
                     )
                 raw_conn.commit()
+                saved = True
             finally:
                 raw_conn.close()
-        except Exception as exc:
-            import logging
-            logging.getLogger("stock_finder").warning("Bulk upsert failed, continuing: %s", exc)
+        except Exception:
+            pass
+
+        if not saved:
+            try:
+                chunk_size = 100
+                with engine.begin() as conn:
+                    for i in range(0, len(tuples), chunk_size):
+                        chunk = tuples[i : i + chunk_size]
+                        placeholders = ", ".join(["(?, ?, ?, ?, ?, ?, ?)"] * len(chunk))
+                        sql = f"INSERT OR REPLACE INTO prices_daily (symbol, date, open, high, low, close, volume) VALUES {placeholders}"
+                        flat = [
+                            item.isoformat() if hasattr(item, "isoformat") else item
+                            for tup in chunk
+                            for item in tup
+                        ]
+                        conn.execute(text(sql), flat)
+            except Exception as exc:
+                import logging
+                logging.getLogger("stock_finder").warning("Bulk upsert failed for %s: %s", sym, exc)
 
         bars = [
             PriceBar(

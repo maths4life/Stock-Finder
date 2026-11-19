@@ -42,7 +42,7 @@ from ingest.db import get_engine
 from ingest.resilience import ConcurrentRunner, assert_healthy, retry
 from ingest.universe import UNIVERSE
 
-HISTORY_PERIOD = "2y"   # 2-year history: optimal for 200-DMA, technicals, and lean storage
+HISTORY_PERIOD = "max"   # Full historical price history from inception/1996 to date
 
 
 def ensure_company_rows(engine):
