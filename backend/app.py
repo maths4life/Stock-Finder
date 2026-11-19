@@ -215,6 +215,7 @@ def admin_table_counts():
 def admin_migrate_table(
     table: str = "financials_quarterly",
     limit: int = 0,
+    offset: int = 0,
     turso_url: str = None,
     turso_token: str = None,
 ):
@@ -234,8 +235,9 @@ def admin_migrate_table(
     try:
         dst_engine = get_turso_engine(target_url, target_token)
         limit_clause = f" limit {limit}" if limit > 0 else ""
+        offset_clause = f" offset {offset}" if offset > 0 else ""
         with engine.connect() as src_conn:
-            rows = [dict(r) for r in src_conn.execute(text(f"select * from {table}{limit_clause}")).mappings().all()]
+            rows = [dict(r) for r in src_conn.execute(text(f"select * from {table}{limit_clause}{offset_clause}")).mappings().all()]
 
         with dst_engine.connect() as dst_conn:
             cur = dst_conn.execute(text(f"PRAGMA table_info({table})"))
