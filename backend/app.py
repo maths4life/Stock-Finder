@@ -172,8 +172,8 @@ def admin_migrate_to_turso(
     import os
     from scripts.migrate_supabase_to_turso import execute_migration
 
-    target_url = turso_url or os.getenv("TURSO_DATABASE_URL")
-    target_token = turso_token or os.getenv("TURSO_AUTH_TOKEN")
+    target_url = (turso_url or os.getenv("TURSO_DATABASE_URL", "")).strip()
+    target_token = (turso_token or os.getenv("TURSO_AUTH_TOKEN", "")).strip()
 
     if not target_url or not target_token:
         return {
@@ -183,6 +183,32 @@ def admin_migrate_to_turso(
 
     report = execute_migration(src_engine=engine, turso_url=target_url, turso_token=target_token)
     return report
+
+
+@app.get("/admin/table-counts")
+def admin_table_counts():
+    """Returns row counts for all tables on the source database (Supabase)."""
+    tables = [
+        "companies",
+        "financials_quarterly",
+        "scores",
+        "technical_snapshot",
+        "shareholding_pattern",
+        "financial_statements",
+        "journal_entries",
+        "journal_reviews",
+        "pipeline_items",
+        "prices_daily",
+    ]
+    counts = {}
+    with engine.connect() as conn:
+        for t in tables:
+            try:
+                cnt = conn.execute(text(f"select count(*) from {t}")).scalar()
+                counts[t] = cnt
+            except Exception as e:
+                counts[t] = f"error: {e}"
+    return counts
 
 
 @app.get("/admin/migrate-table")
@@ -199,8 +225,8 @@ def admin_migrate_table(
     from decimal import Decimal
     from scripts.migrate_supabase_to_turso import get_turso_engine
 
-    target_url = turso_url or os.getenv("TURSO_DATABASE_URL")
-    target_token = turso_token or os.getenv("TURSO_AUTH_TOKEN")
+    target_url = (turso_url or os.getenv("TURSO_DATABASE_URL", "")).strip()
+    target_token = (turso_token or os.getenv("TURSO_AUTH_TOKEN", "")).strip()
     if not target_url or not target_token:
         return {"status": "error", "detail": "Missing Turso credentials"}
 
