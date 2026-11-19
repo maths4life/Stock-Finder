@@ -268,15 +268,94 @@ def admin_migrate_table(
             param_placeholders = ", ".join(f":{c}" for c in cols)
             insert_sql = text(f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({param_placeholders})")
 
+            chunk_size = 1000
             with dst_engine.connect() as dst_conn:
-                for i in range(0, len(clean_rows), 500):
-                    chunk = clean_rows[i : i + 500]
+                for i in range(0, len(clean_rows), chunk_size):
+                    chunk = clean_rows[i : i + chunk_size]
                     dst_conn.execute(insert_sql, chunk)
-                dst_conn.commit()
+                    dst_conn.commit()
 
         return {"status": "success", "table": table, "migrated_rows": len(clean_rows)}
     except Exception as e:
         return {"status": "error", "table": table, "error": str(e), "traceback": traceback.format_exc()}
+
+
+@app.get("/admin/migrate-prices")
+def admin_migrate_prices(
+    days: int = 365,
+    offset: int = 0,
+    limit: int = 25000,
+    turso_url: str = None,
+    turso_token: str = None,
+):
+    """Migrate prices_daily in fast paginated batches with immediate chunk commits."""
+    import math
+    import os
+    import traceback
+    from datetime import date, datetime, timedelta
+    from decimal import Decimal
+    from scripts.migrate_supabase_to_turso import get_turso_engine
+
+    target_url = (turso_url or os.getenv("TURSO_DATABASE_URL", "")).strip()
+    target_token = (turso_token or os.getenv("TURSO_AUTH_TOKEN", "")).strip()
+    if not target_url or not target_token:
+        return {"status": "error", "detail": "Missing Turso credentials"}
+
+    try:
+        dst_engine = get_turso_engine(target_url, target_token)
+        cutoff = (date.today() - timedelta(days=days)).isoformat()
+
+        with engine.connect() as src_conn:
+            query = text(
+                "select symbol, date, open, high, low, close, volume "
+                "from prices_daily where date >= :cutoff::date "
+                "order by date asc limit :limit offset :offset"
+            )
+            rows = [
+                dict(r)
+                for r in src_conn.execute(
+                    query, {"cutoff": cutoff, "limit": limit, "offset": offset}
+                ).mappings().all()
+            ]
+
+        if not rows:
+            return {"status": "success", "migrated_rows": 0, "has_more": False, "next_offset": offset}
+
+        clean_rows = []
+        for r in rows:
+            clean_r = {}
+            for k, v in r.items():
+                if isinstance(v, (date, datetime)):
+                    clean_r[k] = v.isoformat()
+                elif isinstance(v, Decimal):
+                    clean_r[k] = float(v)
+                elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                    clean_r[k] = None
+                else:
+                    clean_r[k] = v
+            clean_rows.append(clean_r)
+
+        cols = list(clean_rows[0].keys())
+        col_names = ", ".join(cols)
+        param_placeholders = ", ".join(f":{c}" for c in cols)
+        insert_sql = text(f"INSERT OR REPLACE INTO prices_daily ({col_names}) VALUES ({param_placeholders})")
+
+        chunk_size = 2000
+        with dst_engine.connect() as dst_conn:
+            for i in range(0, len(clean_rows), chunk_size):
+                chunk = clean_rows[i : i + chunk_size]
+                dst_conn.execute(insert_sql, chunk)
+                dst_conn.commit()
+
+        return {
+            "status": "success",
+            "migrated_rows": len(clean_rows),
+            "offset": offset,
+            "next_offset": offset + len(clean_rows),
+            "has_more": len(clean_rows) == limit,
+        }
+    except Exception as e:
+        return {"status": "error", "error": str(e), "traceback": traceback.format_exc()}
 
 
 @app.get("/healthz")
