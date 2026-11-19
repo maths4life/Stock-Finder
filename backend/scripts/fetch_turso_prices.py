@@ -23,13 +23,30 @@ if not TURSO_URL or not TURSO_TOKEN:
 
 conn = libsql.connect(TURSO_URL, auth_token=TURSO_TOKEN)
 
+def safe_execute(current_conn, sql, params=None, retries=5):
+    for attempt in range(retries):
+        try:
+            if params is not None:
+                return current_conn.execute(sql, params), current_conn
+            return current_conn.execute(sql), current_conn
+        except Exception as e:
+            if attempt < retries - 1:
+                time.sleep(1 + attempt)
+                try:
+                    current_conn = libsql.connect(TURSO_URL, auth_token=TURSO_TOKEN)
+                except Exception:
+                    pass
+            else:
+                raise e
+
+
 # 1. Get all active symbols from Turso
-cur = conn.execute("SELECT symbol FROM companies WHERE is_active = 1 ORDER BY symbol")
+cur, conn = safe_execute(conn, "SELECT symbol FROM companies WHERE is_active = 1 ORDER BY symbol")
 all_symbols = [r[0] for r in cur.fetchall()]
 print(f"Total active companies in universe: {len(all_symbols)}", flush=True)
 
 # 2. Check which symbols already have full MAX history (>= 1000 bars)
-cur = conn.execute("SELECT symbol FROM prices_daily GROUP BY symbol HAVING count(*) >= 1000")
+cur, conn = safe_execute(conn, "SELECT symbol FROM prices_daily GROUP BY symbol HAVING count(*) >= 1000")
 already_max = {r[0] for r in cur.fetchall()}
 print(f"Companies already having complete multi-year max history: {len(already_max)}", flush=True)
 
@@ -100,11 +117,14 @@ for b_idx in range(0, len(symbols_to_fetch), BATCH_SIZE):
             placeholders = ", ".join(["(?, ?, ?, ?, ?, ?, ?)"] * len(chunk))
             sql = f"INSERT OR REPLACE INTO prices_daily (symbol, date, open, high, low, close, volume) VALUES {placeholders}"
             flat_params = [item for sublist in chunk for item in sublist]
-            conn.execute(sql, flat_params)
-        conn.commit()
+            _, conn = safe_execute(conn, sql, flat_params)
+        try:
+            conn.commit()
+        except Exception:
+            conn = libsql.connect(TURSO_URL, auth_token=TURSO_TOKEN)
 
     elapsed = round(time.time() - t0, 1)
     print(f"  -> Committed {len(rows_to_insert):,} bars in {elapsed}s", flush=True)
 
-cur = conn.execute("SELECT count(*) FROM prices_daily")
+cur, conn = safe_execute(conn, "SELECT count(*) FROM prices_daily")
 print(f"All done! Total rows in prices_daily: {cur.fetchone()[0]:,}", flush=True)
