@@ -79,7 +79,8 @@ for b_idx in range(0, len(symbols_to_fetch), BATCH_SIZE):
             interval="1d",
             group_by="ticker",
             threads=True,
-            progress=False
+            progress=False,
+            timeout=15
         )
     except Exception as e:
         print(f"  -> yf.download failed: {e}", flush=True)
