@@ -185,6 +185,74 @@ def admin_migrate_to_turso(
     return report
 
 
+@app.get("/admin/migrate-table")
+def admin_migrate_table(
+    table: str = "financials_quarterly",
+    turso_url: str = None,
+    turso_token: str = None,
+):
+    """Migrate a single table on demand with granular error reporting."""
+    import math
+    import os
+    import traceback
+    from datetime import date, datetime
+    from decimal import Decimal
+    from scripts.migrate_supabase_to_turso import get_turso_engine
+
+    target_url = turso_url or os.getenv("TURSO_DATABASE_URL")
+    target_token = turso_token or os.getenv("TURSO_AUTH_TOKEN")
+    if not target_url or not target_token:
+        return {"status": "error", "detail": "Missing Turso credentials"}
+
+    try:
+        dst_engine = get_turso_engine(target_url, target_token)
+        with engine.connect() as src_conn:
+            rows = [dict(r) for r in src_conn.execute(text(f"select * from {table}")).mappings().all()]
+
+        with dst_engine.connect() as dst_conn:
+            cur = dst_conn.execute(text(f"PRAGMA table_info({table})"))
+            target_cols = {row[1] for row in cur.fetchall()}
+
+        clean_rows = []
+        for r in rows:
+            clean_r = {}
+            for k, v in r.items():
+                if target_cols and k not in target_cols:
+                    continue
+                if isinstance(v, (date, datetime)):
+                    clean_r[k] = v.isoformat()
+                elif hasattr(v, "hex"):
+                    clean_r[k] = str(v)
+                elif isinstance(v, Decimal):
+                    clean_r[k] = float(v)
+                elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                    clean_r[k] = None
+                elif isinstance(v, bool):
+                    clean_r[k] = 1 if v else 0
+                elif isinstance(v, (dict, list)):
+                    import json
+                    clean_r[k] = json.dumps(v)
+                else:
+                    clean_r[k] = v
+            clean_rows.append(clean_r)
+
+        if clean_rows:
+            cols = list(clean_rows[0].keys())
+            col_names = ", ".join(cols)
+            param_placeholders = ", ".join(f":{c}" for c in cols)
+            insert_sql = text(f"INSERT OR REPLACE INTO {table} ({col_names}) VALUES ({param_placeholders})")
+
+            with dst_engine.connect() as dst_conn:
+                for i in range(0, len(clean_rows), 500):
+                    chunk = clean_rows[i : i + 500]
+                    dst_conn.execute(insert_sql, chunk)
+                dst_conn.commit()
+
+        return {"status": "success", "table": table, "migrated_rows": len(clean_rows)}
+    except Exception as e:
+        return {"status": "error", "table": table, "error": str(e), "traceback": traceback.format_exc()}
+
+
 @app.get("/healthz")
 def healthz():
     """Structured health check for monitoring and debugging.

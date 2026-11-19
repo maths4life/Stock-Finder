@@ -85,6 +85,10 @@ def execute_migration(src_engine, turso_url: str, turso_token: str) -> dict:
         ("weekly_sector_intelligence", "select * from weekly_sector_intelligence"),
     ]
 
+    import math
+    from decimal import Decimal
+    from datetime import datetime
+
     for table_name, query in tables_to_migrate:
         try:
             with src_engine.connect() as src_conn:
@@ -94,14 +98,25 @@ def execute_migration(src_engine, turso_url: str, turso_token: str) -> dict:
                 report["tables"][table_name] = 0
                 continue
 
+            # Fetch columns that actually exist in Turso target table
+            with dst_engine.connect() as dst_conn:
+                cur = dst_conn.execute(text(f"PRAGMA table_info({table_name})"))
+                target_cols = {row[1] for row in cur.fetchall()}
+
             clean_rows = []
             for r in rows:
                 clean_r = {}
                 for k, v in r.items():
-                    if isinstance(v, (date,)):
+                    if target_cols and k not in target_cols:
+                        continue
+                    if isinstance(v, (date, datetime)):
                         clean_r[k] = v.isoformat()
                     elif hasattr(v, "hex"):  # UUID
                         clean_r[k] = str(v)
+                    elif isinstance(v, Decimal):
+                        clean_r[k] = float(v)
+                    elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                        clean_r[k] = None
                     elif isinstance(v, bool):
                         clean_r[k] = 1 if v else 0
                     elif isinstance(v, (dict, list)):
@@ -127,11 +142,11 @@ def execute_migration(src_engine, turso_url: str, turso_token: str) -> dict:
         except Exception as e:
             report["errors"].append(f"{table_name}: {e}")
 
-    # 3. Migrate prices_daily (recent 2 years)
-    cutoff_date = (date.today() - timedelta(days=730)).isoformat()
+    # 3. Migrate prices_daily (recent 1 year = ~200k rows, fast and sufficient for all indicators)
+    cutoff_date = (date.today() - timedelta(days=365)).isoformat()
     try:
         with src_engine.connect() as src_conn:
-            prices_query = text("select * from prices_daily where date >= :cutoff order by date asc")
+            prices_query = text("select * from prices_daily where date >= :cutoff::date order by date asc")
             price_rows = [dict(r) for r in src_conn.execute(prices_query, {"cutoff": cutoff_date}).mappings().all()]
 
         if price_rows:
@@ -139,8 +154,12 @@ def execute_migration(src_engine, turso_url: str, turso_token: str) -> dict:
             for r in price_rows:
                 clean_r = {}
                 for k, v in r.items():
-                    if isinstance(v, date):
+                    if isinstance(v, (date, datetime)):
                         clean_r[k] = v.isoformat()
+                    elif isinstance(v, Decimal):
+                        clean_r[k] = float(v)
+                    elif isinstance(v, float) and (math.isnan(v) or math.isinf(v)):
+                        clean_r[k] = None
                     else:
                         clean_r[k] = v
                 clean_price_rows.append(clean_r)
@@ -150,7 +169,7 @@ def execute_migration(src_engine, turso_url: str, turso_token: str) -> dict:
                 f"INSERT OR REPLACE INTO prices_daily ({', '.join(cols)}) VALUES ({', '.join(f':{c}' for c in cols)})"
             )
 
-            chunk_size = 1000
+            chunk_size = 2000
             with dst_engine.connect() as dst_conn:
                 for i in range(0, len(clean_price_rows), chunk_size):
                     chunk = clean_price_rows[i : i + chunk_size]
