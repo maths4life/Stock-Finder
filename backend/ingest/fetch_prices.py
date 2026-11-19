@@ -42,7 +42,7 @@ from ingest.db import get_engine
 from ingest.resilience import ConcurrentRunner, assert_healthy, retry
 from ingest.universe import UNIVERSE
 
-HISTORY_PERIOD = "max"   # Pull full available price history from yfinance for complete multi-year charts
+HISTORY_PERIOD = "2y"   # 2-year history: optimal for 200-DMA, technicals, and lean storage
 
 
 def ensure_company_rows(engine):
