@@ -6,7 +6,9 @@ Resumable, high-speed multi-row libSQL batch insertions.
 import os
 import sys
 import time
+import math
 from pathlib import Path
+import pandas as pd
 import yfinance as yf
 import libsql
 from dotenv import load_dotenv
@@ -100,10 +102,21 @@ for b_idx in range(0, len(symbols_to_fetch), BATCH_SIZE):
             for dt, r in df.iterrows():
                 try:
                     c = float(r["Close"])
-                    o = float(r["Open"]) if "Open" in r and not r.isna()["Open"] else c
-                    h = float(r["High"]) if "High" in r and not r.isna()["High"] else c
-                    l = float(r["Low"]) if "Low" in r and not r.isna()["Low"] else c
-                    v = int(r["Volume"]) if "Volume" in r and not r.isna()["Volume"] else 0
+                    if math.isnan(c) or math.isinf(c) or c <= 0:
+                        continue
+                    o = float(r["Open"]) if "Open" in r and not pd.isna(r["Open"]) else c
+                    if math.isnan(o) or math.isinf(o) or o <= 0:
+                        o = c
+                    h = float(r["High"]) if "High" in r and not pd.isna(r["High"]) else c
+                    if math.isnan(h) or math.isinf(h) or h <= 0:
+                        h = max(o, c)
+                    l = float(r["Low"]) if "Low" in r and not pd.isna(r["Low"]) else c
+                    if math.isnan(l) or math.isinf(l) or l <= 0:
+                        l = min(o, c)
+                    v_raw = r["Volume"] if "Volume" in r else 0
+                    v = int(v_raw) if not pd.isna(v_raw) and not math.isnan(float(v_raw)) else 0
+                    if v < 0:
+                        v = 0
                     d_str = dt.strftime("%Y-%m-%d")
                     rows_to_insert.append((sym, d_str, o, h, l, c, v))
                 except Exception:
