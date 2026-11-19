@@ -1,0 +1,31 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64">
+  <defs>
+    <linearGradient id="sf-bg" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0B0F17" />
+      <stop offset="100%" stop-color="#111827" />
+    </linearGradient>
+    <linearGradient id="sf-trend" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="45%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#38BDF8" />
+    </linearGradient>
+    <linearGradient id="sf-area" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#38BDF8" stop-opacity="0.28" />
+      <stop offset="100%" stop-color="#10B981" stop-opacity="0.0" />
+    </linearGradient>
+  </defs>
+  <!-- Obsidian dark container with rounded squircle -->
+  <rect x="1" y="1" width="62" height="62" rx="14" fill="url(#sf-bg)" stroke="#38BDF8" stroke-width="1.5" stroke-opacity="0.32" />
+  
+  <!-- Subtle gradient area fill under investment trendline -->
+  <path d="M 13 45 L 24 33 L 34 40 L 49 20 L 49 48 L 13 48 Z" fill="url(#sf-area)" />
+  
+  <!-- Investment trendline -->
+  <path d="M 13 45 L 24 33 L 34 40 L 49 20" fill="none" stroke="url(#sf-trend)" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+  
+  <!-- Arrow Head -->
+  <path d="M 39 20 H 49 V 30" fill="none" stroke="#38BDF8" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- Accent glow node at peak -->
+  <circle cx="49" cy="20" r="2.2" fill="#38BDF8" />
+</svg>
