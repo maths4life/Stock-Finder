@@ -201,16 +201,24 @@ _QUARTERLY_PE_QUERY = text(
 _ANNUAL_PRICES_QUERY = text(
     """
     select
-        date_trunc('year', date) as year,
+        substr(cast(date as text), 1, 4) as year_str,
         max(high) as annual_high,
         min(low)  as annual_low
     from prices_daily
     where symbol = :symbol
-    group by date_trunc('year', date)
-    order by year desc
+    group by substr(cast(date as text), 1, 4)
+    order by year_str desc
     limit 5
     """
 )
+
+
+def _extract_year(val) -> int:
+    if hasattr(val, "year"):
+        return val.year
+    if isinstance(val, str):
+        return int(val[:4])
+    return int(val)
 
 
 def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optional[dict]:
@@ -244,14 +252,14 @@ def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optiona
             # Aggregate quarterly EPS into year sums
             q_by_year: dict[int, list[float]] = {}
             for r in q_rows:
-                yr = r["period_end"].year
+                yr = _extract_year(r["period_end"])
                 q_by_year.setdefault(yr, []).append(float(r["eps"]))
             eps_by_year: dict[int, float] = {
                 yr: sum(vals) for yr, vals in q_by_year.items() if len(vals) >= 2 and sum(vals) > 0
             }
         else:
             eps_by_year: dict[int, float] = {
-                row["period_end"].year: float(row["eps"]) for row in eps_rows
+                _extract_year(row["period_end"]): float(row["eps"]) for row in eps_rows
             }
 
         price_rows = conn.execute(_ANNUAL_PRICES_QUERY, {"symbol": symbol.upper()}).mappings().all()
@@ -262,7 +270,7 @@ def get_historical_pe_range(symbol: str, current_pe: Optional[float]) -> Optiona
     # Compute a mid-price P/E per year using (high+low)/2 as the representative price
     pe_vals: list[float] = []
     for row in price_rows:
-        year = int(row["year"].year)
+        year = int(row["year_str"]) if "year_str" in row else _extract_year(row["year"])
         if year not in eps_by_year:
             continue
         eps = float(eps_by_year[year])

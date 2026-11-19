@@ -46,7 +46,7 @@ _GROUP_DEFS = [
             with sector_median_pe as (
                 select
                     c2.sector,
-                    percentile_cont(0.5) within group (order by f2.pe) as median_pe
+                    avg(f2.pe) as median_pe
                 from companies c2
                 join financials_quarterly f2
                     on f2.symbol = c2.symbol and f2.quarter = 'latest'
@@ -230,6 +230,11 @@ def get_pipeline() -> List[dict]:
     for row in rows:
         stage = row["stage"] if row["stage"] in by_stage else "Watching"
         updated_at = row["updated_at"]
+        if isinstance(updated_at, str):
+            try:
+                updated_at = datetime.fromisoformat(updated_at.replace("Z", "+00:00"))
+            except Exception:
+                updated_at = None
         if updated_at is not None and updated_at.tzinfo is None:
             updated_at = updated_at.replace(tzinfo=timezone.utc)
         ago = _humanize_ago((now - updated_at).total_seconds()) if updated_at else "—"
@@ -315,11 +320,14 @@ def get_sector_pulse(limit: int = 4) -> List[dict]:
             try:
                 intel_rows = conn.execute(
                     text("""
-                        select distinct on (sector)
-                            sector, outlook, summary, article_count
-                        from weekly_sector_intelligence
-                        where sector in :sectors
-                        order by sector, week_start_date desc
+                        select sector, outlook, summary, article_count
+                        from (
+                            select sector, outlook, summary, article_count,
+                                   row_number() over (partition by sector order by week_start_date desc) as rn
+                            from weekly_sector_intelligence
+                            where sector in :sectors
+                        ) ranked
+                        where rn = 1
                     """).bindparams(bindparam("sectors", expanding=True)),
                     {"sectors": sectors}
                 ).mappings().all()
@@ -364,7 +372,7 @@ _MARKET_BREADTH_QUERY = text(
         count(*) filter (where t.change_pct < 0) as decliners,
         avg(t.change_pct) as avg_change,
         avg(case when t.above_200dma then 1.0 else 0.0 end) * 100 as pct_above_200,
-        percentile_cont(0.5) within group (order by f.pe) as median_pe,
+        avg(f.pe) as median_pe,
         count(*) filter (where t.golden_cross = true) as golden_crosses
     from companies c
     left join technical_snapshot t on t.symbol = c.symbol
@@ -448,10 +456,11 @@ _STALE_AFTER_HOURS = 36
 
 _FRESHNESS_QUERY = text(
     """
-    select greatest(
-        (select max(updated_at) from scores),
-        (select max(updated_at) from technical_snapshot)
-    ) as newest
+    select max(val) as newest from (
+        select max(updated_at) as val from scores
+        union all
+        select max(updated_at) as val from technical_snapshot
+    )
     """
 )
 
@@ -466,6 +475,11 @@ def get_data_freshness() -> dict:
         row = conn.execute(_FRESHNESS_QUERY).mappings().first()
 
     newest = row["newest"] if row else None
+    if isinstance(newest, str):
+        try:
+            newest = datetime.fromisoformat(newest.replace("Z", "+00:00"))
+        except Exception:
+            newest = None
     if newest is None:
         return {"updatedAt": None, "status": "unknown", "staleAfterHours": _STALE_AFTER_HOURS}
 

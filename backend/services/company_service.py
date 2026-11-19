@@ -66,20 +66,23 @@ BASE_QUERY = """
     from companies c
     left join financials_quarterly f
         on f.symbol = c.symbol and f.quarter = 'latest'
-    left join lateral (
-        select debt_to_equity
-        from financials_quarterly
-        where symbol = c.symbol and debt_to_equity is not null
-        order by fiscal_year_end desc nulls last
-        limit 1
-    ) de on true
-    left join lateral (
-        select promoter_pct, fii_pct, dii_pct, pledge_pct
-        from shareholding_pattern
-        where symbol = c.symbol
-        order by period_end desc nulls last, quarter desc
-        limit 1
-    ) sh on true
+    left join (
+        select symbol, debt_to_equity
+        from (
+            select symbol, debt_to_equity,
+                   row_number() over (partition by symbol order by fiscal_year_end desc nulls last) as rn
+            from financials_quarterly
+            where debt_to_equity is not null
+        ) where rn = 1
+    ) de on de.symbol = c.symbol
+    left join (
+        select symbol, promoter_pct, fii_pct, dii_pct, pledge_pct
+        from (
+            select symbol, promoter_pct, fii_pct, dii_pct, pledge_pct,
+                   row_number() over (partition by symbol order by period_end desc nulls last, quarter desc) as rn
+            from shareholding_pattern
+        ) where rn = 1
+    ) sh on sh.symbol = c.symbol
     left join technical_snapshot t on t.symbol = c.symbol
     left join scores s on s.symbol = c.symbol
 """
@@ -91,7 +94,7 @@ BASE_QUERY = """
 
 _SPARK_QUERY = text(
     """
-    select symbol, array_agg(close order by date asc) as spark
+    select symbol, close, date
     from (
         select symbol, close, date,
                row_number() over (partition by symbol order by date desc) as rn
@@ -99,16 +102,20 @@ _SPARK_QUERY = text(
         where symbol in :symbols
     ) ranked
     where rn <= :n
-    group by symbol
+    order by symbol, date asc
     """
 ).bindparams(bindparam("symbols", expanding=True))
 
 _LATEST_VOLUME_QUERY = text(
     """
-    select distinct on (symbol) symbol, volume
-    from prices_daily
-    where symbol in :symbols
-    order by symbol, date desc
+    select symbol, volume
+    from (
+        select symbol, volume,
+               row_number() over (partition by symbol order by date desc) as rn
+        from prices_daily
+        where symbol in :symbols
+    ) ranked
+    where rn = 1
     """
 ).bindparams(bindparam("symbols", expanding=True))
 
@@ -162,20 +169,23 @@ def _fetch_sector_avg_pe(conn) -> Dict[str, float]:
 
 _SECTOR_PEER_STATS_QUERY = text(
     """
-    with universe as (
+    with latest_de as (
+        select symbol, debt_to_equity
+        from (
+            select symbol, debt_to_equity,
+                   row_number() over (partition by symbol order by fiscal_year_end desc nulls last) as rn
+            from financials_quarterly
+            where debt_to_equity is not null
+        ) where rn = 1
+    ),
+    universe as (
         select c.symbol, c.sector,
                f.roe_pct, f.roce_pct,
                d.debt_to_equity
         from companies c
         join financials_quarterly f
             on f.symbol = c.symbol and f.quarter = 'latest'
-        left join lateral (
-            select debt_to_equity
-            from financials_quarterly
-            where symbol = c.symbol and debt_to_equity is not null
-            order by fiscal_year_end desc nulls last
-            limit 1
-        ) d on true
+        left join latest_de d on d.symbol = c.symbol
         where c.is_active
     ),
     sector_counts as (
@@ -391,7 +401,10 @@ def _fetch_spark_batch(conn, symbols: List[str], n: int = SPARK_POINTS) -> Dict[
     if not symbols:
         return {}
     rows = conn.execute(_SPARK_QUERY, {"symbols": symbols, "n": n}).mappings().all()
-    return {row["symbol"]: [float(v) for v in row["spark"]] for row in rows}
+    sparks: Dict[str, list] = {}
+    for row in rows:
+        sparks.setdefault(row["symbol"], []).append(float(row["close"]))
+    return sparks
 
 
 def _fetch_latest_volume_batch(conn, symbols: List[str]) -> Dict[str, int]:
@@ -660,13 +673,15 @@ _PEERS_BY_INDUSTRY_QUERY = text(
     from companies c
     left join financials_quarterly f
         on f.symbol = c.symbol and f.quarter = 'latest'
-    left join lateral (
-        select debt_to_equity
-        from financials_quarterly
-        where symbol = c.symbol and debt_to_equity is not null
-        order by fiscal_year_end desc nulls last
-        limit 1
-    ) de on true
+    left join (
+        select symbol, debt_to_equity
+        from (
+            select symbol, debt_to_equity,
+                   row_number() over (partition by symbol order by fiscal_year_end desc nulls last) as rn
+            from financials_quarterly
+            where debt_to_equity is not null
+        ) where rn = 1
+    ) de on de.symbol = c.symbol
     left join technical_snapshot t on t.symbol = c.symbol
     left join scores s on s.symbol = c.symbol
     where c.industry = :industry and c.is_active
@@ -686,13 +701,15 @@ _PEERS_BY_SECTOR_QUERY = text(
     from companies c
     left join financials_quarterly f
         on f.symbol = c.symbol and f.quarter = 'latest'
-    left join lateral (
-        select debt_to_equity
-        from financials_quarterly
-        where symbol = c.symbol and debt_to_equity is not null
-        order by fiscal_year_end desc nulls last
-        limit 1
-    ) de on true
+    left join (
+        select symbol, debt_to_equity
+        from (
+            select symbol, debt_to_equity,
+                   row_number() over (partition by symbol order by fiscal_year_end desc nulls last) as rn
+            from financials_quarterly
+            where debt_to_equity is not null
+        ) where rn = 1
+    ) de on de.symbol = c.symbol
     left join technical_snapshot t on t.symbol = c.symbol
     left join scores s on s.symbol = c.symbol
     where c.sector = :sector and c.is_active
@@ -749,13 +766,15 @@ def get_sector_peers(symbol: str, sector: Optional[str] = None, limit: int = 7) 
                 from companies c
                 left join financials_quarterly f
                     on f.symbol = c.symbol and f.quarter = 'latest'
-                left join lateral (
-                    select debt_to_equity
-                    from financials_quarterly
-                    where symbol = c.symbol and debt_to_equity is not null
-                    order by fiscal_year_end desc nulls last
-                    limit 1
-                ) de on true
+                left join (
+                    select symbol, debt_to_equity
+                    from (
+                        select symbol, debt_to_equity,
+                               row_number() over (partition by symbol order by fiscal_year_end desc nulls last) as rn
+                        from financials_quarterly
+                        where debt_to_equity is not null
+                    ) where rn = 1
+                ) de on de.symbol = c.symbol
                 left join technical_snapshot t on t.symbol = c.symbol
                 left join scores s on s.symbol = c.symbol
                 where c.symbol = :sym

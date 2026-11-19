@@ -70,16 +70,18 @@ def create_pipeline_item(data: PipelineItemCreate) -> dict:
     symbol (checked explicitly for a clean 400 instead of surfacing a raw
     FK-violation error)."""
     now = datetime.now(timezone.utc)
+    import uuid
+    item_id = str(uuid.uuid4())
 
     insert = text(
         f"""
-        insert into pipeline_items (symbol, stage, note, updated_at)
-        values (:symbol, :stage, :note, :updatedAt)
+        insert into pipeline_items (id, symbol, stage, note, updated_at)
+        values (:id, :symbol, :stage, :note, :updatedAt)
         returning {_SELECT_COLUMNS}
         """
     )
 
-    params = {**data.model_dump(), "updatedAt": now}
+    params = {**data.model_dump(), "id": item_id, "updatedAt": now}
 
     with engine.begin() as conn:
         if not _symbol_exists(conn, data.symbol):

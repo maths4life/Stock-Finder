@@ -81,7 +81,7 @@ def get_journal_entries() -> List[dict]:
             j.assumptions, j.risks_accepted, j.target_price, j.expected_return_pct,
             coalesce(
                 j.entry_price,
-                (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= j.created_at::date order by p.date desc limit 1),
+                (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= date(j.created_at) order by p.date desc limit 1),
                 (select t.close from technical_snapshot t where t.symbol = j.symbol limit 1)
             ) as entry_price,
             j.horizon_months, j.confidence_level, j.created_at, j.review_due_at
@@ -113,7 +113,7 @@ def get_journal_entry(entry_id: str) -> Optional[dict]:
             j.assumptions, j.risks_accepted, j.target_price, j.expected_return_pct,
             coalesce(
                 j.entry_price,
-                (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= j.created_at::date order by p.date desc limit 1),
+                (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= date(j.created_at) order by p.date desc limit 1),
                 (select t.close from technical_snapshot t where t.symbol = j.symbol limit 1)
             ) as entry_price,
             j.horizon_months, j.confidence_level, j.created_at, j.review_due_at
@@ -149,8 +149,11 @@ def create_journal_entry(data: JournalEntryCreate) -> dict:
             if price_row and price_row[0] is not None:
                 entry_price = float(price_row[0])
 
+        import uuid
+        entry_id = str(uuid.uuid4())
         params = {
             **data.model_dump(),
+            "id": entry_id,
             "createdAt": now,
             "reviewDueAt": review_due_at,
             "entryPrice": entry_price,
@@ -159,12 +162,12 @@ def create_journal_entry(data: JournalEntryCreate) -> dict:
         try:
             insert = text("""
                 insert into journal_entries (
-                    symbol, title, thesis, fundamental_reasons, technical_reasons,
+                    id, symbol, title, thesis, fundamental_reasons, technical_reasons,
                     sector_reasons, macro_reasons, personal_notes, sell_trigger,
                     assumptions, risks_accepted, target_price, expected_return_pct,
                     entry_price, horizon_months, confidence_level, created_at, review_due_at
                 ) values (
-                    :symbol, :title, :thesis, :fundamentalReasons, :technicalReasons,
+                    :id, :symbol, :title, :thesis, :fundamentalReasons, :technicalReasons,
                     :sectorReasons, :macroReasons, :personalNotes, :sellTrigger,
                     :assumptions, :risksAccepted, :targetPrice, :expectedReturnPct,
                     :entryPrice, :horizonMonths, :confidenceLevel, :createdAt, :reviewDueAt
@@ -175,12 +178,12 @@ def create_journal_entry(data: JournalEntryCreate) -> dict:
             # Fallback if entry_price column is not yet present on table
             fallback_insert = text("""
                 insert into journal_entries (
-                    symbol, title, thesis, fundamental_reasons, technical_reasons,
+                    id, symbol, title, thesis, fundamental_reasons, technical_reasons,
                     sector_reasons, macro_reasons, personal_notes, sell_trigger,
                     assumptions, risks_accepted, target_price, expected_return_pct,
                     horizon_months, confidence_level, created_at, review_due_at
                 ) values (
-                    :symbol, :title, :thesis, :fundamentalReasons, :technicalReasons,
+                    :id, :symbol, :title, :thesis, :fundamentalReasons, :technicalReasons,
                     :sectorReasons, :macroReasons, :personalNotes, :sellTrigger,
                     :assumptions, :risksAccepted, :targetPrice, :expectedReturnPct,
                     :horizonMonths, :confidenceLevel, :createdAt, :reviewDueAt

@@ -121,7 +121,10 @@ def home():
 @app.get("/test-db")
 def test_db():
     with engine.connect() as conn:
-        result = conn.execute(text("SELECT NOW();"))
+        try:
+            result = conn.execute(text("SELECT datetime('now');"))
+        except Exception:
+            result = conn.execute(text("SELECT NOW();"))
         return {"server_time": str(result.scalar())}
 
 
@@ -136,10 +139,10 @@ def sync_universe():
         try:
             conn.execute(text("alter table journal_entries add column if not exists entry_price numeric"))
             conn.execute(text("""
-                update journal_entries j
+                update journal_entries
                 set entry_price = coalesce(
-                    (select p.close from prices_daily p where p.symbol = j.symbol and p.date <= j.created_at::date order by p.date desc limit 1),
-                    (select t.close from technical_snapshot t where t.symbol = j.symbol limit 1)
+                    (select p.close from prices_daily p where p.symbol = journal_entries.symbol and p.date <= date(journal_entries.created_at) order by p.date desc limit 1),
+                    (select t.close from technical_snapshot t where t.symbol = journal_entries.symbol limit 1)
                 )
                 where entry_price is null
             """))

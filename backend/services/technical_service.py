@@ -152,7 +152,7 @@ def get_price_history(symbol: str, range_: str = DEFAULT_RANGE) -> List[dict]:
 
     return [
         PriceBar(
-            date=row["date"].isoformat(),
+            date=row["date"].isoformat() if hasattr(row["date"], "isoformat") else str(row["date"]),
             open=row["open"] or 0.0,
             high=row["high"] or 0.0,
             low=row["low"] or 0.0,

@@ -76,7 +76,7 @@ def _insert_and_dedupe_articles(conn, articles: List[RawArticle], week_start: da
             """
             select id, provider, title, url, summary, published_at
             from news_articles
-            where published_at is null or published_at::date >= :week_start
+            where published_at is null or date(published_at) >= :week_start
             """
         ),
         {"week_start": week_start},
