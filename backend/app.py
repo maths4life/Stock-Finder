@@ -161,6 +161,30 @@ def sync_universe():
     }
 
 
+@app.get("/admin/migrate-to-turso")
+def admin_migrate_to_turso(
+    turso_url: str = None,
+    turso_token: str = None,
+):
+    """Cloud-to-cloud migration trigger: transfers all tables directly from
+    Supabase Postgres into Turso over high-speed datacenter connections,
+    bypassing local ISP port blocks."""
+    import os
+    from scripts.migrate_supabase_to_turso import execute_migration
+
+    target_url = turso_url or os.getenv("TURSO_DATABASE_URL")
+    target_token = turso_token or os.getenv("TURSO_AUTH_TOKEN")
+
+    if not target_url or not target_token:
+        return {
+            "status": "error",
+            "detail": "TURSO_DATABASE_URL and TURSO_AUTH_TOKEN must be provided as query params or environment variables.",
+        }
+
+    report = execute_migration(src_engine=engine, turso_url=target_url, turso_token=target_token)
+    return report
+
+
 @app.get("/healthz")
 def healthz():
     """Structured health check for monitoring and debugging.
