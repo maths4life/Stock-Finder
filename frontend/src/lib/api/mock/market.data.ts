@@ -4,28 +4,28 @@ export const discoverGroupRecords: DiscoverGroup[] = [
   {
     id: "fundamentals",
     label: "Improving Fundamentals",
-    tagline: "Companies where the numbers turned a corner this quarter.",
+    tagline: "Companies reporting quarterly profit and margin growth.",
     layout: "list",
     symbols: ["POLYCAB", "TATAMOTORS", "TRENT"],
   },
   {
     id: "technicals",
     label: "Technical Momentum",
-    tagline: "Clean breakouts and healthy accumulation zones.",
+    tagline: "Stocks trading above key 50 and 200-day moving averages.",
     layout: "grid",
     symbols: ["HAL", "ZOMATO"],
   },
   {
     id: "smallcap",
     label: "Small & Mid Cap Watch",
-    tagline: "Under-covered names with institutional footprints forming.",
+    tagline: "Companies under ₹20,000 Cr market cap with high return ratios.",
     layout: "list",
     symbols: ["TATAELXSI", "PIIND"],
   },
   {
     id: "news",
     label: "In the News",
-    tagline: "Companies moving on real narrative, not noise.",
+    tagline: "Companies with recent corporate announcements and high volume.",
     layout: "list",
     symbols: ["HDFCBANK", "TATAMOTORS"],
   },
@@ -34,7 +34,7 @@ export const discoverGroupRecords: DiscoverGroup[] = [
 export const pipelineRecords: PipelineColumn[] = [
   {
     stage: "Watching",
-    hint: "Something caught your attention",
+    hint: "Initial monitoring",
     items: [
       { symbol: "ZOMATO", note: "Watching Blinkit margin trend", ago: "1d ago" },
       { symbol: "PIIND", note: "Waiting for a technical base", ago: "3d ago" },
@@ -42,12 +42,12 @@ export const pipelineRecords: PipelineColumn[] = [
   },
   {
     stage: "Researching",
-    hint: "Building the thesis",
+    hint: "Active research",
     items: [{ symbol: "POLYCAB", note: "Building thesis on FMEG scale", ago: "2h ago" }],
   },
   {
     stage: "Conviction",
-    hint: "Ready to hold for 6–12 months",
+    hint: "High conviction picks",
     items: [
       { symbol: "TRENT", note: "Thesis: Westside scalability", ago: "5d ago" },
       { symbol: "HAL", note: "Thesis: Defence CAPEX cycle", ago: "1w ago" },

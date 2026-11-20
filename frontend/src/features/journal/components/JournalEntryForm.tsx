@@ -578,7 +578,7 @@ export function JournalEntryForm({
               >
                 <span className="flex items-center gap-1.5">
                   <ShieldAlert className="size-3.5 text-accent" />
-                  Pre-Mortem & Sell Triggers
+                  Exit Triggers & Sell Conditions
                 </span>
                 {showPreMortem ? (
                   <ChevronUp className="size-4 text-ink-subtle" />

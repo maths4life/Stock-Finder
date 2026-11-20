@@ -28,15 +28,15 @@ export const Route = createFileRoute("/")({
       .catch(() => null),
   head: () => ({
     meta: [
-      { title: "Today's Shortlist — Stock Finder" },
+      { title: "Market Highlights — Stock Finder" },
       {
         name: "description",
-        content: "The Indian companies worth your time today, grouped by why they matter.",
+        content: "Daily Indian stock lists grouped by fundamental growth, valuation, and technical momentum.",
       },
-      { property: "og:title", content: "Today's Shortlist — Stock Finder" },
+      { property: "og:title", content: "Market Highlights — Stock Finder" },
       {
         property: "og:description",
-        content: "A daily shortlist of Indian equities worth a second look, and why.",
+        content: "Indian stocks grouped by fundamental filters, margin expansion, and technical trends.",
       },
     ],
   }),
@@ -64,10 +64,10 @@ function Discover() {
           <div>
             <p className="text-eyebrow text-accent mb-3">{formatToday()}</p>
             <h1 className="text-heading-xl md:text-display text-balance max-w-[26ch]">
-              Today's shortlist
+              Market Highlights
             </h1>
             <p className="mt-3 text-base text-ink-muted max-w-lg leading-relaxed">
-              Indian equities worth a second look today, grouped by why they qualify.
+              Indian stocks categorized by fundamental strength, earnings growth, and technical momentum.
             </p>
           </div>
         </header>

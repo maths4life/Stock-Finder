@@ -79,14 +79,14 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
       {
         name: "description",
         content:
-          "A calm, editorial research desk for Indian equities. Find companies worth studying, build conviction, and keep a record of every thesis.",
+          "Stock screener and equity research tool for Indian markets. Filter companies by fundamentals, track market trends, and maintain investment notes.",
       },
       { name: "author", content: "Stock Finder" },
       { property: "og:title", content: "Stock Finder — Equity Research for India" },
       {
         property: "og:description",
         content:
-          "Discover, research, and hold high-conviction Indian equities for the next 6–12 months.",
+          "Screen Indian equities by fundamental ratios, earnings growth, and technical price trends.",
       },
       { property: "og:type", content: "website" },
       { name: "twitter:card", content: "summary_large_image" },

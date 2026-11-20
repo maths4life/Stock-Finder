@@ -48,7 +48,7 @@ export const Route = createFileRoute("/ideas")({
       { title: "Ideas — Stock Finder" },
       {
         name: "description",
-        content: "Watching, researching, conviction. Every idea in one board.",
+        content: "Track and organize stock ideas across watchlist stages.",
       },
     ],
   }),
@@ -58,9 +58,9 @@ export const Route = createFileRoute("/ideas")({
 const STAGES: PipelineStage[] = ["Watching", "Researching", "Conviction"];
 
 const stageHint: Record<PipelineStage, { hint: string; color: string }> = {
-  Watching: { hint: "Something caught your attention", color: "bg-hairline-strong" },
-  Researching: { hint: "Building the thesis", color: "bg-[oklch(0.65_0.14_75)]" },
-  Conviction: { hint: "Ready to hold for 6–12 months", color: "bg-positive" },
+  Watching: { hint: "Initial monitoring", color: "bg-hairline-strong" },
+  Researching: { hint: "Active research", color: "bg-[oklch(0.65_0.14_75)]" },
+  Conviction: { hint: "High conviction", color: "bg-positive" },
 };
 
 function Ideas() {
@@ -98,9 +98,9 @@ function Ideas() {
     <AppShell>
       <div className="page-container py-12 pb-24">
         <PageHeader
-          eyebrow="Ideas board"
-          title="Every idea in one place, moving forward."
-          description="Watchlist and journal, merged. Track meaningful change, not price ticks."
+          eyebrow="Watchlist"
+          title="Ideas Pipeline"
+          description="Track saved stocks through discovery, active research, and conviction stages."
           className="mb-12"
         />
 

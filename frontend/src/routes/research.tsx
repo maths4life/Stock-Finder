@@ -93,8 +93,9 @@ function ResearchIndex() {
     <AppShell>
       <div className="page-container py-12 pb-24">
         <PageHeader
-          eyebrow="Research library"
-          title="Every company, one clean page."
+          eyebrow="Research"
+          title="Company Profiles"
+          description="Browse financial statements, valuation metrics, and technical snapshots for all covered stocks."
           className="mb-10"
         />
 

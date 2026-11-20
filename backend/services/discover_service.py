@@ -37,8 +37,8 @@ from schemas.discover import DiscoverGroup, MarketIndicator, PipelineColumn, Pip
 _GROUP_DEFS = [
     {
         "id": "qarp",
-        "label": "Quality at a Reasonable Price",
-        "tagline": "Quality market leaders trading below sector median valuation with healthy macro trend.",
+        "label": "High ROE at Low Valuation",
+        "tagline": "Companies with ROE above 15% trading below their sector's median P/E and above 200-DMA.",
         "layout": "list",
         "limit": 3,
         "query": text(
@@ -72,8 +72,8 @@ _GROUP_DEFS = [
     },
     {
         "id": "profit_acceleration",
-        "label": "Margin Expansion",
-        "tagline": "Profit growing faster than revenue — improving business profitability for the next 2–4 quarters.",
+        "label": "Profit Growth Outpacing Revenue",
+        "tagline": "Companies where quarterly net profit growth exceeds sales growth by more than 12%.",
         "layout": "list",
         "limit": 3,
         "query": text(
@@ -97,8 +97,8 @@ _GROUP_DEFS = [
     },
     {
         "id": "momentum_recovery",
-        "label": "Trend & Momentum Leaders",
-        "tagline": "Sustained momentum holding above key 50 & 200-day moving averages with constructive RSI.",
+        "label": "Strong Price Uptrend",
+        "tagline": "Stocks trading above both 50-DMA and 200-DMA with RSI between 52 and 68.",
         "layout": "grid",
         "limit": 3,
         "query": text(
@@ -119,8 +119,8 @@ _GROUP_DEFS = [
     },
     {
         "id": "quality_pullback",
-        "label": "Quality on Pullback",
-        "tagline": "High-conviction compounders in macro uptrends pulling back to lower-risk entry zones.",
+        "label": "Strong Fundamentals on Pullback",
+        "tagline": "Companies with fundamental score 65+ in an uptrend currently pulling back (RSI 40–55).",
         "layout": "list",
         "limit": 3,
         "query": text(
@@ -189,9 +189,9 @@ def get_discover_groups() -> List[dict]:
 # ---------------------------------------------------------------------------
 
 _STAGE_HINTS = {
-    "Watching": "Something caught your attention",
-    "Researching": "Building the thesis",
-    "Conviction": "Ready to hold for 6–12 months",
+    "Watching": "Initial monitoring",
+    "Researching": "Active research",
+    "Conviction": "High conviction",
 }
 _STAGE_ORDER = ["Watching", "Researching", "Conviction"]
 

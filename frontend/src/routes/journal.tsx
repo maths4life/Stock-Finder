@@ -68,7 +68,7 @@ export const Route = createFileRoute("/journal")({
   head: () => ({
     meta: [
       { title: "Journal — Stock Finder" },
-      { name: "description", content: "Record every thesis. Review, learn, compound." },
+      { name: "description", content: "Record investment theses, target valuations, and sell triggers for your portfolio." },
     ],
   }),
   component: Journal,
@@ -329,10 +329,10 @@ function Journal() {
               <span>Investment Thesis Journal</span>
             </div>
             <h1 className="text-display-sm sm:text-display-md font-bold text-ink tracking-tight">
-              Document your edge. Review & compound.
+              Investment Notes & Theses
             </h1>
             <p className="text-sm text-ink-muted mt-2 max-w-2xl leading-relaxed">
-              Track your hypotheses, target valuations, and pre-mortems. When market noise tests your discipline, reviewing your original thesis keeps you rational.
+              Record your buying reason, target price, and downside risks for each stock, and review them over time.
             </p>
           </div>
 
@@ -1113,7 +1113,7 @@ function Journal() {
                           <div className="space-y-3">
                             <p className="text-[11px] font-mono uppercase tracking-wider text-ink-subtle font-semibold flex items-center gap-1.5">
                               <ShieldAlert className="size-3.5 text-accent" />
-                              Pre-Mortem & Discipline Rules
+                              Exit Triggers & Sell Rules
                             </p>
                             <div className="p-5 rounded-xl ring-1 ring-accent/30 bg-accent/5 space-y-4">
                               {activeEntry.sellTrigger && (

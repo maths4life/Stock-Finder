@@ -106,27 +106,27 @@ const DEFAULT_FILTERS: FilterState = {
 const PRESETS: { id: string; label: string; filters: Partial<FilterState> }[] = [
   {
     id: "coffee-can",
-    label: "☕ Coffee Can Compounders",
+    label: "☕ High ROCE (>20%) & Low Debt",
     filters: { minRoce: 20, minRevenueGrowth: 12, maxDebtToEquity: 0.5, excludeFinancialsFromDe: true },
   },
   {
     id: "zero-pledge",
-    label: "🛡️ Zero Pledge & Clean Sheet",
+    label: "🛡️ Clean Sheet (Debt/Eq < 0.3, Zero Pledge)",
     filters: { maxDebtToEquity: 0.3, minPromoterHolding: 50, maxPledgePct: 5, excludeFinancialsFromDe: true },
   },
   {
     id: "bull-momentum",
-    label: "🚀 Bull Momentum",
+    label: "🚀 Price & Volume Breakout",
     filters: { aboveEma200: true, aboveEma50: true, volumeBreakout: true },
   },
   {
     id: "banking-leaders",
-    label: "🏦 Banking & NBFC Leaders",
+    label: "🏦 Financials (ROE > 15%, P/E < 25)",
     filters: { sector: "Financial Services", minRoe: 15, maxPe: 25 },
   },
   {
     id: "quality-value",
-    label: "💎 Quality at Fair Value",
+    label: "💎 High ROE (>18%) at Reasonable P/E (<32)",
     filters: { minRoe: 18, maxPe: 32, maxDebtToEquity: 0.8, excludeFinancialsFromDe: true },
   },
   { id: "largecap", label: "Large Cap (>₹20k Cr)", filters: { minMarketCap: 20000 } },
@@ -403,8 +403,8 @@ function Screener() {
       <div className="page-container py-12 pb-24">
         <PageHeader
           eyebrow="Screener"
-          title="Set your criteria. See only what qualifies."
-          description="No lists of hundreds. High-conviction names, ranked by a transparent score — not a black box."
+          title="Stock Screener"
+          description="Filter Indian stocks by valuation multiples, profit growth, return on equity, and technical moving averages."
           className="mb-3"
         />
         <DataFreshness className="mb-8" />
