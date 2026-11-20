@@ -27,25 +27,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               to="/"
               className="flex items-center gap-2.5 font-semibold text-[15px] tracking-tight leading-none text-ink group"
             >
-              <div className="size-7 rounded-lg bg-accent/15 ring-1 ring-accent/30 grid place-items-center text-accent group-hover:scale-105 transition-transform">
-                <svg viewBox="0 0 24 24" className="size-4 shrink-0" aria-hidden="true">
-                  <path
-                    d="M3 17L9 11L13 15L21 7"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                  <path
-                    d="M16 7H21V12"
-                    stroke="currentColor"
-                    strokeWidth="2.2"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    fill="none"
-                  />
-                </svg>
+              <div className="size-7 rounded-lg bg-emerald-500/10 ring-1 ring-emerald-500/20 grid place-items-center group-hover:scale-105 transition-transform overflow-hidden">
+                <img src="/favicon-32x32.png" alt="Stock Finder" className="size-5 object-contain" />
               </div>
               <span className="font-semibold tracking-tight text-[15px]">Stock Finder</span>
             </Link>
