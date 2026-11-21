@@ -15,6 +15,7 @@ Scalability notes (see API_CONTRACT.md for the full review):
   since Module 4 and Module 9 will reuse them.
 """
 from typing import Dict, List, Optional
+from datetime import datetime, timedelta, timezone
 from decimal import Decimal
 
 from sqlalchemy import bindparam, text
@@ -100,6 +101,7 @@ _SPARK_QUERY = text(
                row_number() over (partition by symbol order by date desc) as rn
         from prices_daily
         where symbol in :symbols
+          and date >= :cutoff_date
     ) ranked
     where rn <= :n
     order by symbol, date asc
@@ -114,6 +116,7 @@ _LATEST_VOLUME_QUERY = text(
                row_number() over (partition by symbol order by date desc) as rn
         from prices_daily
         where symbol in :symbols
+          and date >= :cutoff_date
     ) ranked
     where rn = 1
     """
@@ -400,7 +403,8 @@ def _compute_earnings_quality(conn, symbol: str) -> Optional[Dict]:
 def _fetch_spark_batch(conn, symbols: List[str], n: int = SPARK_POINTS) -> Dict[str, list]:
     if not symbols:
         return {}
-    rows = conn.execute(_SPARK_QUERY, {"symbols": symbols, "n": n}).mappings().all()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=90)).strftime("%Y-%m-%d")
+    rows = conn.execute(_SPARK_QUERY, {"symbols": symbols, "n": n, "cutoff_date": cutoff}).mappings().all()
     sparks: Dict[str, list] = {}
     for row in rows:
         sparks.setdefault(row["symbol"], []).append(float(row["close"]))
@@ -410,7 +414,8 @@ def _fetch_spark_batch(conn, symbols: List[str], n: int = SPARK_POINTS) -> Dict[
 def _fetch_latest_volume_batch(conn, symbols: List[str]) -> Dict[str, int]:
     if not symbols:
         return {}
-    rows = conn.execute(_LATEST_VOLUME_QUERY, {"symbols": symbols}).mappings().all()
+    cutoff = (datetime.now(timezone.utc) - timedelta(days=30)).strftime("%Y-%m-%d")
+    rows = conn.execute(_LATEST_VOLUME_QUERY, {"symbols": symbols, "cutoff_date": cutoff}).mappings().all()
     return {row["symbol"]: int(row["volume"]) for row in rows if row["volume"] is not None}
 
 
