@@ -27,8 +27,8 @@ export function AppShell({ children }: { children: ReactNode }) {
               to="/"
               className="flex items-center gap-2.5 font-semibold text-[15px] tracking-tight leading-none text-ink group"
             >
-              <div className="size-7 rounded-lg bg-emerald-500/10 ring-1 ring-emerald-500/20 grid place-items-center group-hover:scale-105 transition-transform overflow-hidden">
-                <img src="/favicon-32x32.png" alt="Stock Finder" className="size-5 object-contain" />
+              <div className="size-7 rounded-lg bg-surface-raised ring-1 ring-hairline grid place-items-center group-hover:scale-105 transition-transform overflow-hidden p-1">
+                <img src="/favicon.svg" alt="Stock Finder" className="size-full object-contain" />
               </div>
               <span className="font-semibold tracking-tight text-[15px]">Stock Finder</span>
             </Link>
